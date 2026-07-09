@@ -175,6 +175,65 @@ footer { display: none !important; }
   font-size: 0.65rem !important;
   line-height: 1.1 !important;
 }
+/* Column-1 sub-nav: CONTROLS | REFERENCES */
+#col1-tabs {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#col1-tabs > .tab-nav,
+#col1-tabs .tab-nav {
+  display: flex !important;
+  gap: 0.35rem !important;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2) !important;
+  margin: 0 0 0.35rem 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+#col1-tabs .tab-nav button,
+#col1-tabs .tab-nav button span {
+  color: #64748b !important;
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  padding: 0.25rem 0.45rem !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  min-width: auto !important;
+}
+#col1-tabs .tab-nav button.selected,
+#col1-tabs .tab-nav button[aria-selected="true"] {
+  color: #e0f2fe !important;
+  border-bottom-color: #38bdf8 !important;
+  background: transparent !important;
+}
+#col1-tabs .tabitem,
+#col1-tabs > div:not(.tab-nav) {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  padding: 0 !important;
+  border: none !important;
+}
+#panel-refs {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.35rem !important;
+  min-height: 0 !important;
+}
+#panel-refs img,
+#panel-refs .image-container {
+  width: 100% !important;
+  max-height: none !important;
+  object-fit: contain !important;
+}
 #controls label, #controls span, #controls p {
   color: #94a3b8 !important;
   font-size: 0.68rem !important;
@@ -638,109 +697,137 @@ def build_app() -> gr.Blocks:
 
         # ---- Workspace (single page, multi-column) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Column 1 — compact collapsed accordions + Seed Status fills rest
+            # Column 1 — CONTROLS | REFERENCES tabs
             with gr.Column(
                 scale=2, min_width=200, elem_classes=["layer-inner"], elem_id="controls"
             ):
-                with gr.Column(elem_id="controls-top"):
-                    gr.Markdown('<p class="viewport-title">Controls</p>')
-                    # Startup layout (matches preferred Demo view):
-                    # Demo nav active · Matrix slice open · others collapsed
-                    with gr.Accordion(
-                        "Payload & identity", open=False, elem_classes=["layer-fg"]
-                    ):
-                        payload = gr.Textbox(
-                            value="Hello from the shell",
-                            label="Payload",
-                            lines=1,
-                            max_lines=1,
+                with gr.Tabs(elem_id="col1-tabs", selected=0) as col1_tabs:
+                    with gr.Tab("CONTROLS", id=0):
+                        with gr.Column(elem_id="controls-top"):
+                            # Startup: Matrix slice open · others collapsed
+                            with gr.Accordion(
+                                "Payload & identity",
+                                open=False,
+                                elem_classes=["layer-fg"],
+                            ):
+                                payload = gr.Textbox(
+                                    value="Hello from the shell",
+                                    label="Payload",
+                                    lines=1,
+                                    max_lines=1,
+                                )
+                                seed = gr.Number(
+                                    value=42, label="Seed", precision=0
+                                )
+                            with gr.Accordion(
+                                "Channel", open=False, elem_classes=["layer-fg"]
+                            ):
+                                turbulence = gr.Slider(
+                                    0.0,
+                                    0.8,
+                                    value=0.25,
+                                    step=0.05,
+                                    label="Turbulence",
+                                )
+                                n_steps = gr.Slider(
+                                    4, 32, value=12, step=1, label="Channel steps"
+                                )
+                            with gr.Accordion(
+                                "Shell / lattice",
+                                open=False,
+                                elem_classes=["layer-fg"],
+                            ):
+                                use_tpt = gr.Radio(
+                                    choices=["On", "Off"],
+                                    value="On",
+                                    label="TPT closure",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                                build_3d = gr.Radio(
+                                    choices=["On", "Off"],
+                                    value="On",
+                                    label="3D shell",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                                force_stub = gr.Radio(
+                                    choices=["On", "Off"],
+                                    value="On",
+                                    label="Fast stub lattice",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                            with gr.Accordion(
+                                "Matrix slice",
+                                open=True,
+                                elem_classes=["layer-fg"],
+                            ):
+                                show_slice = gr.Radio(
+                                    choices=["On", "Off"],
+                                    value="On",
+                                    label="Show green slice",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                                slice_plane = gr.Radio(
+                                    choices=["x", "y", "z"],
+                                    value="z",
+                                    label="Slice plane",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                                slice_frac = gr.Slider(
+                                    0.0,
+                                    1.0,
+                                    value=1.0,
+                                    step=0.02,
+                                    label="Slice position",
+                                )
+                                scan_frames = gr.Slider(
+                                    8,
+                                    24,
+                                    value=24,
+                                    step=1,
+                                    label="Scan frames",
+                                )
+                                scan_ping = gr.Radio(
+                                    choices=["On", "Off"],
+                                    value="On",
+                                    label="Ping-pong scan (can look bouncy)",
+                                    type="value",
+                                    elem_classes=["oval-toggle"],
+                                )
+                                scan_btn = gr.Button(
+                                    "▶ Play matrix scan",
+                                    size="sm",
+                                    elem_id="scan-btn",
+                                )
+                            run_btn = gr.Button(
+                                "Build · Propagate · Recover",
+                                elem_id="run-btn",
+                                size="sm",
+                            )
+                        status = gr.Markdown(
+                            "### Seed status\n_Run **Build** to fill this panel._",
+                            elem_id="status-md",
+                            elem_classes=["layer-fg"],
                         )
-                        seed = gr.Number(value=42, label="Seed", precision=0)
-                    with gr.Accordion("Channel", open=False, elem_classes=["layer-fg"]):
-                        turbulence = gr.Slider(
-                            0.0, 0.8, value=0.25, step=0.05, label="Turbulence"
-                        )
-                        n_steps = gr.Slider(
-                            4, 32, value=12, step=1, label="Channel steps"
-                        )
-                    with gr.Accordion(
-                        "Shell / lattice", open=False, elem_classes=["layer-fg"]
-                    ):
-                        # Global oval toggles (On/Off radios)
-                        use_tpt = gr.Radio(
-                            choices=["On", "Off"],
-                            value="On",
-                            label="TPT closure",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                        build_3d = gr.Radio(
-                            choices=["On", "Off"],
-                            value="On",
-                            label="3D shell",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                        force_stub = gr.Radio(
-                            choices=["On", "Off"],
-                            value="On",
-                            label="Fast stub lattice",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                    with gr.Accordion(
-                        "Matrix slice", open=True, elem_classes=["layer-fg"]
-                    ):
-                        show_slice = gr.Radio(
-                            choices=["On", "Off"],
-                            value="On",
-                            label="Show green slice",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                        slice_plane = gr.Radio(
-                            choices=["x", "y", "z"],
-                            value="z",
-                            label="Slice plane",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                        slice_frac = gr.Slider(
-                            0.0,
-                            1.0,
-                            value=1.0,
-                            step=0.02,
-                            label="Slice position",
-                        )
-                        scan_frames = gr.Slider(
-                            8,
-                            24,
-                            value=24,
-                            step=1,
-                            label="Scan frames",
-                        )
-                        scan_ping = gr.Radio(
-                            choices=["On", "Off"],
-                            value="On",
-                            label="Ping-pong scan (can look bouncy)",
-                            type="value",
-                            elem_classes=["oval-toggle"],
-                        )
-                        scan_btn = gr.Button(
-                            "▶ Play matrix scan",
-                            size="sm",
-                            elem_id="scan-btn",
-                        )
-                    run_btn = gr.Button(
-                        "Build · Propagate · Recover",
-                        elem_id="run-btn",
-                        size="sm",
-                    )
-                status = gr.Markdown(
-                    "### Seed status\n_Run **Build** to fill this panel._",
-                    elem_id="status-md",
-                    elem_classes=["layer-fg"],
-                )
+                    with gr.Tab("REFERENCES", id=1):
+                        with gr.Column(elem_id="panel-refs"):
+                            gr.Markdown(
+                                '<p class="viewport-title">Trajectoid gallery</p>'
+                            )
+                            hero_img = gr.Image(
+                                value=hero,
+                                label=None,
+                                show_label=False,
+                                height=420,
+                                elem_classes=["layer-fg"],
+                            )
+                            gr.Markdown(
+                                '<p id="hero-caption">Trajectoid shapes + theory/experiment paths · used as HF Space visual language</p>',
+                            )
 
             # Column 2 — primary viewports (scrollable)
             with gr.Column(
@@ -783,38 +870,24 @@ def build_app() -> gr.Blocks:
                             height=220,
                         )
 
-            # Column 3 — path + metrics + reference (scrollable)
+            # Column 3 — path + scorecard (gallery moved to col-1 REFERENCES)
             with gr.Column(
                 scale=3, min_width=240, elem_classes=["layer-inner"], elem_id="col-right"
             ):
-                with gr.Row(equal_height=True):
-                    with gr.Column(scale=2):
-                        gr.Markdown('<p class="viewport-title">Rolling path (Nature-style)</p>')
-                        img_path = gr.Image(
-                            value=blank_rgb(400, 220),
-                            label=None,
-                            show_label=False,
-                            height=300,
-                        )
-                    with gr.Column(scale=3):
-                        gr.Markdown('<p class="viewport-title">Scorecard</p>')
-                        img_metrics = gr.Image(
-                            value=blank_rgb(260, 360),
-                            label=None,
-                            show_label=False,
-                            height=160,
-                        )
-                        gr.Markdown('<p class="viewport-title">Reference · trajectoid gallery</p>')
-                        hero_img = gr.Image(
-                            value=hero,
-                            label=None,
-                            show_label=False,
-                            height=160,
-                            elem_classes=["layer-fg"],
-                        )
-                        gr.Markdown(
-                            '<p id="hero-caption">Trajectoid shapes + theory/experiment paths · used as HF Space visual language</p>',
-                        )
+                gr.Markdown('<p class="viewport-title">Rolling path (Nature-style)</p>')
+                img_path = gr.Image(
+                    value=blank_rgb(400, 220),
+                    label=None,
+                    show_label=False,
+                    height=300,
+                )
+                gr.Markdown('<p class="viewport-title">Scorecard</p>')
+                img_metrics = gr.Image(
+                    value=blank_rgb(260, 360),
+                    label=None,
+                    show_label=False,
+                    height=220,
+                )
 
         # Hidden reference / about swap targets (still one page — toggle visibility via content)
         ref_panel = gr.Image(
@@ -861,16 +934,16 @@ def build_app() -> gr.Blocks:
         )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
-            # Swap center hero: show construction figure in shell viewport caption via status
+            # Open col-1 REFERENCES tab + construction figure
             ref = asset_path("shell_construction.png")
             hero_p = asset_path("trajectoid_paths.png")
             md = (
                 "### Reference figures\n"
-                "**(top)** Trajectoid polyhedra + rolling paths (theory black / experiment blue).\n\n"
+                "**(gallery)** Trajectoid polyhedra + rolling paths "
+                "(theory black / experiment blue).\n\n"
                 "**(construction)** Inclined path T, potential surface, shell/core/remnant "
                 "with shaved region — the geometric language of Photon Seed Asteroids.\n"
             )
-            # Keep plots; update hero + status
             return (
                 shell_img,
                 radial_img,
@@ -880,6 +953,7 @@ def build_app() -> gr.Blocks:
                 trace_img,
                 md,
                 gr.update(value=ref or hero_p),
+                gr.update(selected=1),  # REFERENCES tab
             )
 
         def show_about(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
@@ -892,22 +966,23 @@ def build_app() -> gr.Blocks:
                 trace_img,
                 ABOUT_HTML,
                 gr.update(value=asset_path("trajectoid_paths.png")),
+                gr.update(selected=0),  # CONTROLS tab
             )
 
         btn_ref.click(
             fn=show_ref,
             inputs=outs,
-            outputs=outs + [hero_img],
+            outputs=outs + [hero_img, col1_tabs],
         )
         btn_about.click(
             fn=show_about,
             inputs=outs,
-            outputs=outs + [hero_img],
+            outputs=outs + [hero_img, col1_tabs],
         )
         btn_demo.click(
-            fn=lambda *a: a[-1],  # no-op keep
+            fn=lambda *a: (a[-1], gr.update(selected=0)),
             inputs=outs,
-            outputs=[status],
+            outputs=[status, col1_tabs],
         )
 
         # Auto-run once on load for immediate visual
