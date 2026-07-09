@@ -22,6 +22,7 @@ from demo_core import (
     ASSETS,
     GITHUB,
     HF_SPACE,
+    animate_matrix_scan,
     asset_path,
     blank_rgb,
     replot_shell_only,
@@ -224,6 +225,14 @@ footer { display: none !important; }
   padding: 0.25rem 0.5rem !important;
   margin: 0.15rem 0 0 0 !important;
 }
+#scan-btn {
+  background: rgba(0, 255, 0, 0.12) !important;
+  color: #86efac !important;
+  border: 1px solid rgba(0, 255, 0, 0.45) !important;
+  font-size: 0.72rem !important;
+  min-height: 1.6rem !important;
+  margin-top: 0.15rem !important;
+}
 /* Seed status takes remaining column height */
 #status-md {
   flex: 1 1 auto !important;
@@ -338,6 +347,19 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
     )
 
 
+def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
+    """Axial green-plane scan through fixed shell → animated GIF in shell viewport."""
+    gif_path, last_frame, msg = animate_matrix_scan(
+        shell,
+        slice_plane=str(slice_plane or "z"),
+        n_frames=int(n_frames) if n_frames is not None else 24,
+        ping_pong=bool(ping_pong),
+    )
+    # Prefer GIF path for Gradio autoplay; fall back to last still
+    display = gif_path if gif_path else last_frame
+    return display, msg
+
+
 def build_app() -> gr.Blocks:
     hero = asset_path("trajectoid_paths.png")
 
@@ -414,6 +436,21 @@ def build_app() -> gr.Blocks:
                             value=0.5,
                             step=0.02,
                             label="Slice position",
+                        )
+                        scan_frames = gr.Slider(
+                            8,
+                            36,
+                            value=20,
+                            step=1,
+                            label="Scan frames",
+                        )
+                        scan_ping = gr.Checkbox(
+                            value=True, label="Ping-pong scan"
+                        )
+                        scan_btn = gr.Button(
+                            "▶ Play matrix scan",
+                            size="sm",
+                            elem_id="scan-btn",
                         )
                     run_btn = gr.Button(
                         "Build · Propagate · Recover",
@@ -536,6 +573,13 @@ def build_app() -> gr.Blocks:
                 inputs=slice_inputs,
                 outputs=[img_shell],
             )
+
+        # Axial scan animation (fixed shell, green plane marches)
+        scan_btn.click(
+            fn=play_scan_ui,
+            inputs=[shell_state, slice_plane, scan_frames, scan_ping],
+            outputs=[img_shell, status],
+        )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
             # Swap center hero: show construction figure in shell viewport caption via status

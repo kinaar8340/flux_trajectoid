@@ -446,3 +446,70 @@ def replot_shell_only(
         )
     except Exception:
         return blank_rgb(300, 360)
+
+
+def animate_matrix_scan(
+    shell,
+    *,
+    slice_plane: str = "z",
+    n_frames: int = 24,
+    ping_pong: bool = True,
+    duration_ms: int = 70,
+    out_dir: Path | None = None,
+) -> tuple[str | None, np.ndarray, str]:
+    """
+    Axial matrix-green scan: fixed 3D shell, green plane marches 0→1 (optional ping-pong).
+
+    Returns (gif_path, last_frame_rgb, status_message).
+    """
+    if shell is None:
+        return None, blank_rgb(300, 360), "### Scan\n_No shell yet — run **Build** first._"
+
+    plane = str(slice_plane or "z").lower()
+    if plane not in ("x", "y", "z"):
+        plane = "z"
+    n_frames = int(np.clip(n_frames, 8, 48))
+    duration_ms = int(np.clip(duration_ms, 40, 200))
+
+    fracs = np.linspace(0.0, 1.0, n_frames)
+    if ping_pong:
+        fracs = np.concatenate([fracs, fracs[-2:0:-1]])
+
+    frames_rgb: list[np.ndarray] = []
+    for f in fracs:
+        frames_rgb.append(
+            plot_shell_3d(
+                shell,
+                slice_frac=float(f),
+                slice_plane=plane,
+                show_slice=True,
+            )
+        )
+
+    last = frames_rgb[-1] if frames_rgb else blank_rgb(300, 360)
+
+    try:
+        from PIL import Image
+    except ImportError:
+        return None, last, "### Scan\n_Pillow required for GIF export (`pip install pillow`)._"
+
+    out_dir = out_dir or (ROOT / "outputs" / "space_anim")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    gif_path = out_dir / f"matrix_scan_{plane}.gif"
+
+    pil_frames = [Image.fromarray(rgb) for rgb in frames_rgb]
+    pil_frames[0].save(
+        gif_path,
+        save_all=True,
+        append_images=pil_frames[1:],
+        duration=duration_ms,
+        loop=0,
+        optimize=False,
+    )
+    msg = (
+        f"### Matrix scan\n"
+        f"Plane **{plane}** · {len(frames_rgb)} frames · "
+        f"{'ping-pong' if ping_pong else 'one-way'} · "
+        f"`{gif_path.name}`"
+    )
+    return str(gif_path), last, msg
