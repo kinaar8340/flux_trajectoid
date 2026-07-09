@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flux-trajectoid"
-version = "0.1.0"
+version = "0.1.1"
 description = "Photon Seed Asteroids — Trajectoid shells + VQC quaternion + oam_flux helical lattice for robust photonic data carriers"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+oam = []  # live oam_flux via submodule external/oam_flux (see README)
 
 [project.urls]
 Homepage = "https://github.com/kinaar8340/flux_trajectoid"
@@ -29,4 +30,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "external/oam_flux/src"]

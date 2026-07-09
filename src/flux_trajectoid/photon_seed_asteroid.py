@@ -44,12 +44,18 @@ class PhotonSeedAsteroid:
         lattice_nx: int = 16,
         flywheel_sites: int = 4,
         use_tpt: bool = True,
+        force_stub_flux: bool = False,
+        n_coupling_steps: int = 16,
         **shell_kwargs,
     ) -> PhotonSeedAsteroid:
         """Assemble outer shell + inner VQC encoding + oam_flux coupling.
 
         Shell generation uses real trajectoid rolling constraints (path
         scaling + SO(3) mismatch + optional two-period TPT closure).
+
+        Inner coupling prefers the live ``oam_flux`` submodule
+        (``TwistLattice`` + VQC multi-ℓ deposition); set
+        ``force_stub_flux=True`` to force the numpy stub.
         """
         self.shell = generate_shell(
             self.payload,
@@ -64,6 +70,8 @@ class PhotonSeedAsteroid:
             lattice_nx=lattice_nx,
             flywheel_sites=flywheel_sites,
             seed=self.seed,
+            n_steps=n_coupling_steps,
+            force_stub=force_stub_flux,
         )
         return self
 
@@ -103,6 +111,9 @@ class PhotonSeedAsteroid:
         if self.flux_state is not None:
             out["deposited_momentum"] = self.flux_state.deposited_momentum
             out["mean_twist"] = self.flux_state.metadata.get("mean_twist")
+            out["flux_backend"] = self.flux_state.backend
+            out["momentum_ledger"] = self.flux_state.metadata.get("momentum_ledger")
+            out["oam_flux_version"] = self.flux_state.metadata.get("oam_flux_version")
         if self._propagation is not None:
             out["fidelity_proxy"] = self._propagation.fidelity_proxy
             out["turbulence_level"] = self._propagation.turbulence_level

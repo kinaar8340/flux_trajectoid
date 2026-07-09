@@ -128,15 +128,15 @@ def propagate_asteroid(
     else:
         field = np.ones((64, 64), dtype=complex)
 
-    theta = flux.lattice_theta.copy()
-    theta0 = flux.lattice_theta0.copy()
     I0 = float(np.sum(np.abs(field) ** 2)) + 1e-12
 
     mean_twist_trace: list[float] = []
     intensity_trace: list[float] = []
     phase_rms: list[float] = []
 
-    recovery_alpha = lattice_memory * (1.0 - np.exp(-1.0 / 25.0))
+    from ..inner.oam_flux_coupling import relax_lattice_steps
+
+    use_live_lattice = flux.lattice is not None and hasattr(flux.lattice, "relax_step")
 
     for step in range(n_steps):
         # Turbulent phase screen + tip/tilt jitter
@@ -165,18 +165,20 @@ def propagate_asteroid(
             suppress = np.exp(-0.05 * trench)
             field = field * suppress * np.exp(1j * 0.15 * phase)
 
-        # Lattice medium evolution
-        external = turbulence_level * 0.01 * rng.normal(size=theta.shape)
-        theta = _lattice_relax_step(
-            theta + external,
-            recovery_alpha=recovery_alpha,
-            theta0=theta0,
+        # Lattice medium evolution (live TwistLattice when available)
+        step_means = relax_lattice_steps(
+            flux,
+            1,
+            recovery_memory=lattice_memory,
+            pump_active=False,
+            external_turbulence=turbulence_level,
+            rng=rng,
         )
-
-        mean_twist_trace.append(float(theta.mean()))
+        mean_twist_trace.extend(step_means)
         intensity_trace.append(float(np.sum(np.abs(field) ** 2)))
         phase_rms.append(float(screen.std()))
 
+    theta_final = flux.lattice_theta
     If = float(np.sum(np.abs(field) ** 2))
     # Fidelity proxy: intensity retention × phase coherence with initial
     if flux.protected_field is not None:
@@ -196,7 +198,7 @@ def propagate_asteroid(
         turbulence_level=turbulence_level,
         n_steps=n_steps,
         field_final=field,
-        lattice_theta_final=theta,
+        lattice_theta_final=theta_final.copy() if theta_final is not None else None,
         fidelity_proxy=fidelity,
         mean_twist_trace=mean_twist_trace,
         intensity_trace=intensity_trace,
@@ -207,6 +209,8 @@ def propagate_asteroid(
             "apply_bmgl": apply_bmgl,
             "I0": I0,
             "If": If,
+            "lattice_backend": "live" if use_live_lattice else "stub",
+            "flux_backend": getattr(flux, "backend", "unknown"),
         },
     )
     return asteroid._propagation

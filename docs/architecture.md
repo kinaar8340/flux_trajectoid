@@ -25,7 +25,12 @@ Optical free-space and fiber channels suffer from turbulence, mode crosstalk, an
 ### 3. Inner payload (`inner/`)
 
 - **`vqc_encoder.encode_to_quaternion`**: bytes → unit-quaternion shards (from vqc_proto `quaternion_codec` pattern) → OAM weights on `{0, 1, −1, 2}` with Rodrigues-style `q.w` phase and imprint on spatial modes.
-- **`oam_flux_coupling.couple_to_flux_lattice`**: composite spectrum → `OAMPacket`s; optional shell-protected complex field; helical kicks on a 3D twist lattice restricted to flywheel sites (from oam_flux `flux_deposit` / `TwistLattice` ideas).
+- **`oam_flux_coupling.couple_to_flux_lattice`**: prefers **live** `oam_flux` (submodule `external/oam_flux`):
+  - `PhotonicsConfig` + `propagate_multi_ell_vectorized`
+  - shared `TwistLattice` + per-ℓ `VQCCouplingState` / `run_vqc_coupling_step`
+  - `deposit_on_flywheels` momentum ledger + shell mismatch attenuation
+  - Falls back to a numpy Hopf-kick stub if the package is missing (`force_stub=True` or import failure).
+- Backend probe: `oam_flux_backend()` / `is_live_oam_flux()`.
 
 ### 4. Modulation & protection
 

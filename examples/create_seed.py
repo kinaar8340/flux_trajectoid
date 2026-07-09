@@ -12,12 +12,16 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np
 
-from flux_trajectoid import PhotonSeedAsteroid
+from flux_trajectoid import PhotonSeedAsteroid, oam_flux_backend
 
 
 def main() -> None:
     payload = "hello photon seed asteroid"
-    asteroid = PhotonSeedAsteroid(payload, seed=42).build()
+    print(f"oam_flux backend: {oam_flux_backend()}")
+    asteroid = PhotonSeedAsteroid(payload, seed=42).build(
+        lattice_nx=12,
+        n_coupling_steps=8,
+    )
     summary = asteroid.summary()
 
     print("=== Photon Seed Asteroid ===")
@@ -56,10 +60,19 @@ def main() -> None:
     print(f"  composite ells: {list(asteroid.quaternion.composite_weights.keys())}")
 
     print("\nFlux lattice:")
+    print(f"  backend: {asteroid.flux_state.backend}")
     print(f"  packets: {asteroid.flux_state.metadata.get('ells')}")
     print(f"  deposited_momentum: {asteroid.flux_state.deposited_momentum:.6f}")
     print(f"  flywheel_load: {asteroid.flux_state.flywheel_load}")
     print(f"  mean_twist: {asteroid.flux_state.metadata.get('mean_twist'):.4f}")
+    if asteroid.flux_state.metadata.get("momentum_ledger") is not None:
+        print(f"  momentum_ledger: {asteroid.flux_state.metadata['momentum_ledger']}")
+    if asteroid.flux_state.metadata.get("oam_flux_version"):
+        print(f"  oam_flux_version: {asteroid.flux_state.metadata['oam_flux_version']}")
+    if asteroid.flux_state.lattice is not None:
+        print(f"  live TwistLattice nx={asteroid.flux_state.lattice.nx}")
+    if asteroid.flux_state.coupling_history:
+        print(f"  coupling_history steps: {len(asteroid.flux_state.coupling_history)}")
 
     # Optional plot
     try:

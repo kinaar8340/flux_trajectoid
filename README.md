@@ -104,12 +104,25 @@ flux_trajectoid/
 └── docs/architecture.md
 ```
 
-## Submodules (optional)
+## Submodules
 
 ```bash
-git submodule add https://github.com/kinaar8340/vqc_sims_public.git external/vqc_sims_public
-git submodule add https://github.com/kinaar8340/oam_flux.git external/oam_flux
-git submodule add https://github.com/kinaar8340/vqc_proto.git external/vqc_proto
+git clone --recurse-submodules https://github.com/kinaar8340/flux_trajectoid.git
+# or after clone:
+git submodule update --init --recursive
+```
+
+| Path | Role |
+|------|------|
+| `external/oam_flux` | **Live** Hopf lattice + VQC flux deposition (used by default when present) |
+| `external/vqc_proto` | Quaternion / Orbital Braille reference |
+| `external/vqc_sims_public` | Photonics simulation lineage |
+
+Override discovery with `FLUX_TRAJECTOID_OAM_FLUX_PATH=/path/to/oam_flux/src`.
+
+```python
+from flux_trajectoid import oam_flux_backend, is_live_oam_flux
+print(oam_flux_backend(), is_live_oam_flux())
 ```
 
 ## License

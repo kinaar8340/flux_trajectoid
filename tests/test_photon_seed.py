@@ -93,7 +93,9 @@ def test_quaternion_multiply_identity():
 
 def test_build_propagate_recover():
     msg = "photon seed"
-    ast = PhotonSeedAsteroid(msg, seed=42).build(n_shards=4, lattice_nx=12)
+    ast = PhotonSeedAsteroid(msg, seed=42).build(
+        n_shards=4, lattice_nx=12, n_coupling_steps=4
+    )
     assert ast.shell is not None
     assert ast.quaternion is not None
     assert ast.flux_state is not None
@@ -111,8 +113,53 @@ def test_build_propagate_recover():
 
 
 def test_summary_keys():
-    ast = PhotonSeedAsteroid("x", seed=1).build(n_shards=2, lattice_nx=8)
+    ast = PhotonSeedAsteroid("x", seed=1).build(
+        n_shards=2, lattice_nx=8, n_coupling_steps=2
+    )
     s = ast.summary()
     assert s["built"] is True
     assert "shell_hash" in s
     assert "n_shards" in s
+    assert "flux_backend" in s
+
+
+def test_live_oam_flux_backend_when_available():
+    from flux_trajectoid import is_live_oam_flux, oam_flux_backend
+    from flux_trajectoid.inner.oam_flux_coupling import couple_to_flux_lattice
+    from flux_trajectoid.inner.vqc_encoder import encode_to_quaternion
+    from flux_trajectoid.shell.generator import generate_shell
+
+    backend = oam_flux_backend()
+    # With submodule checked out, expect live path
+    if not is_live_oam_flux():
+        pytest.skip(f"oam_flux not importable ({backend})")
+
+    enc = encode_to_quaternion("live-backend", n_shards=2, build_fields=False)
+    shell = generate_shell("live-backend", seed=0, n_points=64, scale_grid=3, scale_max_iter=4)
+    flux = couple_to_flux_lattice(
+        enc,
+        shell,
+        lattice_nx=8,
+        flywheel_sites=3,
+        n_steps=3,
+        n_z=8,
+        nr=32,
+        l_max=2,
+        seed=0,
+    )
+    assert flux.is_live
+    assert flux.lattice is not None
+    assert flux.photonics_propagation is not None
+    assert flux.backend.startswith("live")
+    assert len(flux.coupling_history) > 0
+    assert flux.metadata.get("oam_flux_version") is not None
+
+
+def test_force_stub_flux():
+    from flux_trajectoid.inner.oam_flux_coupling import couple_to_flux_lattice
+    from flux_trajectoid.inner.vqc_encoder import encode_to_quaternion
+
+    enc = encode_to_quaternion(b"stub", n_shards=2, build_fields=False)
+    flux = couple_to_flux_lattice(enc, None, lattice_nx=8, force_stub=True, n_steps=2)
+    assert flux.backend == "stub"
+    assert flux.lattice is None

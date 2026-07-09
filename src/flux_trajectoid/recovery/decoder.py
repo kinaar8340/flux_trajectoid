@@ -169,11 +169,30 @@ def recover_asteroid(asteroid: PhotonSeedAsteroid) -> RecoveryResult:
 
     flywheel = None
     emergence = 0.0
+    flux_meta: dict[str, Any] = {}
     if asteroid.flux_state is not None:
-        theta0 = asteroid.flux_state.lattice_theta0
-        theta = theta_final if theta_final is not None else asteroid.flux_state.lattice_theta
-        flywheel = _flywheel_readout(theta, theta0, n_sites=len(asteroid.flux_state.flywheel_load))
-        emergence = _emergence_score(flywheel, asteroid.flux_state.kick_history)
+        flux = asteroid.flux_state
+        theta0 = flux.lattice_theta0
+        theta = theta_final if theta_final is not None else flux.lattice_theta
+        # Prefer live TwistLattice flywheel sites when available
+        if flux.lattice is not None and hasattr(flux.lattice, "flywheel_indices"):
+            n_sites = max(1, len(flux.flywheel_load))
+            sites = flux.lattice.flywheel_indices(n_sites)
+            delta = np.abs(theta - theta0)
+            flywheel = np.array([float(delta[idx]) for idx in sites], dtype=float)
+        else:
+            flywheel = _flywheel_readout(theta, theta0, n_sites=len(flux.flywheel_load))
+        emergence = _emergence_score(flywheel, flux.kick_history)
+        # Blend in coupling-history survival if present
+        if flux.metadata.get("twist_survival") is not None:
+            survival = float(flux.metadata["twist_survival"])
+            emergence = float(np.clip(0.5 * emergence + 0.5 * np.tanh(survival), 0.0, 1.0))
+        flux_meta = {
+            "flux_backend": flux.backend,
+            "momentum_ledger": flux.metadata.get("momentum_ledger"),
+            "twist_load_vs_initial": flux.metadata.get("twist_load_vs_initial"),
+            "coupling_history_len": len(flux.coupling_history),
+        }
 
     return RecoveryResult(
         payload_hat=payload_hat,
@@ -187,5 +206,6 @@ def recover_asteroid(asteroid: PhotonSeedAsteroid) -> RecoveryResult:
             "oam_weights_probe": {str(k): complex(v) for k, v in weights.items()},
             "q_field_probe": q_hat.as_array().tolist(),
             "n_ica_components": len(components),
+            **flux_meta,
         },
     )
