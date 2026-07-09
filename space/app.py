@@ -633,7 +633,9 @@ footer,
   color: #94a3b8 !important;
   font-size: 0.68rem !important;
 }
-#controls input, #controls textarea {
+/* Text/number only — never paint range/radio (those have their own theme) */
+#controls input:not([type="range"]):not([type="radio"]):not([type="checkbox"]),
+#controls textarea {
   background: rgba(15, 23, 42, 0.55) !important;
   border-color: rgba(100, 116, 139, 0.4) !important;
   color: #e2e8f0 !important;
@@ -644,19 +646,22 @@ footer,
 /*
  * theme_default_slider
  *   analog_fill_color     = #00FF00  (left of knob only)
- *   analog_bar_height     = ~1.5px
- *   analog_effect_glowing = True (thumb + fill layer)
+ *   analog_bar_height     = ~2px
+ *   analog_effect_glowing = True (fill bar + knob)
  *
  * Fill is a real DOM inner layer (.ft-slider-fill) whose width tracks
- * the knob — pseudo-element track gradients were painting full-bar green.
+ * the knob via JS (SLIDER_FILL_JS).
  */
 :root {
   --ft-slider-fill: #00FF00;
   --ft-slider-rail: rgba(100, 116, 139, 0.45);
-  --ft-slider-h: 1.5px;
-  --ft-slider-thumb: 10px;
-  --ft-slider-glow: 0 0 4px 1px rgba(0, 255, 0, 0.55),
-                    0 0 8px 2px rgba(0, 255, 0, 0.28);
+  --ft-slider-h: 2px;
+  --ft-slider-thumb: 11px;
+  --ft-slider-glow:
+    0 0 3px 0.5px rgba(0, 255, 0, 0.95),
+    0 0 6px 1px rgba(0, 255, 0, 0.65),
+    0 0 12px 2px rgba(0, 255, 0, 0.4),
+    0 0 18px 3px rgba(0, 255, 0, 0.22);
 }
 /* Shell: rail + fill sit under a transparent range input */
 .ft-slider-shell {
@@ -667,7 +672,7 @@ footer,
   height: var(--ft-slider-thumb) !important;
   display: flex !important;
   align-items: center !important;
-  margin: 0.2rem 0 0.4rem 0 !important;
+  margin: 0.25rem 0 0.45rem 0 !important;
 }
 /* Dim full-width rail (always visible baseline) */
 .ft-slider-rail {
@@ -683,7 +688,7 @@ footer,
   z-index: 0 !important;
   overflow: visible !important; /* allow green glow bloom on fill */
 }
-/* Inner layer — green glowing line from 0 → knob (width set by JS) */
+/* Inner layer — analog_fill_color #00FF00 + glowing, 0 → knob */
 .ft-slider-fill {
   position: absolute !important;
   left: 0 !important;
@@ -693,17 +698,17 @@ footer,
   min-width: 0;
   border-radius: 999px !important;
   background: var(--ft-slider-fill) !important;
-  box-shadow:
-    0 0 3px 0.5px rgba(0, 255, 0, 0.95),
-    0 0 6px 1px rgba(0, 255, 0, 0.55),
-    0 0 12px 2px rgba(0, 255, 0, 0.28) !important;
+  background-color: #00FF00 !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.7)) !important;
   pointer-events: none !important;
   z-index: 1 !important;
   transition: none !important;
 }
 /* Range sits on top; its own track is fully invisible */
 .ft-slider-shell > input[type="range"],
-#controls input[type="range"] {
+#controls input[type="range"],
+#controls .ft-slider-shell input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   position: relative !important;
@@ -717,16 +722,20 @@ footer,
   outline: none !important;
   cursor: pointer !important;
   background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
   box-shadow: none !important;
   accent-color: transparent !important;
   --slider-color: transparent !important;
   --range_progress: 0% !important;
+  --color-accent: transparent !important;
 }
 .ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
   background: transparent !important;
+  background-image: none !important;
   border: none !important;
   box-shadow: none !important;
 }
@@ -840,9 +849,9 @@ footer,
 /*
  * theme_default_button — two concentric CIRCLES (not ovals, not solid fill)
  *   outer ring = input border
- *   inner ring = ::after circle stroke
- * button_state=True → outer circle line color only → #00FF00
- * (inner ring stays idle; latched until another radio in the group is selected)
+ *   inner ring = radial stroke (line only)
+ * button_state=True → BOTH circle lines → #00FF00
+ * Latched until another radio in the group is selected.
  */
 :root {
   --ft-circle-size: 1.15em;      /* perfect square box → true circle */
@@ -851,7 +860,7 @@ footer,
   --ft-btn-row-h: 1.45rem;
   --ft-ring-idle: rgba(148, 163, 184, 0.75);
   --ft-ring-active: #00FF00;
-  /* shared glow token (Play uses this; radios only recolor outer ring) */
+  /* shared glow token (Play uses this) */
   --ft-glow:
     0 0 4px 1px rgba(0, 255, 0, 0.65),
     0 0 10px 2px rgba(0, 255, 0, 0.4),
