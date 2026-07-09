@@ -39,108 +39,83 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
 /*
- * Fit the user's screen (e.g. 1920×1080).
+ * Full-screen layout for HF Spaces hub iframe.
  *
- * On huggingface.co/spaces the app is in an iframe that auto-sizes to
- * CONTENT height (iFrameResizer taggedElement). Pure 100dvh inside a short
- * iframe stays short → empty black under a ~350px band.
- *
- * Fix: --ft-app-h is set by JS to the real available height (parent viewport
- * or screen minus HF chrome). CSS then fills that hard pixel height.
+ * Hub page: <iframe class="space-iframe grow"> — CSS grow wants full
+ * remaining viewport, but Gradio iFrameResizer often pins height to
+ * content. We:
+ *  1) Keep an in-flow #ft-spacer at target host height so the iframe grows
+ *  2) Pin #nav-bar + #workspace with position:fixed to fill the iframe
+ *     viewport (no mid-panel clip, no empty black half)
  */
 :root {
   --ft-nav-h: 48px;
-  --ft-app-h: 100vh; /* JS overwrites with px */
+  --ft-app-h: 100vh;
 }
 html, body {
-  height: var(--ft-app-h) !important;
-  min-height: var(--ft-app-h) !important;
-  /* no max-height — max-height + short iframe was clipping mid-UI */
   width: 100% !important;
   max-width: 100% !important;
-  overflow-x: hidden !important;
-  overflow-y: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
   background: #070b14 !important;
-  position: relative !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  /* min-height driven by #ft-spacer / JS — do NOT max-height clip */
+  min-height: var(--ft-app-h) !important;
+  height: var(--ft-app-h) !important;
 }
 gradio-app, #root {
-  display: flex !important;
-  flex-direction: column !important;
-  height: var(--ft-app-h) !important;
-  min-height: var(--ft-app-h) !important;
+  display: block !important;
   width: 100% !important;
-  overflow: hidden !important;
+  min-height: var(--ft-app-h) !important;
+  height: var(--ft-app-h) !important;
   margin: 0 !important;
   padding: 0 !important;
-  box-sizing: border-box !important;
+  overflow: hidden !important;
+  background: #070b14 !important;
 }
 .gradio-container,
 .gradio-container.fillable,
 .gradio-container.app {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  height: var(--ft-app-h) !important;
-  min-height: var(--ft-app-h) !important;
   width: 100% !important;
   max-width: 100% !important;
-  min-width: 0 !important;
+  min-height: var(--ft-app-h) !important;
+  height: var(--ft-app-h) !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
   background: #070b14 !important;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
-  box-sizing: border-box !important;
+  position: relative !important;
 }
-/* Gradio chrome wrappers stretch (Gradio 5 + 6) */
+/* In-flow spacer: tells iFrameResizer / content height the real target */
+#ft-spacer {
+  display: block !important;
+  width: 1px !important;
+  height: var(--ft-app-h) !important;
+  min-height: var(--ft-app-h) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+}
+/* Flatten Gradio wrappers so fixed shell can cover the iframe */
 .gradio-container .main,
 .gradio-container .wrap,
 .gradio-container .contain,
 .gradio-container > .main,
 .gradio-container .app,
 .gradio-container > .wrap,
-.gradio-container > .contain,
-div.gradio-container > div,
-.gradio-container .wrap > .contain {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  min-height: 0 !important;
-  width: 100% !important;
-  overflow: hidden !important;
+.gradio-container > .contain {
   margin: 0 !important;
   padding: 0 !important;
   gap: 0 !important;
-  box-sizing: border-box !important;
-}
-/* nav (fixed) + workspace (flex fill) */
-.gradio-container .contain > .gap,
-.gradio-container .contain > div,
-.gradio-container .main > .wrap,
-.gradio-container .main > div,
-.gradio-container .app > .main,
-.gradio-container .app > div {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 0 !important;
+  width: 100% !important;
   min-height: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  overflow: hidden !important;
-  gap: 0 !important;
-}
-/* only #controls scrolls */
-html.gradio-container,
-body.gradio-container,
-body > gradio-app,
-body > #root {
-  overflow: hidden !important;
-  height: var(--ft-app-h) !important;
-  max-height: var(--ft-app-h) !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: transparent !important;
 }
 footer,
 .footer,
@@ -168,22 +143,26 @@ footer,
   --ft-tab-font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
 }
 
-/* Top navigation — same tab language as CONTROLS | REFERENCES */
+/* Top navigation — fixed to top of iframe viewport */
 #nav-bar {
   display: flex !important;
-  flex: 0 0 var(--ft-nav-h) !important;
   align-items: center;
   gap: 0.85rem;
   padding: 0.35rem 0.75rem 0;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(15, 23, 42, 0.98);
   border-bottom: none;
   min-height: var(--ft-nav-h) !important;
   max-height: var(--ft-nav-h) !important;
   height: var(--ft-nav-h) !important;
-  position: relative;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   width: 100% !important;
+  z-index: 1000 !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
+  margin: 0 !important;
 }
 #nav-bar::after {
   content: "";
@@ -280,13 +259,19 @@ footer,
 }
 
 /*
- * Workspace: fill everything under nav. JS sets --ft-app-h in px so
- * this is a real tall grid on 1920×1080 (not content-sized ~351px).
+ * Workspace: fixed under nav — always fills the iframe viewport.
+ * Independent of document flow / iFrameResizer content height.
  */
 #workspace {
-  flex: 1 1 0 !important;
-  height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
-  min-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
+  position: fixed !important;
+  top: var(--ft-nav-h) !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  width: 100% !important;
   display: grid !important;
   grid-template-columns:
     minmax(260px, 1.05fr)
@@ -296,10 +281,10 @@ footer,
   align-items: stretch !important;
   gap: 0.35rem !important;
   box-sizing: border-box !important;
-  width: 100% !important;
   overflow: hidden !important;
   padding: 0.3rem 0.4rem 0.35rem 0.4rem !important;
   margin: 0 !important;
+  z-index: 900 !important;
   background:
     radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
     radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
@@ -358,7 +343,7 @@ footer,
   border-radius: 4px;
 }
 
-/* Column 2 & 3: half-height viewport cells; plots sized by Gradio height + fit */
+/* Column 2 & 3: two equal-height plot cells filling the fixed workspace */
 #col-center,
 #col-right {
   height: 100% !important;
@@ -384,13 +369,17 @@ footer,
   flex-direction: column !important;
   height: 100% !important;
   min-height: 0 !important;
+  max-height: 100% !important;
   gap: 0.35rem !important;
   flex: 1 1 auto !important;
+  overflow: hidden !important;
 }
 #col-center .vp-cell,
 #col-right .vp-cell {
   flex: 1 1 0 !important;
   min-height: 0 !important;
+  height: 50% !important;
+  max-height: 50% !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -1642,203 +1631,159 @@ SLIDER_FILL_JS = """
   }
 
   function targetAppHeight() {
+    // Prefer the *current* iframe viewport once it has grown; otherwise
+    // request the host screen size so iFrameResizer/CSS grow expands us.
+    const ih = window.innerHeight || document.documentElement.clientHeight || 0;
     const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 0;
     const screenTarget = sh > 0 ? sh - hostChrome() : 0;
 
-    let h = window.innerHeight || document.documentElement.clientHeight || 0;
-
-    // Prefer parent viewport when same-origin; on HF hub this is cross-origin
+    let h = ih;
     try {
       if (window.parent && window.parent !== window) {
-        const ph = window.parent.innerHeight
-          || (window.parent.document
-              && window.parent.document.documentElement
-              && window.parent.document.documentElement.clientHeight)
-          || 0;
+        const ph = window.parent.innerHeight || 0;
         if (ph > 0) h = Math.max(h, ph - hostChrome());
       }
-    } catch (_) {
-      /* cross-origin */
+    } catch (_) { /* cross-origin hub page */ }
+
+    // If iframe is still the short content-sized band, push toward screen
+    if (screenTarget > 0 && (h < screenTarget * 0.85 || h < 560)) {
+      h = screenTarget;
     }
-
-    // Always respect screen size so a short iframe cannot trap us at ~350px
-    if (screenTarget > 0) h = Math.max(h, screenTarget);
-
-    // visualViewport (mobile / browser UI)
-    try {
-      if (window.visualViewport && window.visualViewport.height) {
-        h = Math.max(h, Math.round(window.visualViewport.height));
-      }
-    } catch (_) {}
-
-    if (!h || h < 560) h = Math.max(560, screenTarget || 800);
-    // Cap so we don't exceed physical screen
-    if (sh > 0) h = Math.min(h, sh - 80);
+    if (!h || h < 480) h = Math.max(480, screenTarget || 720);
+    if (sh > 0) h = Math.min(h, sh - 60);
     return Math.round(h);
   }
 
   function requestIframeHeight(h) {
     try {
       if (window.parentIFrame) {
-        if (typeof window.parentIFrame.autoResize === 'function') {
-          window.parentIFrame.autoResize(true);
-        }
-        if (typeof window.parentIFrame.size === 'function') {
-          window.parentIFrame.size(h);
-        }
-        if (typeof window.parentIFrame.setHeightCalculationMethod === 'function') {
-          window.parentIFrame.setHeightCalculationMethod('taggedElement');
-        }
+        try { window.parentIFrame.autoResize(true); } catch (_) {}
+        try { window.parentIFrame.size(h); } catch (_) {}
       }
     } catch (_) {}
-    // iframe-resizer wire formats used by Gradio / HF
-    try {
-      window.parent && window.parent.postMessage(
-        '[iFrameSizer]height:' + h + ':force',
-        '*'
-      );
-    } catch (_) {}
-    try {
-      window.parent && window.parent.postMessage(
-        { type: 'SET_IFRAME_HEIGHT', height: h },
-        '*'
-      );
-    } catch (_) {}
-    try {
-      window.parent && window.parent.postMessage(
-        { type: 'iframe-height', height: h },
-        '*'
-      );
-    } catch (_) {}
+    // Gradio / iframe-resizer message formats
+    const msgs = [
+      '[iFrameSizer]height:' + h,
+      '[iFrameSizer]height:' + h + ':force',
+      { type: 'SET_IFRAME_HEIGHT', height: h },
+      { type: 'iframe-height', height: h },
+      { type: 'setHeight', height: h },
+    ];
+    msgs.forEach((m) => {
+      try { window.parent && window.parent.postMessage(m, '*'); } catch (_) {}
+    });
   }
 
-  function pin(el, h, w) {
-    if (!el) return;
-    el.style.setProperty('height', h, 'important');
-    el.style.setProperty('min-height', h, 'important');
-    el.style.setProperty('max-height', h, 'important');
-    el.style.setProperty('box-sizing', 'border-box', 'important');
-    if (w) {
-      el.style.setProperty('width', w, 'important');
-      el.style.setProperty('max-width', w, 'important');
-    }
-  }
-
-  function ensureSentinel(h) {
-    // iframe-resizer heightCalculationMethod: "taggedElement"
-    let s = document.getElementById('ft-height-sentinel');
+  function ensureSpacer(h) {
+    // In-flow element so document/content height = target (grows hub iframe)
+    let s = document.getElementById('ft-spacer');
     if (!s) {
       s = document.createElement('div');
-      s.id = 'ft-height-sentinel';
+      s.id = 'ft-spacer';
       s.setAttribute('data-iframe-height', '');
-      s.style.cssText = [
-        'position:absolute',
-        'left:0',
-        'width:1px',
-        'height:1px',
-        'pointer-events:none',
-        'opacity:0',
-        'z-index:-1',
-      ].join(';');
-      (document.body || document.documentElement).appendChild(s);
+      const host = document.body || document.documentElement;
+      host.insertBefore(s, host.firstChild);
     }
-    s.style.top = Math.max(0, h - 1) + 'px';
+    s.style.cssText = [
+      'display:block',
+      'width:1px',
+      'height:' + h + 'px',
+      'min-height:' + h + 'px',
+      'margin:0',
+      'padding:0',
+      'pointer-events:none',
+      'opacity:0',
+      'overflow:hidden',
+    ].join(';');
   }
 
   function fitScreen() {
     const h = targetAppHeight();
     const root = document.documentElement;
     root.style.setProperty('--ft-app-h', h + 'px');
+    root.style.setProperty('height', h + 'px');
+    root.style.setProperty('min-height', h + 'px');
     root.style.overflow = 'hidden';
-    pin(root, h + 'px', '100%');
     if (document.body) {
+      document.body.style.setProperty('height', h + 'px');
+      document.body.style.setProperty('min-height', h + 'px');
       document.body.style.overflow = 'hidden';
       document.body.style.margin = '0';
       document.body.style.padding = '0';
-      document.body.style.position = 'relative';
-      pin(document.body, h + 'px', '100%');
+      document.body.style.background = '#070b14';
     }
 
-    const app = document.querySelector('gradio-app') || document.querySelector('#root');
-    pin(app, h + 'px', '100%');
-    if (app) {
-      app.style.display = 'flex';
-      app.style.flexDirection = 'column';
-      app.style.overflow = 'hidden';
-    }
-
-    document.querySelectorAll('.gradio-container').forEach((el) => {
-      pin(el, h + 'px', '100%');
-      el.style.display = 'flex';
-      el.style.flexDirection = 'column';
-      el.style.overflow = 'hidden';
-      el.style.margin = '0';
-      el.style.padding = '0';
-    });
-
-    // Stretch Gradio internal wrappers
-    document.querySelectorAll(
-      '.gradio-container .main, .gradio-container .wrap, .gradio-container .contain, .gradio-container .app'
-    ).forEach((el) => {
-      el.style.setProperty('flex', '1 1 0', 'important');
-      el.style.setProperty('min-height', '0', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('max-height', '100%', 'important');
-      el.style.setProperty('overflow', 'hidden', 'important');
-      el.style.setProperty('display', 'flex', 'important');
-      el.style.setProperty('flex-direction', 'column', 'important');
-      el.style.setProperty('margin', '0', 'important');
-      el.style.setProperty('padding', '0', 'important');
-    });
+    ensureSpacer(h);
 
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) ? nav.offsetHeight : 48;
     root.style.setProperty('--ft-nav-h', navH + 'px');
     if (nav) {
-      pin(nav, navH + 'px', '100%');
-      nav.style.flex = '0 0 ' + navH + 'px';
+      nav.style.setProperty('position', 'fixed', 'important');
+      nav.style.setProperty('top', '0', 'important');
+      nav.style.setProperty('left', '0', 'important');
+      nav.style.setProperty('right', '0', 'important');
+      nav.style.setProperty('height', navH + 'px', 'important');
+      nav.style.setProperty('z-index', '1000', 'important');
     }
 
-    const wh = Math.max(240, h - navH);
+    // Fixed workspace fills the iframe viewport under the nav
     const ws = document.querySelector('#workspace');
     if (ws) {
-      pin(ws, wh + 'px', '100%');
-      ws.style.display = 'grid';
-      ws.style.overflow = 'hidden';
-      ws.style.flex = '1 1 auto';
+      ws.style.setProperty('position', 'fixed', 'important');
+      ws.style.setProperty('top', navH + 'px', 'important');
+      ws.style.setProperty('left', '0', 'important');
+      ws.style.setProperty('right', '0', 'important');
+      ws.style.setProperty('bottom', '0', 'important');
+      ws.style.setProperty('height', 'auto', 'important');
+      ws.style.setProperty('width', '100%', 'important');
+      ws.style.setProperty('display', 'grid', 'important');
+      ws.style.setProperty('overflow', 'hidden', 'important');
+      ws.style.setProperty('z-index', '900', 'important');
     }
 
-    // Columns fill workspace
+    // Columns stretch to the fixed workspace box
+    const wh = Math.max(200, (window.innerHeight || h) - navH);
     ['#controls', '#col-center', '#col-right'].forEach((sel) => {
       const el = document.querySelector(sel);
       if (!el) return;
-      pin(el, wh + 'px', null);
-      el.style.overflow = sel === '#controls' ? 'auto' : 'hidden';
-      el.style.minWidth = '0';
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('min-height', '0', 'important');
+      el.style.setProperty('max-height', '100%', 'important');
+      el.style.setProperty('overflow', sel === '#controls' ? 'auto' : 'hidden', 'important');
+      el.style.setProperty('min-width', '0', 'important');
+      if (sel !== '#controls') {
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('flex-direction', 'column', 'important');
+      }
     });
 
-    // Plot cells: equal half of column (2 rows)
-    const gap = 6;
-    const cellH = Math.max(120, Math.floor((wh - gap) / 2));
+    // Plot cells: equal halves of the column
+    const cellH = Math.max(100, Math.floor((wh - 8) / 2));
     document.querySelectorAll('#col-center .vp-cell, #col-right .vp-cell').forEach((cell) => {
-      pin(cell, cellH + 'px', null);
-      cell.style.flex = '1 1 ' + cellH + 'px';
-      cell.style.overflow = 'hidden';
-      cell.style.display = 'flex';
-      cell.style.flexDirection = 'column';
+      cell.style.setProperty('flex', '1 1 0', 'important');
+      cell.style.setProperty('height', cellH + 'px', 'important');
+      cell.style.setProperty('min-height', '0', 'important');
+      cell.style.setProperty('overflow', 'hidden', 'important');
+      cell.style.setProperty('display', 'flex', 'important');
+      cell.style.setProperty('flex-direction', 'column', 'important');
     });
 
-    // Images fill their cells
     document.querySelectorAll(
-      '#col-center .vp-cell .vp-plot, #col-right .vp-cell .vp-plot, #col-center .vp-cell img, #col-right .vp-cell img'
+      '#col-center .vp-cell img, #col-right .vp-cell img, #col-center .vp-plot, #col-right .vp-plot'
     ).forEach((el) => {
       el.style.setProperty('max-height', '100%', 'important');
       el.style.setProperty('max-width', '100%', 'important');
       el.style.setProperty('object-fit', 'contain', 'important');
     });
 
-    ensureSentinel(h);
     requestIframeHeight(h);
+
+    // If the hub iframe grew, re-fit cells to the new innerHeight
+    const ih = window.innerHeight || h;
+    if (Math.abs(ih - h) > 40) {
+      root.style.setProperty('--ft-app-h', ih + 'px');
+    }
   }
 
   /* theme_default_tabs: main nav active underline/text */
