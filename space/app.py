@@ -39,18 +39,23 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
 /*
- * Full-screen layout for HF Spaces hub iframe.
+ * Target host: 1920×1080 (and any full-viewport iframe).
  *
- * Hub page: <iframe class="space-iframe grow"> — CSS grow wants full
- * remaining viewport, but Gradio iFrameResizer often pins height to
- * content. We:
- *  1) Keep an in-flow #ft-spacer at target host height so the iframe grows
- *  2) Pin #nav-bar + #workspace with position:fixed to fill the iframe
- *     viewport (no mid-panel clip, no empty black half)
+ * Hub page: <iframe class="space-iframe grow"> — Gradio iFrameResizer often
+ * pins height to content. We:
+ *  1) Size --ft-app-h to the real window (JS) so the iframe can grow
+ *  2) Pin #nav-bar, #controls, and each #vp-* with position:fixed pixel boxes
+ *     so Gradio flex nesting cannot collapse the 2×2 plots to empty
+ *
+ * Layout:
+ *   [ controls ~300px ] [ shell 2.2fr | path 1fr ]
+ *                       [ radial 2.2fr | score 1fr ]
  */
 :root {
   --ft-nav-h: 48px;
   --ft-app-h: 100vh;
+  --ft-ctrl-w: 300px;
+  --ft-gap: 0.4rem;
 }
 html, body {
   width: 100% !important;
@@ -243,20 +248,7 @@ footer,
   color: var(--ft-tab-hover) !important;
 }
 
-/*
- * Desired layout (Image #2):
- *
- *   [ controls ] [ shell .............. ] [ path ... ]
- *   [ controls ] [ radial ............. ] [ score .. ]
- *
- * Pin #controls + #plots-col to the viewport. Force #plots-top/#plots-bot
- * to equal-height ROWS (not stacked full-width bands).
- */
-:root {
-  --ft-nav-h: 48px;
-  --ft-ctrl-w: 300px;
-  --ft-gap: 0.4rem;
-}
+/* Controls + plots-col pinned; viewports placed as fixed 2×2 by CSS fallback + JS */
 #workspace {
   position: relative !important;
   width: 100% !important;
@@ -290,7 +282,7 @@ footer,
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* ---- Right plots pane: 2 equal rows ---- */
+/* ---- Right plots pane (JS sets pixel fixed boxes for 1920×1080) ---- */
 #plots-col {
   position: fixed !important;
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
@@ -298,10 +290,8 @@ footer,
   right: var(--ft-gap) !important;
   bottom: var(--ft-gap) !important;
   z-index: 40 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: var(--ft-gap) !important;
-  overflow: hidden !important;
+  display: block !important;
+  overflow: visible !important;
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;
@@ -311,92 +301,33 @@ footer,
   opacity: 1 !important;
   min-width: 280px !important;
 }
-/* Stretch Gradio Column internals as a column host (NOT display:contents) */
+/* Intermediate Gradio wrappers collapse — viewports are position:fixed via JS */
 #plots-col > .form,
 #plots-col > .wrap,
-#plots-col > div {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  gap: var(--ft-gap) !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-/* Top row = shell | path · Bottom row = radial | score */
+#plots-col > div,
 #plots-top,
-#plots-bot {
-  flex: 1 1 50% !important;
-  min-height: 0 !important;
-  height: 50% !important;
-  max-height: 50% !important;
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: row !important; /* side-by-side cells */
-  flex-wrap: nowrap !important;
-  align-items: stretch !important;
-  gap: var(--ft-gap) !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-/* Gradio Row internals must stay ROW */
+#plots-bot,
 #plots-top > .form,
 #plots-top > .wrap,
 #plots-top > div,
 #plots-bot > .form,
 #plots-bot > .wrap,
 #plots-bot > div {
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  gap: var(--ft-gap) !important;
-  overflow: hidden !important;
+  display: contents !important;
   margin: 0 !important;
   padding: 0 !important;
-  background: transparent !important;
   border: none !important;
+  background: transparent !important;
   box-shadow: none !important;
+  overflow: visible !important;
 }
-/* Viewport cells — shell/radial wider, path/score narrower */
-#vp-shell,
-#vp-radial {
-  flex: 2.2 1 0 !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  width: auto !important;
-}
-#vp-path,
-#vp-score {
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  width: auto !important;
-}
+/* Viewport cells — JS places with position:fixed + pixel box (2×2) */
 #vp-shell,
 #vp-path,
 #vp-radial,
 #vp-score {
+  position: fixed !important;
+  z-index: 41 !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -407,6 +338,33 @@ footer,
   background: rgba(15, 23, 42, 0.96) !important;
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-radius: 10px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+/* Fallback 2×2 before JS runs (approx 1920×1080 host) */
+#vp-shell {
+  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+}
+#vp-path {
+  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
+  right: var(--ft-gap) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+}
+#vp-radial {
+  bottom: var(--ft-gap) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+}
+#vp-score {
+  bottom: var(--ft-gap) !important;
+  right: var(--ft-gap) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
 #vp-shell .viewport-title,
 #vp-radial .viewport-title,
@@ -1275,18 +1233,23 @@ def _save_rgb_png(arr: np.ndarray, name: str) -> str:
         img = np.stack([img, img, img], axis=-1)
     # Pillow 10+: fromarray infers mode; avoid deprecated mode= kw
     PILImage.fromarray(img[..., :3]).save(path, format="PNG")
-    # Prefer path relative to app root — Gradio/HF serve these reliably
-    try:
-        return str(path.relative_to(Path(__file__).resolve().parent))
-    except ValueError:
-        return str(path.resolve())
+    return str(path.resolve())
+
+
+def _shipped_boot_path(key: str) -> str | None:
+    """Absolute path to pre-shipped boot PNG if present and non-trivial."""
+    p = _boot_dir() / f"{key}.png"
+    if p.is_file() and p.stat().st_size > 100:
+        return str(p.resolve())
+    return None
 
 
 def _startup_plots() -> dict:
-    """Precompute stub plots so the four viewports are never empty on first paint.
+    """Seed four viewports on first paint.
 
-    Saves PNGs under assets/boot/. Gradio Image gets an absolute path that
-    exists at process start (more reliable on HF than numpy-only values).
+    Prefer pre-shipped assets/boot/*.png (instant, reliable on HF), then try
+    a stub pipeline to refresh them. Gradio Image gets absolute filesystem
+    paths so files always resolve at process start.
     """
     keys = (
         "img_shell",
@@ -1296,6 +1259,44 @@ def _startup_plots() -> dict:
         "img_metrics",
         "img_trace",
     )
+    # Instant seed from shipped PNGs so viewports never paint empty
+    shipped: dict = {}
+    for key in keys:
+        path = _shipped_boot_path(key)
+        if path:
+            shipped[key] = path
+    if len(shipped) == len(keys):
+        try:
+            out = run_pipeline(
+                payload="Hello from the shell",
+                seed=42,
+                turbulence=0.25,
+                n_steps=12,
+                use_tpt=True,
+                build_3d=True,
+                force_stub=True,
+                slice_frac=1.0,
+                slice_plane="z",
+                show_slice=True,
+            )
+            for key in keys:
+                if key in out and isinstance(out[key], np.ndarray):
+                    out[key] = _save_rgb_png(out[key], key)
+                elif key in shipped:
+                    out[key] = shipped[key]
+            logger.info(
+                "startup plots ready paths=%s",
+                {k: out.get(k) for k in keys if k in out},
+            )
+            return out
+        except Exception:
+            logger.exception("startup pipeline failed — using shipped boot PNGs")
+            shipped["shell"] = None
+            shipped["status_md"] = (
+                "### Seed status\n_Stub plots loaded — click **Build** to recompute._"
+            )
+            return shipped
+
     try:
         out = run_pipeline(
             payload="Hello from the shell",
@@ -1312,7 +1313,6 @@ def _startup_plots() -> dict:
         for key in keys:
             if key in out and isinstance(out[key], np.ndarray):
                 out[key] = _save_rgb_png(out[key], key)
-        # Keep ndarray copy for State shell; paths for Images
         logger.info(
             "startup plots ready paths=%s",
             {k: out.get(k) for k in keys if k in out},
@@ -1321,22 +1321,21 @@ def _startup_plots() -> dict:
     except Exception:
         logger.exception("startup plots failed")
         b = blank_rgb(420, 360)
-        # Prefer pre-shipped boot PNGs if present
-        shipped = {}
+        fallback: dict = {}
         for key in keys:
-            p = _boot_dir() / f"{key}.png"
-            if p.is_file() and p.stat().st_size > 100:
-                shipped[key] = str(p.resolve())
+            path = _shipped_boot_path(key)
+            if path:
+                fallback[key] = path
             else:
-                shipped[key] = _save_rgb_png(
+                fallback[key] = _save_rgb_png(
                     b if key != "img_path" else blank_rgb(320, 400),
                     key,
                 )
-        shipped["shell"] = None
-        shipped["status_md"] = (
+        fallback["shell"] = None
+        fallback["status_md"] = (
             "### Seed status\n_Startup failed — click **Build**._"
         )
-        return shipped
+        return fallback
 
 
 def build_app() -> gr.Blocks:
@@ -1540,7 +1539,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_shell = _display_image(
                             boot["img_shell"],
-                            height=260,
+                            height=480,  # ~half of 1080; CSS/JS fill the fixed cell
                             elem_classes=["vp-plot"],
                         )
                     with gr.Column(
@@ -1554,7 +1553,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_path = _display_image(
                             boot["img_path"],
-                            height=260,
+                            height=480,
                             elem_classes=["vp-plot"],
                         )
                 with gr.Row(elem_id="plots-bot", equal_height=True):
@@ -1569,7 +1568,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_radial = _display_image(
                             boot["img_radial"],
-                            height=260,
+                            height=480,
                             elem_classes=["vp-plot"],
                         )
                     with gr.Column(
@@ -1583,7 +1582,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_metrics = _display_image(
                             boot["img_metrics"],
-                            height=260,
+                            height=480,
                             elem_classes=["vp-plot"],
                         )
 
@@ -1885,116 +1884,184 @@ SLIDER_FILL_JS = """
   }
 
   function layoutOnce() {
+    // Target: full iframe / window (typically 1920×1080 host).
+    // Escape Gradio flex nesting by position:fixed pixel boxes for every pane.
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
+
+    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    const appH = Math.max(vh, 600);
+    document.documentElement.style.setProperty('--ft-app-h', appH + 'px');
+
     const gap = 8;
-    const ctrlW = 300;
+    const ctrlW = Math.min(300, Math.max(240, Math.floor(vw * 0.16)));
+    const top = navH + gap;
+    const bottomPad = gap;
+    const paneH = Math.max(200, appH - top - bottomPad);
+    const plotsLeft = ctrlW + 2 * gap;
+    const plotsW = Math.max(320, vw - plotsLeft - gap);
+
+    if (nav) {
+      Object.assign(nav.style, {
+        position: 'fixed', top: '0', left: '0', right: '0',
+        width: '100%', height: navH + 'px', zIndex: '1000',
+      });
+    }
 
     const ctrl = document.querySelector('#controls');
     if (ctrl) {
       Object.assign(ctrl.style, {
-        position: 'fixed', top: (navH + gap) + 'px', left: gap + 'px',
-        width: ctrlW + 'px', bottom: gap + 'px', zIndex: '40',
-        display: 'flex', flexDirection: 'column', overflowY: 'auto',
-        visibility: 'visible', opacity: '1',
+        position: 'fixed',
+        top: top + 'px',
+        left: gap + 'px',
+        width: ctrlW + 'px',
+        height: paneH + 'px',
+        zIndex: '40',
+        display: 'flex',
+        flexDirection: 'column',
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        visibility: 'visible',
+        opacity: '1',
+        boxSizing: 'border-box',
       });
     }
 
     const pc = document.querySelector('#plots-col');
-    if (!pc) return;
-    Object.assign(pc.style, {
-      position: 'fixed',
-      top: (navH + gap) + 'px',
-      left: (ctrlW + 2 * gap) + 'px',
-      right: gap + 'px',
-      bottom: gap + 'px',
-      zIndex: '40',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: gap + 'px',
-      visibility: 'visible',
-      opacity: '1',
-      overflow: 'hidden',
-      margin: '0',
-      padding: '0',
-    });
-
-    // Pixel-equal half heights — % flex was collapsing #plots-bot to 0
-    const pcH = pc.clientHeight || (window.innerHeight - navH - 2 * gap);
-    const rowH = Math.max(160, Math.floor((pcH - gap) / 2));
-
-    ['#plots-top', '#plots-bot'].forEach((sel) => {
-      const row = document.querySelector(sel);
-      if (!row) return;
-      Object.assign(row.style, {
-        display: 'flex',
-        flexDirection: 'row',
-        flexWrap: 'nowrap',
-        alignItems: 'stretch',
-        width: '100%',
-        height: rowH + 'px',
-        minHeight: rowH + 'px',
-        maxHeight: rowH + 'px',
-        flex: '0 0 ' + rowH + 'px',
-        gap: gap + 'px',
-        overflow: 'hidden',
+    if (pc) {
+      Object.assign(pc.style, {
+        position: 'fixed',
+        top: top + 'px',
+        left: plotsLeft + 'px',
+        width: plotsW + 'px',
+        height: paneH + 'px',
+        zIndex: '40',
+        display: 'block',
+        overflow: 'visible',
         visibility: 'visible',
         opacity: '1',
         margin: '0',
         padding: '0',
+        background: 'transparent',
+        border: 'none',
       });
-      // Gradio Row wrapper → keep as horizontal flex host
+    }
+
+    // 2×2 pixel grid — shell|path / radial|score (2.2 : 1 width split)
+    const rowGap = gap;
+    const colGap = gap;
+    const rowH = Math.max(140, Math.floor((paneH - rowGap) / 2));
+    const leftW = Math.max(160, Math.floor((plotsW - colGap) * 0.688));
+    const rightW = Math.max(120, plotsW - leftW - colGap);
+
+    // Hide intermediate Gradio row wrappers so they don't steal layout
+    ['#plots-top', '#plots-bot'].forEach((sel) => {
+      const row = document.querySelector(sel);
+      if (!row) return;
+      Object.assign(row.style, {
+        position: 'static',
+        display: 'block',
+        width: '0',
+        height: '0',
+        margin: '0',
+        padding: '0',
+        overflow: 'visible',
+        border: 'none',
+        background: 'transparent',
+      });
       Array.from(row.children).forEach((w) => {
         if (w.id && String(w.id).startsWith('vp-')) return;
         Object.assign(w.style, {
-          display: 'flex',
-          flexDirection: 'row',
-          flexWrap: 'nowrap',
+          display: 'contents',
+        });
+      });
+    });
+
+    const placeFixed = (sel, x, y, w, h) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      Object.assign(el.style, {
+        position: 'fixed',
+        top: y + 'px',
+        left: x + 'px',
+        width: w + 'px',
+        height: h + 'px',
+        zIndex: '41',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        visibility: 'visible',
+        opacity: '1',
+        boxSizing: 'border-box',
+        margin: '0',
+        padding: '6px 8px',
+        background: 'rgba(15, 23, 42, 0.96)',
+        border: '1px solid rgba(148, 163, 184, 0.22)',
+        borderRadius: '10px',
+      });
+      // Gradio Column internals fill the fixed box
+      Array.from(el.children).forEach((ch) => {
+        if (ch.classList && ch.classList.contains('viewport-title')) return;
+        if (ch.tagName === 'P' || (ch.querySelector && ch.querySelector('.viewport-title'))) {
+          Object.assign(ch.style, {
+            flex: '0 0 auto', margin: '0 0 4px 0', minHeight: '0',
+          });
+          return;
+        }
+        Object.assign(ch.style, {
           flex: '1 1 auto',
-          width: '100%',
-          height: '100%',
           minHeight: '0',
-          gap: gap + 'px',
+          height: '100%',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
           margin: '0',
           padding: '0',
         });
       });
-    });
-
-    const placeCell = (sel, grow) => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      Object.assign(el.style, {
-        display: 'flex',
-        flexDirection: 'column',
-        flex: grow + ' 1 0',
-        width: 'auto',
-        height: '100%',
-        minWidth: '0',
-        minHeight: '0',
-        overflow: 'hidden',
-        visibility: 'visible',
-        opacity: '1',
+      // Image blocks + img tags fill remaining height
+      el.querySelectorAll('.vp-plot, [data-testid="image"], .image-container, .wrap').forEach((node) => {
+        Object.assign(node.style, {
+          flex: '1 1 auto',
+          minHeight: '0',
+          height: '100%',
+          width: '100%',
+          maxHeight: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          margin: '0',
+          visibility: 'visible',
+          opacity: '1',
+        });
+      });
+      el.querySelectorAll('img').forEach((img) => {
+        Object.assign(img.style, {
+          maxWidth: '100%',
+          maxHeight: '100%',
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          objectPosition: 'center',
+          display: 'block',
+          visibility: 'visible',
+          opacity: '1',
+        });
       });
     };
-    placeCell('#vp-shell', 2.2);
-    placeCell('#vp-radial', 2.2);
-    placeCell('#vp-path', 1);
-    placeCell('#vp-score', 1);
 
-    // Images fill their cells
-    document.querySelectorAll(
-      '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img'
-    ).forEach((img) => {
-      Object.assign(img.style, {
-        maxWidth: '100%', maxHeight: '100%',
-        width: '100%', height: '100%',
-        objectFit: 'contain', display: 'block',
-        visibility: 'visible', opacity: '1',
-      });
-    });
+    const y0 = top;
+    const y1 = top + rowH + rowGap;
+    const x0 = plotsLeft;
+    const x1 = plotsLeft + leftW + colGap;
+    placeFixed('#vp-shell', x0, y0, leftW, rowH);
+    placeFixed('#vp-path',  x1, y0, rightW, rowH);
+    placeFixed('#vp-radial', x0, y1, leftW, rowH);
+    placeFixed('#vp-score',  x1, y1, rightW, rowH);
   }
 
   function start() {
@@ -2008,19 +2075,32 @@ SLIDER_FILL_JS = """
   } else {
     start();
   }
-  // One delayed bind for late Gradio mount — no intervals, no attribute observers
-  setTimeout(start, 300);
+  // Gradio mounts late — a few one-shot retries (no intervals / no flicker loops)
+  setTimeout(start, 200);
+  setTimeout(layoutOnce, 500);
+  setTimeout(layoutOnce, 1200);
   setTimeout(bindSliders, 1000);
   window.addEventListener('resize', () => {
     layoutOnce();
     bindSliders();
   }, { passive: true });
+  window.addEventListener('load', layoutOnce, { passive: true });
   // Only watch for new range inputs (childList), never attributes (avoids loops)
   try {
     const mo = new MutationObserver((muts) => {
       for (const m of muts) {
         if (m.addedNodes && m.addedNodes.length) {
           bindSliders();
+          // Re-layout once if plot cells just appeared
+          for (const n of m.addedNodes) {
+            if (n.nodeType === 1 && (
+              (n.id && (n.id === 'plots-col' || n.id.startsWith('vp-'))) ||
+              (n.querySelector && n.querySelector('#plots-col, #vp-shell'))
+            )) {
+              layoutOnce();
+              break;
+            }
+          }
           break;
         }
       }
