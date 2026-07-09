@@ -97,9 +97,10 @@ def _draw_green_slice(
         zorder=10,
     )
 
-    # Face fill @ opacity 0.1
-    u = np.linspace(lo[a0], hi[a0], 2)
-    v = np.linspace(lo[a1], hi[a1], 2)
+    # Face fill @ opacity 0.1 (denser mesh + Poly3DCollection fallback)
+    n = 12
+    u = np.linspace(lo[a0], hi[a0], n)
+    v = np.linspace(lo[a1], hi[a1], n)
     U, V = np.meshgrid(u, v)
     XYZ = [np.zeros_like(U), np.zeros_like(U), np.zeros_like(U)]
     XYZ[a0] = U
@@ -115,6 +116,20 @@ def _draw_green_slice(
         shade=False,
         zorder=5,
     )
+    try:
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+        face = outline[:4]
+        poly = Poly3DCollection(
+            [face],
+            facecolors=(0.0, 1.0, 0.0, 0.1),
+            edgecolors="#00FF00",
+            linewidths=1.2,
+            zorder=6,
+        )
+        ax.add_collection3d(poly)
+    except Exception:
+        pass
 
 
 def plot_shell_3d(
@@ -372,6 +387,7 @@ def run_pipeline(
 
     md = _format_status_md(summary, payload, turbulence, n_steps)
     return {
+        "shell": shell,
         "img_shell": img_shell,
         "img_radial": img_radial,
         "img_field": img_field,
@@ -407,3 +423,26 @@ def blank_rgb(h: int = 240, w: int = 320) -> np.ndarray:
     img = np.zeros((h, w, 3), dtype=np.uint8)
     img[:] = (11, 18, 32)
     return img
+
+
+def replot_shell_only(
+    shell,
+    slice_frac: float = 0.5,
+    slice_plane: str = "z",
+    show_slice: bool = True,
+) -> np.ndarray:
+    """Fast re-render of 3D shell for live matrix-slice controls (no rebuild)."""
+    if shell is None:
+        return blank_rgb(300, 360)
+    plane = str(slice_plane or "z").lower()
+    if plane not in ("x", "y", "z"):
+        plane = "z"
+    try:
+        return plot_shell_3d(
+            shell,
+            slice_frac=float(np.clip(slice_frac, 0.0, 1.0)),
+            slice_plane=plane,
+            show_slice=bool(show_slice),
+        )
+    except Exception:
+        return blank_rgb(300, 360)

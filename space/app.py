@@ -24,6 +24,7 @@ from demo_core import (
     HF_SPACE,
     asset_path,
     blank_rgb,
+    replot_shell_only,
     run_pipeline,
 )
 
@@ -121,18 +122,41 @@ footer { display: none !important; }
     radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
     #070b14 !important;
 }
-#workspace .gr-row, #workspace .gr-column {
+/* Direct children of workspace row stretch full height */
+#workspace > div {
   height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+/* Independent vertical scrollbars on all three columns */
+#controls,
+#col-center,
+#col-right {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.4);
+}
+#controls::-webkit-scrollbar,
+#col-center::-webkit-scrollbar,
+#col-right::-webkit-scrollbar {
+  width: 8px;
+}
+#controls::-webkit-scrollbar-thumb,
+#col-center::-webkit-scrollbar-thumb,
+#col-right::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.4);
+  border-radius: 4px;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
 #controls {
   display: flex !important;
   flex-direction: column !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
   padding: 0.35rem 0.4rem !important;
   gap: 0.25rem !important;
 }
@@ -284,7 +308,7 @@ def run_ui(
             build_3d=bool(build_3d),
             force_stub=bool(force_stub),
             slice_frac=float(slice_frac),
-            slice_plane=str(slice_plane),
+            slice_plane=str(slice_plane or "z"),
             show_slice=bool(show_slice),
         )
         return (
@@ -295,12 +319,23 @@ def run_ui(
             out["img_metrics"],
             out["img_trace"],
             out["status_md"],
+            out.get("shell"),
         )
     except Exception as exc:
         logger.exception("pipeline failed")
         err = blank_rgb()
         md = f"### Error\n```\n{exc!r}\n```"
-        return err, err, err, err, err, err, md
+        return err, err, err, err, err, err, md, None
+
+
+def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
+    """Live matrix-slice replot (no full pipeline)."""
+    return replot_shell_only(
+        shell,
+        slice_frac=float(slice_frac) if slice_frac is not None else 0.5,
+        slice_plane=str(slice_plane or "z"),
+        show_slice=bool(show_slice),
+    )
 
 
 def build_app() -> gr.Blocks:
@@ -327,11 +362,14 @@ def build_app() -> gr.Blocks:
             )
 
         view_state = gr.State("demo")
+        shell_state = gr.State(None)
 
         # ---- Workspace (single page, multi-column) ----
         with gr.Row(elem_id="workspace", equal_height=True):
             # Column 1 — compact collapsed accordions + Seed Status fills rest
-            with gr.Column(scale=2, min_width=200, elem_classes=["layer-inner"], elem_id="controls"):
+            with gr.Column(
+                scale=2, min_width=200, elem_classes=["layer-inner"], elem_id="controls"
+            ):
                 with gr.Column(elem_id="controls-top"):
                     gr.Markdown('<p class="viewport-title">Controls</p>')
                     # Startup: all four accordions collapsed
@@ -368,6 +406,7 @@ def build_app() -> gr.Blocks:
                             choices=["x", "y", "z"],
                             value="z",
                             label="Slice plane",
+                            type="value",
                         )
                         slice_frac = gr.Slider(
                             0.0,
@@ -387,11 +426,15 @@ def build_app() -> gr.Blocks:
                     elem_classes=["layer-fg"],
                 )
 
-            # Column 2 — primary viewports
-            with gr.Column(scale=4, min_width=320, elem_classes=["layer-inner"]):
+            # Column 2 — primary viewports (scrollable)
+            with gr.Column(
+                scale=4, min_width=320, elem_classes=["layer-inner"], elem_id="col-center"
+            ):
                 with gr.Row(equal_height=True):
                     with gr.Column():
-                        gr.Markdown('<p class="viewport-title">3D shell · contact path</p>')
+                        gr.Markdown(
+                            '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
+                        )
                         img_shell = gr.Image(
                             value=blank_rgb(300, 360),
                             label=None,
@@ -424,8 +467,10 @@ def build_app() -> gr.Blocks:
                             height=220,
                         )
 
-            # Column 3 — path + metrics + reference
-            with gr.Column(scale=3, min_width=240, elem_classes=["layer-inner"]):
+            # Column 3 — path + metrics + reference (scrollable)
+            with gr.Column(
+                scale=3, min_width=240, elem_classes=["layer-inner"], elem_id="col-right"
+            ):
                 with gr.Row(equal_height=True):
                     with gr.Column(scale=2):
                         gr.Markdown('<p class="viewport-title">Rolling path (Nature-style)</p>')
@@ -480,11 +525,17 @@ def build_app() -> gr.Blocks:
         run_btn.click(
             fn=run_ui,
             inputs=ctrl_inputs,
-            outputs=outs,
+            outputs=outs + [shell_state],
         )
 
-        def show_demo():
-            return gr.update()
+        # Live matrix slice: replot 3D shell only (no full pipeline)
+        slice_inputs = [shell_state, slice_frac, slice_plane, show_slice]
+        for ctrl in (slice_frac, slice_plane, show_slice):
+            ctrl.change(
+                fn=update_slice_ui,
+                inputs=slice_inputs,
+                outputs=[img_shell],
+            )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
             # Swap center hero: show construction figure in shell viewport caption via status
@@ -540,7 +591,7 @@ def build_app() -> gr.Blocks:
         demo.load(
             fn=run_ui,
             inputs=ctrl_inputs,
-            outputs=outs,
+            outputs=outs + [shell_state],
         )
 
     return demo
