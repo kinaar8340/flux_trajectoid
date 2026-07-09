@@ -349,13 +349,105 @@ def plot_shell_3d(
     return _fig_to_rgb(fig, size=_SHELL_SIZE)
 
 
+def _bin_mean_2d(
+    u: np.ndarray,
+    v: np.ndarray,
+    vals: np.ndarray,
+    nu: int,
+    nv: int,
+) -> np.ndarray:
+    """Mean of ``vals`` in a (nv, nu) grid over ranges of u (cols) and v (rows)."""
+    u = np.asarray(u, dtype=float).ravel()
+    v = np.asarray(v, dtype=float).ravel()
+    vals = np.asarray(vals, dtype=float).ravel()
+    umin, umax = float(np.nanmin(u)), float(np.nanmax(u))
+    vmin, vmax = float(np.nanmin(v)), float(np.nanmax(v))
+    du = umax - umin + 1e-12
+    dv = vmax - vmin + 1e-12
+    ui = np.clip(((u - umin) / du * (nu - 1)).astype(int), 0, nu - 1)
+    vi = np.clip(((v - vmin) / dv * (nv - 1)).astype(int), 0, nv - 1)
+    acc = np.zeros((nv, nu), dtype=float)
+    cnt = np.zeros((nv, nu), dtype=float)
+    np.add.at(acc, (vi, ui), vals)
+    np.add.at(cnt, (vi, ui), 1.0)
+    out = np.full((nv, nu), np.nan, dtype=float)
+    mask = cnt > 0
+    out[mask] = acc[mask] / cnt[mask]
+    # Fill holes with local mean so heatmaps stay continuous
+    fill = float(np.nanmean(out)) if np.any(np.isfinite(out)) else 0.0
+    out = np.where(np.isfinite(out), out, fill)
+    return out
+
+
+def _plane_heatmap(shell, plane: str) -> tuple[np.ndarray, str, str]:
+    """
+    Distinct trench heatmaps per scan axis.
+
+    Returns (field, cmap_name, scan_axis) where scan_axis is 'row' or 'col'
+    for the green scan bar direction (bar moves along that image axis).
+
+    - **Z**: UV radial_map (lat × lon) — bar moves in latitude (rows)
+    - **X**: cylindrical unwrap about X (height=x, angle in YZ) — bar along height
+    - **Y**: cylindrical unwrap about Y (height=y, angle in XZ) — bar along height
+    """
+    plane = str(plane or "z").lower().strip()
+    if plane not in ("x", "y", "z"):
+        plane = "z"
+
+    rmap = None
+    if getattr(shell, "radial_map", None) is not None:
+        rmap = np.asarray(shell.radial_map, dtype=float)
+
+    if plane == "z" and rmap is not None:
+        # Native spherical UV map (existing look, magma)
+        return rmap, "magma", "row"
+
+    # Need surface XYZ for X/Y cylindrical maps (and Z fallback)
+    if getattr(shell, "surface", None) is not None:
+        s = np.asarray(shell.surface, dtype=float)
+        pts = s.reshape(-1, 3)
+        if rmap is not None and rmap.size == pts.shape[0]:
+            vals = rmap.reshape(-1)
+        else:
+            vals = np.linalg.norm(pts, axis=1)
+        n0 = int(rmap.shape[0]) if rmap is not None else 48
+        n1 = int(rmap.shape[1]) if rmap is not None else 64
+    elif getattr(shell, "mesh_vertices", None) is not None:
+        pts = np.asarray(shell.mesh_vertices, dtype=float)
+        vals = np.linalg.norm(pts, axis=1)
+        n0, n1 = 48, 64
+    else:
+        # Last resort: tiny noise field
+        return np.zeros((32, 48)), "magma", "row"
+
+    if plane == "x":
+        # Along-X height vs angle around X (in YZ)
+        height = pts[:, 0]
+        ang = np.arctan2(pts[:, 2], pts[:, 1])
+        H = _bin_mean_2d(ang, height, vals, nu=n1, nv=n0)
+        # Emphasize trench contrast (high-pass residual)
+        H = H - np.nanmean(H, axis=1, keepdims=True) * 0.35 + np.nanmean(H)
+        return H, "inferno", "row"
+    if plane == "y":
+        # Along-Y height vs angle around Y (in XZ)
+        height = pts[:, 1]
+        ang = np.arctan2(pts[:, 2], pts[:, 0])
+        H = _bin_mean_2d(ang, height, vals, nu=n1, nv=n0)
+        H = H - np.nanmean(H, axis=0, keepdims=True) * 0.35 + np.nanmean(H)
+        return H, "viridis", "row"
+
+    # Z fallback without radial_map: project XY
+    H = _bin_mean_2d(pts[:, 0], pts[:, 1], vals, nu=n1, nv=n0)
+    return H, "magma", "row"
+
+
 def plot_radial_map(
     shell,
     *,
     slice_frac: float | None = None,
     slice_plane: str = "z",
 ) -> np.ndarray:
-    """Radial / trench map; optional matrix-green band locked to scan frac."""
+    """Plane-specific trench heatmap; optional matrix-green band locked to scan frac."""
     fig = plt.figure(figsize=(4.2, 3.2), facecolor="#0b1220", dpi=100)
     # Fixed axes box so colorbar/layout never shifts frame-to-frame
     ax = fig.add_axes([0.08, 0.10, 0.72, 0.78])
@@ -366,8 +458,14 @@ def plot_radial_map(
         plane = "z"
     f = None if slice_frac is None else float(np.clip(slice_frac, 0.0, 1.0))
 
-    if shell.radial_map is not None:
-        rmap = np.asarray(shell.radial_map, dtype=float)
+    rmap = None
+    try:
+        rmap, cmap_name, scan_axis = _plane_heatmap(shell, plane)
+    except Exception:
+        rmap, cmap_name, scan_axis = None, "magma", "row"
+
+    if rmap is not None and np.size(rmap) > 0:
+        rmap = np.asarray(rmap, dtype=float)
         n_lat, n_lon = rmap.shape
         vmin = float(np.nanmin(rmap))
         vmax = float(np.nanmax(rmap))
@@ -376,7 +474,7 @@ def plot_radial_map(
         im = ax.imshow(
             rmap,
             origin="lower",
-            cmap="magma",
+            cmap=cmap_name,
             aspect="auto",
             vmin=vmin,
             vmax=vmax,
@@ -388,20 +486,28 @@ def plot_radial_map(
         ax.set_xlim(-0.5, n_lon - 0.5)
         ax.set_ylim(-0.5, n_lat - 0.5)
         if f is not None:
-            # UV map: rows ~ polar (z), cols ~ azimuth (x/y scan proxy)
-            if plane == "z":
-                i = f * max(n_lat - 1, 1)  # continuous position (no integer snap jitter)
-                ax.axhline(i, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
-                ax.axhspan(i - 0.85, i + 0.85, color="#00FF00", alpha=0.12, zorder=4)
+            # Scan bar always moves along the plane's primary axis of the map
+            if scan_axis == "row" or plane == "z":
+                # Z UV: latitude rows; X/Y cylindrical: height rows
+                if plane == "z":
+                    i = f * max(n_lat - 1, 1)
+                    ax.axhline(i, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
+                    ax.axhspan(i - 0.85, i + 0.85, color="#00FF00", alpha=0.12, zorder=4)
+                else:
+                    # X/Y: move bar along height (rows) = scan through the axis
+                    i = f * max(n_lat - 1, 1)
+                    ax.axhline(i, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
+                    ax.axhspan(i - 0.85, i + 0.85, color="#00FF00", alpha=0.12, zorder=4)
             else:
                 j = f * max(n_lon - 1, 1)
                 ax.axvline(j, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
                 ax.axvspan(j - 0.85, j + 0.85, color="#00FF00", alpha=0.12, zorder=4)
-        ax.set_title(
-            f"Radial map · {plane.upper()} trench / shave",
-            color="#e2e8f0",
-            fontsize=10,
-        )
+        title = {
+            "x": "Radial map · X trench (∥X cylinder)",
+            "y": "Radial map · Y trench (∥Y cylinder)",
+            "z": "Radial map · Z trench (UV sphere)",
+        }[plane]
+        ax.set_title(title, color="#e2e8f0", fontsize=9)
     else:
         cax.set_visible(False)
         curv = shell.curvature_signal
