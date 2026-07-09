@@ -38,24 +38,90 @@ logger = logging.getLogger(__name__)
 # Theme / CSS — fixed single page, glass layers @ 0.3 opacity
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
-html, body, .gradio-container {
+/*
+ * Flex-fit to screen (local + HF Space iframe).
+ * Chain: html/body → gradio-app → container → main → wrap → contain → nav + workspace
+ */
+html, body {
   height: 100% !important;
-  max-height: 100vh !important;
+  width: 100% !important;
+  max-height: 100% !important;
+  max-width: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
+  padding: 0 !important;
+  background: #070b14 !important;
+}
+/* Prefer dynamic viewport units when available (mobile / HF chrome) */
+@supports (height: 100dvh) {
+  html, body {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+  }
+}
+gradio-app, #root {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.gradio-container {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
   background: #070b14 !important;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
 }
-.gradio-container {
-  max-width: 100% !important;
+/* Gradio chrome wrappers stretch, no page scroll */
+.gradio-container .main,
+.gradio-container .wrap,
+.gradio-container .contain,
+.gradio-container > .main,
+.gradio-container .app {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  margin: 0 !important;
   padding: 0 !important;
+  gap: 0 !important;
 }
-/* Kill default scroll on main fill */
-.main, .wrap, .contain {
-  max-height: 100vh !important;
+/* Direct children of app body: nav (fixed) + workspace (flex fill) */
+.gradio-container .contain > .gap,
+.gradio-container .contain > div {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  gap: 0 !important;
+}
+footer,
+.footer,
+#footer,
+.svelte-1ipelgc /* gradio footer class variants */ {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
   overflow: hidden !important;
 }
-footer { display: none !important; }
 
 /*
  * theme_default_tabs
@@ -75,15 +141,19 @@ footer { display: none !important; }
 
 /* Top navigation — same tab language as CONTROLS | REFERENCES */
 #nav-bar {
-  display: flex;
+  display: flex !important;
+  flex: 0 0 auto !important;
   align-items: center;
   gap: 0.85rem;
   padding: 0.35rem 0.75rem 0;
   background: rgba(15, 23, 42, 0.92);
   border-bottom: none;
   min-height: 44px;
-  max-height: 52px;
+  max-height: 48px;
+  height: 48px !important;
   position: relative;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 #nav-bar::after {
   content: "";
@@ -179,39 +249,37 @@ footer { display: none !important; }
   padding: 0.35rem 0.5rem !important;
 }
 
-/* Main workspace fits under nav */
+/*
+ * Workspace: flex-fill under nav · columns ~25% | 50% | 25%
+ * Height comes from flex (not fixed 100vh-52) so HF iframe chrome fits.
+ */
 #workspace {
-  height: calc(100vh - 52px) !important;
-  max-height: calc(100vh - 52px) !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 0.35rem !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
   overflow: hidden !important;
-  padding: 0.4rem 0.55rem !important;
+  padding: 0.3rem 0.4rem 0.35rem 0.4rem !important;
+  margin: 0 !important;
   background:
     radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
     radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
     #070b14 !important;
 }
-/*
- * Page columns @ 1920×1080: ~25% | ~50% | ~25%
- * CSS grid keeps all three on-screen (flex + min-width was
- * pushing #col-right off the right edge under overflow:hidden).
- * Cols 2 & 3: each split 50/50 height.
- */
-#workspace {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) !important;
-  grid-template-rows: minmax(0, 1fr) !important;
-  align-items: stretch !important;
-  gap: 0.4rem !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  overflow: hidden !important;
-}
-/* Kill Gradio default column min-widths */
+/* Kill Gradio default column min-widths; fill grid cell */
 #workspace .column,
 #workspace [class*="column"],
 #workspace > div,
 #workspace > * {
   min-width: 0 !important;
+  min-height: 0 !important;
   max-width: none !important;
   height: 100% !important;
   max-height: 100% !important;
@@ -221,17 +289,20 @@ footer { display: none !important; }
   grid-column: 1 !important;
   min-width: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
   overflow-x: hidden !important;
 }
 #col-center {
   grid-column: 2 !important;
   min-width: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
 }
 #col-right {
   grid-column: 3 !important;
   min-width: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -318,39 +389,52 @@ footer { display: none !important; }
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
 }
-/* Plot fills remaining cell; keep Gradio Image internals intact */
+/* Plot fills remaining cell; image flex-fits frame */
 #col-center .vp-cell .vp-plot,
 #col-right .vp-cell .vp-plot,
 #col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell [data-testid="image"] {
-  flex: 1 1 auto !important;
-  min-height: 120px !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
   width: 100% !important;
+  height: 100% !important;
   max-height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
   background: rgba(7, 11, 20, 0.35) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#col-center .vp-cell .image-container,
+#col-right .vp-cell .image-container,
+#col-center .vp-cell .vp-plot > div,
+#col-right .vp-cell .vp-plot > div {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
 }
 #col-center .vp-cell img,
 #col-right .vp-cell img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: auto !important;
-  height: auto !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
   margin: 0 auto !important;
 }
-#col-center .vp-cell .image-container,
-#col-right .vp-cell .image-container {
-  width: 100% !important;
-  min-height: 120px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
+/* Gradio fixed height="42vh" can fight flex-fit — override to fill cell */
+#col-center .vp-cell .vp-plot,
+#col-right .vp-cell .vp-plot {
+  height: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
@@ -843,8 +927,12 @@ def _empty_imgs():
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
 
 
-def _display_image(value, *, height="42vh", elem_classes=None, **extra):
-    """gr.Image for display-only plots — Gradio 4/5/6 keyword-compatible."""
+def _display_image(value, *, height="100%", elem_classes=None, **extra):
+    """gr.Image for display-only plots — Gradio 4/5/6 keyword-compatible.
+
+    Default height 100% so CSS flex-fit can size plots to the cell
+    (fixed 42vh overflowed HF iframe chrome).
+    """
     import inspect
 
     params = inspect.signature(gr.Image.__init__).parameters
