@@ -223,14 +223,14 @@ def _draw_green_slice(
     Matrix-green outlined rectangular slice through the shell,
     plus coplanar intersection arc where the plane hits the shell/sphere.
 
-    Edge: #00FF00 solid · face fill: #00FF00 @ alpha 0.1 · hit arc: #00FF00
+    Edge: #00FF00 solid · face fill: fully transparent · hit arc: #00FF00
     """
     meta = _slice_axis_and_value(shell, slice_frac=slice_frac, plane=plane)
     if meta is None:
         return
     axis, a0, a1, c, lo, hi = meta
 
-    # Outline rectangle
+    # Outline rectangle only (fill opacity 0 — no face paint)
     corners_uv = np.array(
         [
             [lo[a0], lo[a1]],
@@ -253,40 +253,6 @@ def _draw_green_slice(
         alpha=1.0,
         zorder=10,
     )
-
-    # Face fill @ opacity 0.1 (denser mesh + Poly3DCollection fallback)
-    n = 12
-    u = np.linspace(lo[a0], hi[a0], n)
-    v = np.linspace(lo[a1], hi[a1], n)
-    U, V = np.meshgrid(u, v)
-    XYZ = [np.zeros_like(U), np.zeros_like(U), np.zeros_like(U)]
-    XYZ[a0] = U
-    XYZ[a1] = V
-    XYZ[axis] = np.full_like(U, c)
-    ax.plot_surface(
-        XYZ[0],
-        XYZ[1],
-        XYZ[2],
-        color="#00FF00",
-        alpha=0.1,
-        linewidth=0,
-        shade=False,
-        zorder=5,
-    )
-    try:
-        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
-        face = outline[:4]
-        poly = Poly3DCollection(
-            [face],
-            facecolors=(0.0, 1.0, 0.0, 0.1),
-            edgecolors="#00FF00",
-            linewidths=1.2,
-            zorder=6,
-        )
-        ax.add_collection3d(poly)
-    except Exception:
-        pass
 
     # Arc on the same plane: plane ∩ shell/sphere
     _draw_intersection_arc(ax, shell, axis=axis, a0=a0, a1=a1, c=c)
