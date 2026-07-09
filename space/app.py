@@ -237,45 +237,58 @@ footer { display: none !important; }
 }
 
 /*
- * Global oval toggle theme defaults:
- *   default_button_style = oval
- *   button_body_height   = 1 row  (was ~2 rows)
- *   theme_default_button_effect_glowing = True when latched
- * - Latched True: oval fills #00FF00 + mild glow
- * - Outer chip stays dark (not full-button green)
+ * Global selection theme defaults:
+ *   default_button_style = circle + concentric border ring
+ *   button_body_height   = 1 row
+ *   button_effect_glowing = True when latched (button_state=True)
+ * Latched: ONLY the concentric ring / border → #00FF00 + mild glow
+ * (inner disk stays dark; outer chip stays neutral)
+ * Latched until another radio in the group is selected.
  */
 :root {
-  --ft-oval-w: 0.72em;
-  --ft-oval-h: 1.15em;           /* 1-row body height */
-  --ft-btn-row-h: 1.45rem;       /* default chip/row height */
-  --ft-oval-glow: 0 0 5px 1px rgba(0, 255, 0, 0.5),
-                  0 0 10px 2px rgba(0, 255, 0, 0.22);
+  --ft-circle-size: 1.05em;      /* outer circle diameter (1-row) */
+  --ft-ring-width: 2px;          /* concentric border thickness */
+  --ft-btn-row-h: 1.45rem;
+  --ft-ring-idle: rgba(148, 163, 184, 0.65);
+  --ft-ring-active: #00FF00;
+  --ft-disk: rgba(15, 23, 42, 0.95);
+  --ft-glow: 0 0 5px 1px rgba(0, 255, 0, 0.5),
+             0 0 11px 2px rgba(0, 255, 0, 0.25);
 }
 #controls input[type="checkbox"],
 #controls input[type="radio"] {
   -webkit-appearance: none !important;
   appearance: none !important;
-  width: var(--ft-oval-w) !important;
-  height: var(--ft-oval-h) !important;
-  border-radius: 999px !important;
-  border: 1.5px solid rgba(148, 163, 184, 0.55) !important;
-  background: rgba(15, 23, 42, 0.85) !important;
+  width: var(--ft-circle-size) !important;
+  height: var(--ft-circle-size) !important;
+  border-radius: 50% !important;                 /* circle */
+  border: var(--ft-ring-width) solid var(--ft-ring-idle) !important;  /* concentric ring */
+  background: var(--ft-disk) !important;         /* inner disk — never green fill */
+  background-image: none !important;
+  box-shadow: none !important;
   flex-shrink: 0 !important;
-  margin: 0 0.3em 0 0 !important;
+  margin: 0 0.35em 0 0 !important;
   cursor: pointer !important;
   vertical-align: middle !important;
-  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
-/* Latched / selected oval only + mild glow */
+/* Latched True: only border/ring → #00FF00 + glow (stays until group changes) */
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked {
-  background: #00FF00 !important;
-  background-color: #00FF00 !important;
-  border-color: #00FF00 !important;
-  box-shadow: var(--ft-oval-glow) !important;
+  background: var(--ft-disk) !important;
+  background-color: var(--ft-disk) !important;
+  border-color: var(--ft-ring-active) !important;
+  box-shadow: var(--ft-glow) !important;
   accent-color: #00FF00 !important;
 }
-/* Radio / toggle chips: single-row body height (default theme) */
+/* Optional inner concentric tick ring (hollow center) */
+#controls input[type="radio"]:checked {
+  /* double-ring look: outer glow ring via box-shadow, solid #00FF00 border */
+  box-shadow:
+    inset 0 0 0 1.5px rgba(15, 23, 42, 0.95),
+    var(--ft-glow) !important;
+}
+/* Radio / toggle chips: single-row body height */
 #controls fieldset,
 #controls .wrap,
 #controls [data-testid="radio-group"],
@@ -299,29 +312,32 @@ footer { display: none !important; }
   align-items: center !important;
   box-sizing: border-box !important;
 }
-/* Outer chips stay neutral */
+/* Outer chips always neutral (never full green body) */
 #controls .wrap button.selected,
 #controls button.selected,
 #controls [role="radio"][aria-checked="true"],
 #controls label:has(input[type="radio"]:checked),
 #controls label:has(input[type="checkbox"]:checked),
 #controls fieldset label:has(input:checked),
-#controls [data-testid="radio-group"] label:has(input:checked) {
+#controls [data-testid="radio-group"] label:has(input:checked),
+#controls .wrap button,
+#controls fieldset label {
   background: rgba(15, 23, 42, 0.45) !important;
   background-color: rgba(15, 23, 42, 0.45) !important;
   border-color: rgba(100, 116, 139, 0.4) !important;
   color: #e2e8f0 !important;
   box-shadow: none !important;
 }
-/* Custom oval span (if Gradio draws one) */
+/* Custom circle span (if Gradio draws one) — ring only when active */
 #controls label:has(input:checked) > span:first-child,
 #controls [role="radio"][aria-checked="true"]::before {
-  width: var(--ft-oval-w) !important;
-  height: var(--ft-oval-h) !important;
-  background-color: #00FF00 !important;
-  border-color: #00FF00 !important;
-  border-radius: 999px !important;
-  box-shadow: var(--ft-oval-glow) !important;
+  width: var(--ft-circle-size) !important;
+  height: var(--ft-circle-size) !important;
+  border-radius: 50% !important;
+  background: var(--ft-disk) !important;
+  border: var(--ft-ring-width) solid var(--ft-ring-active) !important;
+  box-shadow: var(--ft-glow) !important;
+  color: transparent !important;
 }
 /* Seed status takes remaining column height */
 #status-md {
