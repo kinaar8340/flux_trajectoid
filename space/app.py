@@ -235,6 +235,53 @@ footer { display: none !important; }
   min-height: 1.6rem !important;
   margin-top: 0.15rem !important;
 }
+
+/* Selected checkboxes / radios → matrix green fill #00FF00 */
+#controls input[type="checkbox"],
+#controls input[type="radio"] {
+  accent-color: #00FF00 !important;
+}
+#controls input[type="checkbox"]:checked,
+#controls input[type="radio"]:checked {
+  accent-color: #00FF00 !important;
+  background-color: #00FF00 !important;
+  border-color: #00FF00 !important;
+}
+/* Gradio checkbox block when checked */
+#controls label:has(input[type="checkbox"]:checked),
+#controls .block:has(input[type="checkbox"]:checked) label {
+  color: #bbf7d0 !important;
+}
+#controls input[type="checkbox"]:checked {
+  background-color: #00FF00 !important;
+  background-image: none !important;
+  box-shadow: 0 0 0 1px #00FF00 !important;
+}
+/* Gradio radio pill / button selected state (x y z plane) */
+#controls .wrap button.selected,
+#controls button.selected,
+#controls [role="radio"][aria-checked="true"],
+#controls label:has(input[type="radio"]:checked),
+#controls .form-radio:has(input:checked),
+#controls fieldset label:has(input:checked) {
+  background: #00FF00 !important;
+  background-color: #00FF00 !important;
+  border-color: #00FF00 !important;
+  color: #0a0a0a !important;
+  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.5) !important;
+}
+#controls fieldset label:has(input:checked) span,
+#controls label:has(input[type="radio"]:checked) span {
+  color: #0a0a0a !important;
+}
+/* Gradio 5/6 Tab-style radio items */
+#controls .tab-nav button.selected,
+#controls .svelte-radio-group label.selected,
+#controls [data-testid="radio-group"] label:has(input:checked) {
+  background: #00FF00 !important;
+  border-color: #00FF00 !important;
+  color: #0a0a0a !important;
+}
 /* Seed status takes remaining column height */
 #status-md {
   flex: 1 1 auto !important;
@@ -374,14 +421,13 @@ def build_app() -> gr.Blocks:
     hero = asset_path("trajectoid_paths.png")
 
     with gr.Blocks(
-        title="flux_trajectoid · Photon Seed Asteroids",
+        title="flux_trajectoid",
         analytics_enabled=False,
     ) as demo:
         # ---- Top navigation ----
         with gr.Row(elem_id="nav-bar"):
             gr.HTML(
                 '<span class="nav-title">✦ flux_trajectoid</span>'
-                '<span style="color:#475569;font-size:0.72rem;">Photon Seed Asteroids</span>'
             )
             btn_demo = gr.Button("Demo", size="sm", elem_classes=["nav-active"])
             btn_ref = gr.Button("Reference", size="sm")
