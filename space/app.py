@@ -29,6 +29,8 @@ from demo_core import (
     run_pipeline,
 )
 
+# Keep import alias clear for suite return
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -348,16 +350,23 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
 
 
 def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
-    """Axial green-plane scan through fixed shell → animated GIF in shell viewport."""
-    gif_path, last_frame, msg = animate_matrix_scan(
+    """Synced axial scan: shell + radial + path GIFs at the same pace."""
+    n = int(n_frames) if n_frames is not None else 14
+    n = max(8, min(24, n))
+    g_shell, g_radial, g_path, msg = animate_matrix_scan(
         shell,
         slice_plane=str(slice_plane or "z"),
-        n_frames=int(n_frames) if n_frames is not None else 24,
+        n_frames=n,
         ping_pong=bool(ping_pong),
+        duration_ms=80,
     )
-    # Prefer GIF path for Gradio autoplay; fall back to last still
-    display = gif_path if gif_path else last_frame
-    return display, msg
+    # Gradio Image autoplays GIF paths; fall back to blank if missing
+    return (
+        g_shell if g_shell else blank_rgb(300, 360),
+        g_radial if g_radial else blank_rgb(300, 360),
+        g_path if g_path else blank_rgb(400, 220),
+        msg,
+    )
 
 
 def build_app() -> gr.Blocks:
@@ -439,8 +448,8 @@ def build_app() -> gr.Blocks:
                         )
                         scan_frames = gr.Slider(
                             8,
-                            36,
-                            value=20,
+                            24,
+                            value=14,
                             step=1,
                             label="Scan frames",
                         )
@@ -574,11 +583,11 @@ def build_app() -> gr.Blocks:
                 outputs=[img_shell],
             )
 
-        # Axial scan animation (fixed shell, green plane marches)
+        # Synced axial scan: shell + radial + path (same timeline)
         scan_btn.click(
             fn=play_scan_ui,
             inputs=[shell_state, slice_plane, scan_frames, scan_ping],
-            outputs=[img_shell, status],
+            outputs=[img_shell, img_radial, img_path, status],
         )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):

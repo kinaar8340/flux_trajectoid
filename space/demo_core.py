@@ -185,18 +185,60 @@ def plot_shell_3d(
     return _fig_to_rgb(fig)
 
 
-def plot_radial_map(shell) -> np.ndarray:
+def plot_radial_map(
+    shell,
+    *,
+    slice_frac: float | None = None,
+    slice_plane: str = "z",
+) -> np.ndarray:
+    """Radial / trench map; optional matrix-green band locked to scan frac."""
     fig, ax = plt.subplots(figsize=(4.2, 3.2), facecolor="#0b1220")
     ax.set_facecolor("#0b1220")
+    plane = str(slice_plane or "z").lower()
+    if plane not in ("x", "y", "z"):
+        plane = "z"
+    f = None if slice_frac is None else float(np.clip(slice_frac, 0.0, 1.0))
+
     if shell.radial_map is not None:
-        im = ax.imshow(shell.radial_map, origin="lower", cmap="magma", aspect="auto")
+        rmap = shell.radial_map
+        n_lat, n_lon = rmap.shape
+        im = ax.imshow(rmap, origin="lower", cmap="magma", aspect="auto")
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.ax.yaxis.set_tick_params(color="#94a3b8")
         plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#94a3b8", fontsize=7)
-        ax.set_title("Radial map · trench / shave", color="#e2e8f0", fontsize=10)
+        if f is not None:
+            # UV map: rows ~ polar (z), cols ~ azimuth (x/y scan proxy)
+            if plane == "z":
+                i = int(f * max(n_lat - 1, 1))
+                ax.axhline(i, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
+                ax.axhspan(i - 0.9, i + 0.9, color="#00FF00", alpha=0.12, zorder=4)
+            else:
+                j = int(f * max(n_lon - 1, 1))
+                ax.axvline(j, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
+                ax.axvspan(j - 0.9, j + 0.9, color="#00FF00", alpha=0.12, zorder=4)
+            ax.set_title(
+                f"Radial map · scan {plane}={f:.2f}",
+                color="#e2e8f0",
+                fontsize=10,
+            )
+        else:
+            ax.set_title("Radial map · trench / shave", color="#e2e8f0", fontsize=10)
     else:
-        ax.plot(shell.curvature_signal or [], color="#38bdf8")
-        ax.set_title("Curvature signal", color="#e2e8f0", fontsize=10)
+        curv = shell.curvature_signal
+        if curv is not None and len(curv):
+            ax.plot(curv, color="#38bdf8", lw=1.4, alpha=0.85)
+            if f is not None:
+                i = int(f * max(len(curv) - 1, 1))
+                ax.axvline(i, color="#00FF00", lw=2.0, alpha=0.95)
+                ax.scatter([i], [curv[i]], c="#00FF00", s=36, zorder=5)
+            ax.set_title(
+                f"Curvature · scan {plane}={f:.2f}" if f is not None else "Curvature signal",
+                color="#e2e8f0",
+                fontsize=10,
+            )
+        else:
+            ax.text(0.5, 0.5, "no radial map", ha="center", color="#64748b")
+            ax.set_axis_off()
     ax.tick_params(colors="#64748b", labelsize=7)
     for sp in ax.spines.values():
         sp.set_color("#334155")
@@ -222,8 +264,16 @@ def plot_protected_field(flux) -> np.ndarray:
     return _fig_to_rgb(fig)
 
 
-def plot_path_panel(shell, style: str = "theory") -> np.ndarray:
-    """Path viewport inspired by Nature trajectoid path columns."""
+def plot_path_panel(
+    shell,
+    style: str = "theory",
+    *,
+    progress: float | None = None,
+) -> np.ndarray:
+    """Path viewport inspired by Nature trajectoid path columns.
+
+    If ``progress`` ∈ [0, 1] is set, draw a scan-head trail synced to matrix scan.
+    """
     fig, ax = plt.subplots(figsize=(3.2, 5.5), facecolor="#0b1220")
     ax.set_facecolor("#0b1220")
     path = shell.vertices[:, :2]
@@ -235,15 +285,29 @@ def plot_path_panel(shell, style: str = "theory") -> np.ndarray:
     x = p[:, 0] * 0.35
     y = s * 4.0 + p[:, 1] * 0.25
     color = "#38bdf8" if style == "theory" else "#f472b6"
-    ax.plot(x, y, color=color, lw=1.6, alpha=0.95, label=style)
-    ax.scatter([x[0], x[-1]], [y[0], y[-1]], c="#f8fafc", s=18, zorder=3)
-    # Soft ghost second path (TPT echo)
-    ax.plot(x * 0.92 + 0.08, y, color="#64748b", lw=1.0, alpha=0.35)
+
+    # Ghost full path
+    ax.plot(x, y, color="#64748b", lw=1.2, alpha=0.35, zorder=1)
+    ax.plot(x * 0.92 + 0.08, y, color="#475569", lw=0.9, alpha=0.25, zorder=0)
+
+    if progress is None:
+        ax.plot(x, y, color=color, lw=1.6, alpha=0.95, zorder=2)
+        ax.scatter([x[0], x[-1]], [y[0], y[-1]], c="#f8fafc", s=18, zorder=3)
+        ax.set_title("Rolling path", color="#e2e8f0", fontsize=10)
+    else:
+        f = float(np.clip(progress, 0.0, 1.0))
+        idx = int(f * max(len(x) - 1, 1))
+        ax.plot(x[: idx + 1], y[: idx + 1], color=color, lw=2.0, alpha=0.95, zorder=2)
+        ax.scatter([x[0]], [y[0]], c="#f8fafc", s=16, zorder=3)
+        ax.scatter([x[idx]], [y[idx]], c="#00FF00", s=48, zorder=5, edgecolors="#bbf7d0", linewidths=0.6)
+        # Scan tick on vertical progress axis
+        ax.axhline(y[idx], color="#00FF00", lw=0.8, alpha=0.35, zorder=1)
+        ax.set_title(f"Rolling path · {f:.2f}", color="#e2e8f0", fontsize=10)
+
     ax.set_xlim(-0.7, 0.7)
     ax.set_ylim(-0.15, 4.2)
     ax.set_aspect("equal")
     ax.axis("off")
-    ax.set_title("Rolling path", color="#e2e8f0", fontsize=10)
     fig.tight_layout(pad=0.2)
     return _fig_to_rgb(fig)
 
@@ -448,68 +512,99 @@ def replot_shell_only(
         return blank_rgb(300, 360)
 
 
-def animate_matrix_scan(
-    shell,
-    *,
-    slice_plane: str = "z",
-    n_frames: int = 24,
-    ping_pong: bool = True,
-    duration_ms: int = 70,
-    out_dir: Path | None = None,
-) -> tuple[str | None, np.ndarray, str]:
-    """
-    Axial matrix-green scan: fixed 3D shell, green plane marches 0→1 (optional ping-pong).
-
-    Returns (gif_path, last_frame_rgb, status_message).
-    """
-    if shell is None:
-        return None, blank_rgb(300, 360), "### Scan\n_No shell yet — run **Build** first._"
-
-    plane = str(slice_plane or "z").lower()
-    if plane not in ("x", "y", "z"):
-        plane = "z"
-    n_frames = int(np.clip(n_frames, 8, 48))
-    duration_ms = int(np.clip(duration_ms, 40, 200))
-
-    fracs = np.linspace(0.0, 1.0, n_frames)
-    if ping_pong:
-        fracs = np.concatenate([fracs, fracs[-2:0:-1]])
-
-    frames_rgb: list[np.ndarray] = []
-    for f in fracs:
-        frames_rgb.append(
-            plot_shell_3d(
-                shell,
-                slice_frac=float(f),
-                slice_plane=plane,
-                show_slice=True,
-            )
-        )
-
-    last = frames_rgb[-1] if frames_rgb else blank_rgb(300, 360)
-
-    try:
-        from PIL import Image
-    except ImportError:
-        return None, last, "### Scan\n_Pillow required for GIF export (`pip install pillow`)._"
-
-    out_dir = out_dir or (ROOT / "outputs" / "space_anim")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    gif_path = out_dir / f"matrix_scan_{plane}.gif"
+def _write_gif(frames_rgb: list[np.ndarray], path: Path, duration_ms: int) -> None:
+    from PIL import Image
 
     pil_frames = [Image.fromarray(rgb) for rgb in frames_rgb]
     pil_frames[0].save(
-        gif_path,
+        path,
         save_all=True,
         append_images=pil_frames[1:],
         duration=duration_ms,
         loop=0,
         optimize=False,
     )
+
+
+def animate_matrix_scan(
+    shell,
+    *,
+    slice_plane: str = "z",
+    n_frames: int = 14,
+    ping_pong: bool = True,
+    duration_ms: int = 80,
+    out_dir: Path | None = None,
+) -> tuple[str | None, str | None, str | None, str]:
+    """
+    Synced axial scan suite (same timeline for all three viewports):
+
+    1. 3D shell + green matrix plane
+    2. Radial map green band
+    3. Rolling path progress head
+
+    Returns (gif_shell, gif_radial, gif_path, status_md).
+    Default ~14 frames for a balanced demo.
+    """
+    if shell is None:
+        empty = "### Scan\n_No shell yet — run **Build** first._"
+        return None, None, None, empty
+
+    plane = str(slice_plane or "z").lower()
+    if plane not in ("x", "y", "z"):
+        plane = "z"
+    # Balanced demo defaults: 8–24, preferred 14
+    n_frames = int(np.clip(n_frames, 8, 24))
+    duration_ms = int(np.clip(duration_ms, 50, 150))
+
+    fracs = np.linspace(0.0, 1.0, n_frames)
+    if ping_pong:
+        fracs = np.concatenate([fracs, fracs[-2:0:-1]])
+
+    shells: list[np.ndarray] = []
+    radials: list[np.ndarray] = []
+    paths: list[np.ndarray] = []
+    for f in fracs:
+        ff = float(f)
+        shells.append(
+            plot_shell_3d(
+                shell,
+                slice_frac=ff,
+                slice_plane=plane,
+                show_slice=True,
+            )
+        )
+        radials.append(
+            plot_radial_map(shell, slice_frac=ff, slice_plane=plane)
+        )
+        paths.append(plot_path_panel(shell, progress=ff))
+
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        return (
+            None,
+            None,
+            None,
+            "### Scan\n_Pillow required for GIF export (`pip install pillow`)._",
+        )
+
+    out_dir = out_dir or (ROOT / "outputs" / "space_anim")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    p_shell = out_dir / f"matrix_scan_{plane}_shell.gif"
+    p_radial = out_dir / f"matrix_scan_{plane}_radial.gif"
+    p_path = out_dir / f"matrix_scan_{plane}_path.gif"
+
+    _write_gif(shells, p_shell, duration_ms)
+    _write_gif(radials, p_radial, duration_ms)
+    _write_gif(paths, p_path, duration_ms)
+
     msg = (
-        f"### Matrix scan\n"
-        f"Plane **{plane}** · {len(frames_rgb)} frames · "
-        f"{'ping-pong' if ping_pong else 'one-way'} · "
-        f"`{gif_path.name}`"
+        f"### Matrix scan (synced)\n"
+        f"Plane **{plane}** · {len(fracs)} frames · {duration_ms} ms/frame · "
+        f"{'ping-pong' if ping_pong else 'one-way'}\n\n"
+        f"| Viewport | File |\n|---|---|\n"
+        f"| 3D shell | `{p_shell.name}` |\n"
+        f"| Radial map | `{p_radial.name}` |\n"
+        f"| Rolling path | `{p_path.name}` |\n"
     )
-    return str(gif_path), last, msg
+    return str(p_shell), str(p_radial), str(p_path), msg
