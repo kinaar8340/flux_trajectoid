@@ -175,7 +175,9 @@ footer { display: none !important; }
   font-size: 0.65rem !important;
   line-height: 1.1 !important;
 }
-/* Column-1 sub-nav: CONTROLS | REFERENCES */
+/* Column-1 sub-nav: CONTROLS | REFERENCES
+ * Match .viewport-title type; selected tab text = #00FF00
+ */
 #col1-tabs {
   margin: 0 !important;
   padding: 0 !important;
@@ -188,31 +190,48 @@ footer { display: none !important; }
 #col1-tabs > .tab-nav,
 #col1-tabs .tab-nav {
   display: flex !important;
-  gap: 0.35rem !important;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.2) !important;
+  gap: 0.5rem !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
   margin: 0 0 0.35rem 0 !important;
   padding: 0 !important;
   background: transparent !important;
 }
+/* Unselected: same as CONTROLS / .viewport-title */
 #col1-tabs .tab-nav button,
-#col1-tabs .tab-nav button span {
+#col1-tabs .tab-nav button *,
+#col1-tabs .tab-nav button span,
+#controls #col1-tabs .tab-nav button,
+#controls #col1-tabs .tab-nav button span {
   color: #64748b !important;
-  font-size: 0.68rem !important;
-  font-weight: 600 !important;
+  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
+  font-size: 0.7rem !important;
+  font-weight: 400 !important;
+  line-height: 1.1 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.06em !important;
-  padding: 0.25rem 0.45rem !important;
+  padding: 0.2rem 0.15rem 0.35rem 0.15rem !important;
   background: transparent !important;
   border: none !important;
   border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
   min-width: auto !important;
+  box-shadow: none !important;
 }
+/* Selected: green text (both CONTROLS & REFERENCES) */
 #col1-tabs .tab-nav button.selected,
-#col1-tabs .tab-nav button[aria-selected="true"] {
-  color: #e0f2fe !important;
-  border-bottom-color: #38bdf8 !important;
+#col1-tabs .tab-nav button.selected *,
+#col1-tabs .tab-nav button.selected span,
+#col1-tabs .tab-nav button[aria-selected="true"],
+#col1-tabs .tab-nav button[aria-selected="true"] *,
+#col1-tabs .tab-nav button[aria-selected="true"] span,
+#controls #col1-tabs .tab-nav button.selected,
+#controls #col1-tabs .tab-nav button.selected span,
+#controls #col1-tabs .tab-nav button[aria-selected="true"],
+#controls #col1-tabs .tab-nav button[aria-selected="true"] span {
+  color: #00FF00 !important;
+  border-bottom-color: #00FF00 !important;
   background: transparent !important;
+  font-weight: 400 !important;
 }
 #col1-tabs .tabitem,
 #col1-tabs > div:not(.tab-nav) {
