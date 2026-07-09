@@ -282,52 +282,36 @@ footer,
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* ---- Right plots pane (JS sets pixel fixed boxes for 1920×1080) ---- */
-#plots-col {
-  position: fixed !important;
-  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
-  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
-  right: var(--ft-gap) !important;
-  bottom: var(--ft-gap) !important;
-  z-index: 40 !important;
-  display: block !important;
-  overflow: visible !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  min-width: 280px !important;
-}
-/* Intermediate Gradio wrappers collapse — viewports are position:fixed via JS */
-#plots-col > .form,
-#plots-col > .wrap,
-#plots-col > div,
+/* ---- Right plots pane ----
+ * Viewports are REPARENTED to <body> by JS (Gradio ancestors often have
+ * transform/filter which traps position:fixed and clips 3 of 4 cells).
+ * #plots-col / #plots-top / #plots-bot stay as empty layout stubs.
+ */
+#plots-col,
 #plots-top,
-#plots-bot,
-#plots-top > .form,
-#plots-top > .wrap,
-#plots-top > div,
-#plots-bot > .form,
-#plots-bot > .wrap,
-#plots-bot > div {
-  display: contents !important;
+#plots-bot {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
+  overflow: hidden !important;
   border: none !important;
   background: transparent !important;
   box-shadow: none !important;
-  overflow: visible !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  z-index: 0 !important;
 }
-/* Viewport cells — JS places with position:fixed + pixel box (2×2) */
+/* Viewport cells — true viewport-fixed 2×2 (JS sets pixel top/left/width/height) */
 #vp-shell,
 #vp-path,
 #vp-radial,
 #vp-score {
   position: fixed !important;
-  z-index: 41 !important;
+  z-index: 50 !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -335,13 +319,16 @@ footer,
   box-sizing: border-box !important;
   visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
   background: rgba(15, 23, 42, 0.96) !important;
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-radius: 10px !important;
   min-width: 0 !important;
   min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
 }
-/* Fallback 2×2 before JS runs (approx 1920×1080 host) */
+/* CSS fallback 2×2 before JS (1920×1080 host approx) */
 #vp-shell {
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
   left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
@@ -350,19 +337,19 @@ footer,
 }
 #vp-path {
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
-  right: var(--ft-gap) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap) + (100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688 + var(--ft-gap)) !important;
   width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
   height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
 #vp-radial {
-  bottom: var(--ft-gap) !important;
+  top: calc(var(--ft-nav-h) + 2 * var(--ft-gap) + (100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
   left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
   width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
   height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
 #vp-score {
-  bottom: var(--ft-gap) !important;
-  right: var(--ft-gap) !important;
+  top: calc(var(--ft-nav-h) + 2 * var(--ft-gap) + (100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap) + (100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688 + var(--ft-gap)) !important;
   width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
   height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
@@ -1883,9 +1870,24 @@ SLIDER_FILL_JS = """
     });
   }
 
+  function setImp(el, props) {
+    if (!el) return;
+    Object.keys(props).forEach((k) => {
+      // camelCase → kebab-case for setProperty
+      const cssKey = k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+      try {
+        el.style.setProperty(cssKey, String(props[k]), 'important');
+      } catch (_) {
+        el.style[k] = props[k];
+      }
+    });
+  }
+
   function layoutOnce() {
     // Target: full iframe / window (typically 1920×1080 host).
-    // Escape Gradio flex nesting by position:fixed pixel boxes for every pane.
+    // CRITICAL: reparent #vp-* to document.body so position:fixed is not
+    // trapped by Gradio ancestors with transform/filter/overflow (that
+    // was hiding 3 of 4 cells — only shell painted).
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
@@ -1897,6 +1899,7 @@ SLIDER_FILL_JS = """
 
     const gap = 8;
     const ctrlW = Math.min(300, Math.max(240, Math.floor(vw * 0.16)));
+    document.documentElement.style.setProperty('--ft-ctrl-w', ctrlW + 'px');
     const top = navH + gap;
     const bottomPad = gap;
     const paneH = Math.max(200, appH - top - bottomPad);
@@ -1904,21 +1907,25 @@ SLIDER_FILL_JS = """
     const plotsW = Math.max(320, vw - plotsLeft - gap);
 
     if (nav) {
-      Object.assign(nav.style, {
-        position: 'fixed', top: '0', left: '0', right: '0',
+      setImp(nav, {
+        position: 'fixed', top: '0px', left: '0px', right: '0px',
         width: '100%', height: navH + 'px', zIndex: '1000',
       });
     }
 
     const ctrl = document.querySelector('#controls');
     if (ctrl) {
-      Object.assign(ctrl.style, {
+      // Escape Gradio transform trap for controls too
+      if (ctrl.parentElement !== document.body) {
+        document.body.appendChild(ctrl);
+      }
+      setImp(ctrl, {
         position: 'fixed',
         top: top + 'px',
         left: gap + 'px',
         width: ctrlW + 'px',
         height: paneH + 'px',
-        zIndex: '40',
+        zIndex: '50',
         display: 'flex',
         flexDirection: 'column',
         overflowX: 'hidden',
@@ -1926,107 +1933,86 @@ SLIDER_FILL_JS = """
         visibility: 'visible',
         opacity: '1',
         boxSizing: 'border-box',
+        pointerEvents: 'auto',
       });
     }
 
-    const pc = document.querySelector('#plots-col');
-    if (pc) {
-      Object.assign(pc.style, {
+    // Collapse leftover Gradio plot wrappers (viewports live on body now)
+    ['#plots-col', '#plots-top', '#plots-bot', '#workspace'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      setImp(el, {
         position: 'fixed',
-        top: top + 'px',
-        left: plotsLeft + 'px',
-        width: plotsW + 'px',
-        height: paneH + 'px',
-        zIndex: '40',
-        display: 'block',
-        overflow: 'visible',
-        visibility: 'visible',
-        opacity: '1',
-        margin: '0',
-        padding: '0',
-        background: 'transparent',
-        border: 'none',
+        top: '0px', left: '0px',
+        width: '0px', height: '0px',
+        overflow: 'hidden',
+        opacity: '0',
+        pointerEvents: 'none',
+        margin: '0px', padding: '0px', border: 'none',
       });
-    }
+    });
 
-    // 2×2 pixel grid — shell|path / radial|score (2.2 : 1 width split)
+    // 2×2 pixel grid — shell|path / radial|score
     const rowGap = gap;
     const colGap = gap;
     const rowH = Math.max(140, Math.floor((paneH - rowGap) / 2));
     const leftW = Math.max(160, Math.floor((plotsW - colGap) * 0.688));
     const rightW = Math.max(120, plotsW - leftW - colGap);
 
-    // Hide intermediate Gradio row wrappers so they don't steal layout
-    ['#plots-top', '#plots-bot'].forEach((sel) => {
-      const row = document.querySelector(sel);
-      if (!row) return;
-      Object.assign(row.style, {
-        position: 'static',
-        display: 'block',
-        width: '0',
-        height: '0',
-        margin: '0',
-        padding: '0',
-        overflow: 'visible',
-        border: 'none',
-        background: 'transparent',
-      });
-      Array.from(row.children).forEach((w) => {
-        if (w.id && String(w.id).startsWith('vp-')) return;
-        Object.assign(w.style, {
-          display: 'contents',
-        });
-      });
-    });
-
     const placeFixed = (sel, x, y, w, h) => {
       const el = document.querySelector(sel);
-      if (!el) return;
-      Object.assign(el.style, {
+      if (!el) return false;
+      // Reparent to body → true viewport fixed (no Gradio transform trap)
+      if (el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
+      setImp(el, {
         position: 'fixed',
         top: y + 'px',
         left: x + 'px',
         width: w + 'px',
         height: h + 'px',
-        zIndex: '41',
+        right: 'auto',
+        bottom: 'auto',
+        zIndex: '50',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         visibility: 'visible',
         opacity: '1',
         boxSizing: 'border-box',
-        margin: '0',
+        margin: '0px',
         padding: '6px 8px',
         background: 'rgba(15, 23, 42, 0.96)',
         border: '1px solid rgba(148, 163, 184, 0.22)',
         borderRadius: '10px',
+        pointerEvents: 'auto',
+        maxWidth: 'none',
+        maxHeight: 'none',
+        minWidth: '0px',
+        minHeight: '0px',
       });
-      // Gradio Column internals fill the fixed box
       Array.from(el.children).forEach((ch) => {
-        if (ch.classList && ch.classList.contains('viewport-title')) return;
-        if (ch.tagName === 'P' || (ch.querySelector && ch.querySelector('.viewport-title'))) {
-          Object.assign(ch.style, {
-            flex: '0 0 auto', margin: '0 0 4px 0', minHeight: '0',
-          });
+        if (ch.querySelector && ch.querySelector('.viewport-title')) {
+          setImp(ch, { flex: '0 0 auto', margin: '0 0 4px 0', minHeight: '0px' });
           return;
         }
-        Object.assign(ch.style, {
+        setImp(ch, {
           flex: '1 1 auto',
-          minHeight: '0',
+          minHeight: '0px',
           height: '100%',
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          margin: '0',
-          padding: '0',
+          margin: '0px',
+          padding: '0px',
         });
       });
-      // Image blocks + img tags fill remaining height
       el.querySelectorAll('.vp-plot, [data-testid="image"], .image-container, .wrap').forEach((node) => {
-        Object.assign(node.style, {
+        setImp(node, {
           flex: '1 1 auto',
-          minHeight: '0',
+          minHeight: '0px',
           height: '100%',
           width: '100%',
           maxHeight: '100%',
@@ -2034,13 +2020,13 @@ SLIDER_FILL_JS = """
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
-          margin: '0',
+          margin: '0px',
           visibility: 'visible',
           opacity: '1',
         });
       });
       el.querySelectorAll('img').forEach((img) => {
-        Object.assign(img.style, {
+        setImp(img, {
           maxWidth: '100%',
           maxHeight: '100%',
           width: '100%',
@@ -2052,16 +2038,23 @@ SLIDER_FILL_JS = """
           opacity: '1',
         });
       });
+      return true;
     };
 
     const y0 = top;
     const y1 = top + rowH + rowGap;
     const x0 = plotsLeft;
     const x1 = plotsLeft + leftW + colGap;
-    placeFixed('#vp-shell', x0, y0, leftW, rowH);
-    placeFixed('#vp-path',  x1, y0, rightW, rowH);
-    placeFixed('#vp-radial', x0, y1, leftW, rowH);
-    placeFixed('#vp-score',  x1, y1, rightW, rowH);
+    const ok = [
+      placeFixed('#vp-shell', x0, y0, leftW, rowH),
+      placeFixed('#vp-path',  x1, y0, rightW, rowH),
+      placeFixed('#vp-radial', x0, y1, leftW, rowH),
+      placeFixed('#vp-score',  x1, y1, rightW, rowH),
+    ];
+    // Retry soon if Gradio has not mounted all four yet
+    if (ok.some((v) => !v)) {
+      setTimeout(layoutOnce, 250);
+    }
   }
 
   function start() {
