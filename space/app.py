@@ -645,37 +645,40 @@ footer,
 }
 /*
  * theme_default_slider
- *   analog_fill_color     = #00FF00  (left of knob only)
- *   analog_bar_height     = ~2px
- *   analog_effect_glowing = True (fill bar + knob)
+ *   analog_fill_color     = #00FF00  (0 → knob only)
+ *   analog_bar_height     = 2px thin line
+ *   analog_effect_glowing = True (fill + knob)
  *
- * Fill is a real DOM inner layer (.ft-slider-fill) whose width tracks
- * the knob via JS (SLIDER_FILL_JS).
+ * --ft-fill-pct is set by JS on the shell/input. Dual paint path:
+ *   1) .ft-slider-fill DOM layer (preferred)
+ *   2) track linear-gradient fallback using the same CSS var
  */
 :root {
   --ft-slider-fill: #00FF00;
-  --ft-slider-rail: rgba(100, 116, 139, 0.45);
+  --ft-slider-rail: rgba(100, 116, 139, 0.5);
   --ft-slider-h: 2px;
-  --ft-slider-thumb: 11px;
+  --ft-slider-thumb: 12px;
+  --ft-fill-pct: 0%;
   --ft-slider-glow:
-    0 0 3px 0.5px rgba(0, 255, 0, 0.95),
-    0 0 6px 1px rgba(0, 255, 0, 0.65),
-    0 0 12px 2px rgba(0, 255, 0, 0.4),
-    0 0 18px 3px rgba(0, 255, 0, 0.22);
+    0 0 3px 0.5px rgba(0, 255, 0, 1),
+    0 0 6px 1px rgba(0, 255, 0, 0.75),
+    0 0 12px 2px rgba(0, 255, 0, 0.45),
+    0 0 20px 4px rgba(0, 255, 0, 0.25);
 }
-/* Shell: rail + fill sit under a transparent range input */
+/* Shell: rail + fill under transparent range */
 .ft-slider-shell {
   position: relative !important;
   flex: 1 1 auto !important;
   width: 100% !important;
   min-width: 0 !important;
   height: var(--ft-slider-thumb) !important;
-  display: flex !important;
-  align-items: center !important;
-  margin: 0.25rem 0 0.45rem 0 !important;
+  display: block !important;
+  margin: 0.3rem 0 0.5rem 0 !important;
+  overflow: visible !important;
+  --ft-fill-pct: 0%;
 }
-/* Dim full-width rail (always visible baseline) */
-.ft-slider-rail {
+/* Dim full-width rail */
+.ft-slider-shell > .ft-slider-rail {
   position: absolute !important;
   left: 0 !important;
   right: 0 !important;
@@ -686,29 +689,29 @@ footer,
   background: var(--ft-slider-rail) !important;
   pointer-events: none !important;
   z-index: 0 !important;
-  overflow: visible !important; /* allow green glow bloom on fill */
+  overflow: visible !important;
 }
-/* Inner layer — analog_fill_color #00FF00 + glowing, 0 → knob */
-.ft-slider-fill {
+/* Green glowing fill: 0 → knob (sibling of rail, not clipped) */
+.ft-slider-shell > .ft-slider-fill {
   position: absolute !important;
   left: 0 !important;
-  top: 0 !important;
-  bottom: 0 !important;
-  width: 0%;
-  min-width: 0;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  height: var(--ft-slider-h) !important;
+  width: var(--ft-fill-pct, 0%) !important;
+  max-width: 100% !important;
   border-radius: 999px !important;
-  background: var(--ft-slider-fill) !important;
+  background: #00FF00 !important;
   background-color: #00FF00 !important;
   box-shadow: var(--ft-slider-glow) !important;
-  filter: drop-shadow(0 0 3px rgba(0, 255, 0, 0.7)) !important;
   pointer-events: none !important;
   z-index: 1 !important;
   transition: none !important;
 }
-/* Range sits on top; its own track is fully invisible */
+/* Range on top — track uses gradient fallback from --ft-fill-pct */
 .ft-slider-shell > input[type="range"],
-#controls input[type="range"],
-#controls .ft-slider-shell input[type="range"] {
+#controls .ft-slider-shell input[type="range"],
+#controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   position: relative !important;
@@ -725,18 +728,23 @@ footer,
   background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
-  accent-color: transparent !important;
-  --slider-color: transparent !important;
-  --range_progress: 0% !important;
-  --color-accent: transparent !important;
+  accent-color: #00FF00 !important;
+  --slider-color: #00FF00 !important;
+  --color-accent: #00FF00 !important;
 }
 .ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: transparent !important;
-  background-image: none !important;
   border: none !important;
+  /* fallback: green 0→knob + dim remainder (JS sets --ft-fill-pct) */
+  background: linear-gradient(
+    to right,
+    #00FF00 0%,
+    #00FF00 var(--ft-fill-pct, 0%),
+    var(--ft-slider-rail) var(--ft-fill-pct, 0%),
+    var(--ft-slider-rail) 100%
+  ) !important;
   box-shadow: none !important;
 }
 .ft-slider-shell > input[type="range"]::-webkit-slider-thumb,
@@ -748,7 +756,7 @@ footer,
   margin-top: calc((var(--ft-slider-h) - var(--ft-slider-thumb)) / 2) !important;
   border-radius: 50% !important;
   background: #f8fafc !important;
-  border: 1.5px solid var(--ft-slider-fill) !important;
+  border: 1.5px solid #00FF00 !important;
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
   position: relative !important;
@@ -758,16 +766,18 @@ footer,
 #controls input[type="range"]::-moz-range-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: transparent !important;
+  background: var(--ft-slider-rail) !important;
   border: none !important;
   box-shadow: none !important;
 }
+/* Firefox native progress = analog fill 0→knob */
 .ft-slider-shell > input[type="range"]::-moz-range-progress,
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
-  background: transparent !important;
+  border-radius: 999px !important;
+  background: #00FF00 !important;
   border: none !important;
-  box-shadow: none !important;
+  box-shadow: var(--ft-slider-glow) !important;
 }
 .ft-slider-shell > input[type="range"]::-moz-range-thumb,
 #controls input[type="range"]::-moz-range-thumb {
@@ -775,7 +785,7 @@ footer,
   height: var(--ft-slider-thumb) !important;
   border-radius: 50% !important;
   background: #f8fafc !important;
-  border: 1.5px solid var(--ft-slider-fill) !important;
+  border: 1.5px solid #00FF00 !important;
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
 }
@@ -847,9 +857,10 @@ footer,
 }
 
 /*
- * theme_default_button — single CIRCLE outline (no inner circle, not oval)
- *   idle:    slate circle line
- *   latched: circle line → #00FF00
+ * theme_default_button — single CIRCLE outline
+ *   idle:                    slate circle line
+ *   button_state=True:       circle line → #00FF00
+ *                            + button_effect_glowing=True
  * Latched until another radio in the group is selected.
  */
 :root {
@@ -858,11 +869,11 @@ footer,
   --ft-btn-row-h: 1.45rem;
   --ft-ring-idle: rgba(148, 163, 184, 0.75);
   --ft-ring-active: #00FF00;
-  /* shared glow token (Play uses this) */
+  /* button_effect_glowing */
   --ft-glow:
-    0 0 4px 1px rgba(0, 255, 0, 0.65),
-    0 0 10px 2px rgba(0, 255, 0, 0.4),
-    0 0 16px 3px rgba(0, 255, 0, 0.22);
+    0 0 4px 1px rgba(0, 255, 0, 0.75),
+    0 0 10px 2px rgba(0, 255, 0, 0.45),
+    0 0 16px 3px rgba(0, 255, 0, 0.25);
 }
 #controls input[type="checkbox"],
 #controls input[type="radio"] {
@@ -891,7 +902,7 @@ footer,
   vertical-align: middle !important;
   box-sizing: border-box !important;
   display: inline-block !important;
-  transition: border-color 0.15s ease !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
 }
 /* kill Gradio / browser default checked glyphs (dots, images, inner rings) */
 #controls input[type="checkbox"]::before,
@@ -904,7 +915,7 @@ footer,
   border: none !important;
   box-shadow: none !important;
 }
-/* button_state=True → circle line → #00FF00 */
+/* button_state=True → #00FF00 line + button_effect_glowing */
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked,
 #controls input[type="checkbox"]:checked:hover,
@@ -915,7 +926,7 @@ footer,
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
-  box-shadow: none !important;
+  box-shadow: var(--ft-glow) !important;
   accent-color: #00FF00 !important;
 }
 /*
@@ -1033,14 +1044,14 @@ footer,
   box-shadow: none !important;
   color: transparent !important;
 }
-/* button_state=True → single circle line #00FF00 */
+/* button_state=True → #00FF00 line + glow */
 #controls label:has(input:checked) > span:first-child,
 #controls [role="radio"][aria-checked="true"]::before,
 #controls .oval-toggle label.selected > span:first-child {
   border-color: var(--ft-ring-active) !important;
   background: transparent !important;
   background-image: none !important;
-  box-shadow: none !important;
+  box-shadow: var(--ft-glow) !important;
   color: transparent !important;
 }
 /* Seed status takes remaining column height */
@@ -1897,34 +1908,63 @@ SLIDER_FILL_JS = """
     return Math.max(0, Math.min(100, ((val - min) / den) * 100));
   }
   function ensureShell(el) {
-    if (el.closest('.ft-slider-shell')) return el.closest('.ft-slider-shell');
-    const shell = document.createElement('div');
+    let shell = el.closest('.ft-slider-shell');
+    if (shell) {
+      // ensure fill sibling exists (Gradio may wipe children)
+      if (!shell.querySelector(':scope > .ft-slider-fill')) {
+        const fill = document.createElement('div');
+        fill.className = 'ft-slider-fill';
+        const rail = shell.querySelector(':scope > .ft-slider-rail');
+        if (rail) shell.insertBefore(fill, rail.nextSibling);
+        else shell.insertBefore(fill, el);
+      }
+      if (!shell.querySelector(':scope > .ft-slider-rail')) {
+        const rail = document.createElement('div');
+        rail.className = 'ft-slider-rail';
+        shell.insertBefore(rail, shell.firstChild);
+      }
+      return shell;
+    }
+    shell = document.createElement('div');
     shell.className = 'ft-slider-shell';
     const rail = document.createElement('div');
     rail.className = 'ft-slider-rail';
     const fill = document.createElement('div');
     fill.className = 'ft-slider-fill';
-    rail.appendChild(fill);
     const parent = el.parentNode;
     if (!parent) return null;
     parent.insertBefore(shell, el);
     shell.appendChild(rail);
+    shell.appendChild(fill); // sibling of rail — not clipped inside 2px rail
     shell.appendChild(el);
     return shell;
   }
   function paint(el) {
-    const shell = el.closest('.ft-slider-shell') || ensureShell(el);
+    if (!el || el.type !== 'range') return;
+    const shell = ensureShell(el);
     if (!shell) return;
-    const fill = shell.querySelector('.ft-slider-fill');
-    if (!fill) return;
-    // green glowing line from 0 → knob
-    fill.style.width = pctOf(el) + '%';
-    el.style.setProperty('--slider-color', 'transparent');
-    el.style.setProperty('--range_progress', '0%');
+    const pct = pctOf(el);
+    const pctStr = pct.toFixed(3) + '%';
+    // CSS var drives .ft-slider-fill width + track gradient fallback
+    shell.style.setProperty('--ft-fill-pct', pctStr);
+    el.style.setProperty('--ft-fill-pct', pctStr);
+    const fill = shell.querySelector(':scope > .ft-slider-fill');
+    if (fill) {
+      fill.style.setProperty('width', pctStr, 'important');
+      fill.style.setProperty('background', '#00FF00', 'important');
+      fill.style.setProperty('background-color', '#00FF00', 'important');
+      fill.style.setProperty('display', 'block', 'important');
+      fill.style.setProperty('opacity', '1', 'important');
+      fill.style.setProperty('visibility', 'visible', 'important');
+    }
   }
   function bindAll() {
-    const scope = document.querySelector('#controls') || document;
-    scope.querySelectorAll('input[type="range"]').forEach((el) => {
+    // all ranges in the app (Matrix slice Position / Frames live in #controls)
+    document.querySelectorAll('input[type="range"]').forEach((el) => {
+      // Gradio may recreate the node — re-shell if needed
+      if (!el.closest('.ft-slider-shell')) {
+        el.dataset.ftSliderBound = '0';
+      }
       if (el.dataset.ftSliderBound === '1') {
         paint(el);
         return;
@@ -1934,36 +1974,48 @@ SLIDER_FILL_JS = """
       const upd = () => paint(el);
       el.addEventListener('input', upd, { passive: true });
       el.addEventListener('change', upd, { passive: true });
+      el.addEventListener('pointerdown', upd, { passive: true });
       el.addEventListener('pointermove', () => {
         if (el.matches(':active')) paint(el);
       }, { passive: true });
-      const desc = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype, 'value'
-      );
-      if (desc && desc.set) {
-        const orig = desc.set;
-        Object.defineProperty(el, 'value', {
-          get: desc.get,
-          set(v) {
-            orig.call(this, v);
-            paint(this);
-          },
-          configurable: true,
-        });
-      }
+      el.addEventListener('touchmove', upd, { passive: true });
+      try {
+        const desc = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype, 'value'
+        );
+        if (desc && desc.set && !el.dataset.ftValueHook) {
+          el.dataset.ftValueHook = '1';
+          const orig = desc.set;
+          Object.defineProperty(el, 'value', {
+            get: desc.get,
+            set(v) {
+              orig.call(this, v);
+              paint(this);
+            },
+            configurable: true,
+          });
+        }
+      } catch (_) { /* ignore */ }
       paint(el);
     });
   }
   // Gradio may inject this script before components mount
   let fitTimer = null;
+  let paintTimer = null;
   function scheduleFit() {
     if (fitTimer) return;
     fitTimer = setTimeout(() => {
       fitTimer = null;
       fitScreen();
-      bindAll();
       bindNavTabs();
     }, 50);
+  }
+  function schedulePaint() {
+    if (paintTimer) return;
+    paintTimer = setTimeout(() => {
+      paintTimer = null;
+      bindAll();
+    }, 30);
   }
   const start = () => {
     fitScreen();
@@ -1980,7 +2032,6 @@ SLIDER_FILL_JS = """
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', scheduleFit, { passive: true });
   }
-  // parent may inject iframe-resizer late
   window.addEventListener('message', (ev) => {
     if (!ev || ev.data == null) return;
     const d = ev.data;
@@ -1988,14 +2039,25 @@ SLIDER_FILL_JS = """
       scheduleFit();
     }
   });
-  const obs = new MutationObserver(() => scheduleFit());
-  obs.observe(document.documentElement, { childList: true, subtree: true });
-  // Keep re-asserting until the hub iframe actually grows
+  // Any DOM change: re-shell / re-paint sliders (Gradio recreates ranges)
+  const obs = new MutationObserver(() => {
+    schedulePaint();
+    scheduleFit();
+  });
+  obs.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['value', 'style', 'class'],
+  });
+  // Continuous paint while app is live (covers Gradio value writes)
+  setInterval(bindAll, 400);
   let n = 0;
   const boot = setInterval(() => {
     fitScreen();
+    bindAll();
     n += 1;
-    if (n > 40) clearInterval(boot); // ~20s
+    if (n > 40) clearInterval(boot);
   }, 500);
   setTimeout(start, 0);
   setTimeout(start, 200);
