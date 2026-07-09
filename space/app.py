@@ -237,39 +237,69 @@ footer { display: none !important; }
 }
 
 /*
- * Global oval toggle style (default_button_style=oval):
- * - All binary/radio selections use oval indicators
- * - Latched True: oval fills #00FF00 + mild glow (theme_default_button_effect_glowing)
- * - Outer chip/border stays dark (not full-button green)
+ * Global oval toggle theme defaults:
+ *   default_button_style = oval
+ *   button_body_height   = 1 row  (was ~2 rows)
+ *   theme_default_button_effect_glowing = True when latched
+ * - Latched True: oval fills #00FF00 + mild glow
+ * - Outer chip stays dark (not full-button green)
  */
+:root {
+  --ft-oval-w: 0.72em;
+  --ft-oval-h: 1.15em;           /* 1-row body height */
+  --ft-btn-row-h: 1.45rem;       /* default chip/row height */
+  --ft-oval-glow: 0 0 5px 1px rgba(0, 255, 0, 0.5),
+                  0 0 10px 2px rgba(0, 255, 0, 0.22);
+}
 #controls input[type="checkbox"],
 #controls input[type="radio"] {
   -webkit-appearance: none !important;
   appearance: none !important;
-  width: 1.15em !important;
-  height: 1.85em !important;          /* tall oval like plane x/y/z */
+  width: var(--ft-oval-w) !important;
+  height: var(--ft-oval-h) !important;
   border-radius: 999px !important;
   border: 1.5px solid rgba(148, 163, 184, 0.55) !important;
   background: rgba(15, 23, 42, 0.85) !important;
   flex-shrink: 0 !important;
-  margin: 0 0.35em 0 0 !important;
+  margin: 0 0.3em 0 0 !important;
   cursor: pointer !important;
   vertical-align: middle !important;
   transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
 }
-/* Latched / selected oval only */
+/* Latched / selected oval only + mild glow */
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked {
   background: #00FF00 !important;
   background-color: #00FF00 !important;
   border-color: #00FF00 !important;
-  /* mild glow while latched true */
-  box-shadow:
-    0 0 6px 1px rgba(0, 255, 0, 0.55),
-    0 0 14px 2px rgba(0, 255, 0, 0.28) !important;
+  box-shadow: var(--ft-oval-glow) !important;
   accent-color: #00FF00 !important;
 }
-/* Outer radio/checkbox label chips stay neutral */
+/* Radio / toggle chips: single-row body height (default theme) */
+#controls fieldset,
+#controls .wrap,
+#controls [data-testid="radio-group"],
+#controls .form {
+  gap: 0.25rem !important;
+}
+#controls fieldset label,
+#controls label:has(input[type="radio"]),
+#controls label:has(input[type="checkbox"]),
+#controls .wrap button,
+#controls button.selected,
+#controls [role="radio"] {
+  min-height: var(--ft-btn-row-h) !important;
+  max-height: var(--ft-btn-row-h) !important;
+  height: var(--ft-btn-row-h) !important;
+  padding: 0 0.4rem !important;
+  margin: 0 !important;
+  line-height: 1.15 !important;
+  font-size: 0.72rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+/* Outer chips stay neutral */
 #controls .wrap button.selected,
 #controls button.selected,
 #controls [role="radio"][aria-checked="true"],
@@ -283,15 +313,15 @@ footer { display: none !important; }
   color: #e2e8f0 !important;
   box-shadow: none !important;
 }
-/* If Gradio paints a custom oval span, match glow there too */
+/* Custom oval span (if Gradio draws one) */
 #controls label:has(input:checked) > span:first-child,
 #controls [role="radio"][aria-checked="true"]::before {
+  width: var(--ft-oval-w) !important;
+  height: var(--ft-oval-h) !important;
   background-color: #00FF00 !important;
   border-color: #00FF00 !important;
   border-radius: 999px !important;
-  box-shadow:
-    0 0 6px 1px rgba(0, 255, 0, 0.55),
-    0 0 14px 2px rgba(0, 255, 0, 0.28) !important;
+  box-shadow: var(--ft-oval-glow) !important;
 }
 /* Seed status takes remaining column height */
 #status-md {
