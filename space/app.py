@@ -84,12 +84,15 @@ gradio-app, #root {
   background: #070b14 !important;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
 }
-/* Gradio chrome wrappers stretch, no page scroll */
+/* Gradio chrome wrappers stretch, no page scroll (Gradio 5 + 6) */
 .gradio-container .main,
 .gradio-container .wrap,
 .gradio-container .contain,
 .gradio-container > .main,
-.gradio-container .app {
+.gradio-container .app,
+.gradio-container > .wrap,
+.gradio-container > .contain,
+div.gradio-container > div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
@@ -104,14 +107,28 @@ gradio-app, #root {
 }
 /* Direct children of app body: nav (fixed) + workspace (flex fill) */
 .gradio-container .contain > .gap,
-.gradio-container .contain > div {
+.gradio-container .contain > div,
+.gradio-container .main > .wrap,
+.gradio-container .main > div,
+.gradio-container .app > .main,
+.gradio-container .app > div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
   overflow: hidden !important;
   gap: 0 !important;
+}
+/* HF Space iframe: kill document scroll so only #controls scrolls */
+html.gradio-container,
+body.gradio-container,
+body > gradio-app,
+body > #root {
+  overflow: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 footer,
 .footer,
@@ -259,10 +276,10 @@ footer,
   height: auto !important;
   max-height: none !important;
   display: grid !important;
-  /* Col-1 wide enough for compact controls; center dominant; right slim */
+  /* Col-1 wide enough for On/Off + x y z xyz on one row (match desired local look) */
   grid-template-columns:
-    minmax(260px, 0.95fr)
-    minmax(0, 2.2fr)
+    minmax(300px, 1.15fr)
+    minmax(0, 2.1fr)
     minmax(0, 1fr) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   align-items: stretch !important;
@@ -441,19 +458,48 @@ footer,
   max-height: 100% !important;
 }
 
-/* Column 1: compact top stack + Seed Status fills remainder */
+/* Column 1: compact top stack + Seed Status fills remainder
+ * Keep column flex vertical — never force .wrap to row (breaks Gradio 5). */
 #controls {
   display: flex !important;
   flex-direction: column !important;
-  padding: 0.35rem 0.4rem !important;
-  gap: 0.25rem !important;
+  padding: 0.3rem 0.45rem !important;
+  gap: 0.2rem !important;
+}
+#controls > .wrap,
+#controls > .form,
+#controls > div,
+#controls .tabs,
+#controls .tabitem,
+#controls .tabitem > .wrap,
+#controls .tabitem > .form,
+#controls .tabitem > div,
+#col1-tabs,
+#col1-tabs > .tabitem,
+#controls-top,
+#controls-top > .wrap,
+#controls-top > .form,
+#controls-top > div {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 #controls-top {
   flex: 0 0 auto !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.2rem !important;
+  gap: 0.18rem !important;
   min-height: 0 !important;
+  width: 100% !important;
+}
+/* Accordion bodies stack vertically (Gradio 5/6) */
+#controls .accordion,
+#controls details,
+#controls .label-wrap + div,
+#controls .block {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 #controls .viewport-title {
   margin: 0 0 0.1rem 0 !important;
@@ -482,7 +528,12 @@ footer,
   background: transparent !important;
 }
 #col1-tabs .tab-container,
-#controls #col1-tabs .tab-container {
+#controls #col1-tabs .tab-container,
+#col1-tabs .tab-wrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end !important;
   height: auto !important;
   min-height: 1.4rem !important;
   gap: 0.65rem !important;
@@ -744,14 +795,16 @@ footer,
   padding: 0.25rem 0.5rem !important;
   margin: 0.15rem 0 0 0 !important;
 }
-/* Play matrix scan — default idle styling */
+/* Play matrix scan — default idle styling; stays in left column flow */
 #scan-btn {
   background: rgba(0, 255, 0, 0.12) !important;
   color: #86efac !important;
   border: 1px solid rgba(0, 255, 0, 0.45) !important;
   font-size: 0.72rem !important;
-  min-height: 1.6rem !important;
-  margin-top: 0.15rem !important;
+  min-height: 1.55rem !important;
+  max-height: 1.75rem !important;
+  margin-top: 0.2rem !important;
+  margin-bottom: 0.1rem !important;
   box-shadow: none !important;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
 }
@@ -820,55 +873,98 @@ footer,
     inset 0 0 0 1.5px rgba(15, 23, 42, 0.95),
     var(--ft-glow) !important;
 }
-/* Radio / toggle chips: horizontal wrap so col-1 width fits the screen */
-#controls fieldset,
-#controls .wrap,
+/*
+ * Radio / toggle chips — ONLY the option row, never parent .wrap/.form.
+ * Broad #controls .wrap { flex-direction:row } broke Gradio 5: Play/Build
+ * escaped the left column and xyz wrapped under a narrow track.
+ */
+#controls .oval-toggle fieldset,
+#controls .oval-toggle [data-testid="radio-group"],
+#controls .oval-toggle > .wrap,
+#controls .oval-toggle .wrap:has(input[type="radio"]),
+#controls fieldset:has(input[type="radio"]),
 #controls [data-testid="radio-group"],
-#controls .form,
-#controls .block .wrap {
+#controls [role="radiogroup"],
+#controls .block:has(> .wrap input[type="radio"]) > .wrap,
+#controls .block:has(input[type="radio"]) > .form,
+#controls .form:has(> input[type="radio"]),
+#controls .form:has(> label > input[type="radio"]) {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important; /* keep On/Off and x y z xyz on one line */
   align-items: center !important;
-  gap: 0.3rem 0.45rem !important;
+  justify-content: flex-start !important;
+  gap: 0.25rem 0.35rem !important;
   width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  overflow-x: auto !important; /* last resort if viewport tiny */
+  overflow-y: hidden !important;
 }
+#controls .oval-toggle fieldset label,
+#controls .oval-toggle label,
 #controls fieldset label,
 #controls label:has(input[type="radio"]),
 #controls label:has(input[type="checkbox"]),
-#controls .wrap button,
-#controls button.selected,
-#controls [role="radio"] {
+#controls [role="radio"],
+#controls [data-testid="radio-group"] label {
   min-height: var(--ft-btn-row-h) !important;
   max-height: var(--ft-btn-row-h) !important;
   height: var(--ft-btn-row-h) !important;
   width: auto !important;
+  max-width: none !important;
   flex: 0 0 auto !important;
-  padding: 0 0.45rem !important;
+  padding: 0 0.35rem !important;
   margin: 0 !important;
-  line-height: 1.15 !important;
-  font-size: 0.72rem !important;
+  line-height: 1.1 !important;
+  font-size: 0.7rem !important;
   display: inline-flex !important;
   align-items: center !important;
   box-sizing: border-box !important;
   white-space: nowrap !important;
 }
-/* Action buttons stay full width under controls */
+/* Compact radio block chrome so Matrix slice + Play + Build fit */
+#controls .oval-toggle,
+#controls .block:has(input[type="radio"]) {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  gap: 0.1rem !important;
+}
+#controls .oval-toggle .label-wrap,
+#controls .block:has(input[type="radio"]) > label,
+#controls .block:has(input[type="radio"]) span[data-testid="block-info"],
+#controls .block:has(input[type="radio"]) .block-label,
+#controls .block:has(input[type="radio"]) .block-title {
+  margin: 0 0 0.08rem 0 !important;
+  padding: 0 !important;
+  font-size: 0.65rem !important;
+  line-height: 1.15 !important;
+}
+/* Action buttons: full-width stack inside left column (never float out) */
 #controls #scan-btn,
-#controls #run-btn {
+#controls #run-btn,
+#controls button#scan-btn,
+#controls button#run-btn {
+  display: block !important;
   width: 100% !important;
-  flex: 1 1 100% !important;
+  max-width: 100% !important;
+  flex: 0 0 auto !important;
+  align-self: stretch !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 /* Outer chips always neutral (never full green body) */
-#controls .wrap button.selected,
-#controls button.selected,
+#controls .oval-toggle label.selected,
 #controls [role="radio"][aria-checked="true"],
 #controls label:has(input[type="radio"]:checked),
 #controls label:has(input[type="checkbox"]:checked),
 #controls fieldset label:has(input:checked),
 #controls [data-testid="radio-group"] label:has(input:checked),
-#controls .wrap button,
-#controls fieldset label {
+#controls fieldset label,
+#controls .oval-toggle label {
   background: rgba(15, 23, 42, 0.45) !important;
   background-color: rgba(15, 23, 42, 0.45) !important;
   border-color: rgba(100, 116, 139, 0.4) !important;
@@ -1104,7 +1200,10 @@ def build_app() -> gr.Blocks:
         with gr.Row(elem_id="workspace", equal_height=True):
             # Column 1 — CONTROLS | REFERENCES tabs
             with gr.Column(
-                scale=1, min_width=0, elem_classes=["layer-inner"], elem_id="controls"
+                scale=5,
+                min_width=300,
+                elem_classes=["layer-inner"],
+                elem_id="controls",
             ):
                 with gr.Tabs(elem_id="col1-tabs", selected="controls") as col1_tabs:
                     with gr.Tab("CONTROLS", id="controls"):
@@ -1238,7 +1337,7 @@ def build_app() -> gr.Blocks:
             #   [ shell  ]
             #   [ radial ]
             with gr.Column(
-                scale=2,
+                scale=9,
                 min_width=0,
                 elem_id="col-center",
                 elem_classes=["vp-col"],
@@ -1274,7 +1373,7 @@ def build_app() -> gr.Blocks:
             #   [ path      ]
             #   [ scorecard ]
             with gr.Column(
-                scale=1,
+                scale=4,
                 min_width=0,
                 elem_id="col-right",
                 elem_classes=["vp-col"],
