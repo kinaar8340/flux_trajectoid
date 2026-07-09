@@ -259,7 +259,11 @@ footer,
   height: auto !important;
   max-height: none !important;
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) !important;
+  /* Col-1 wide enough for compact controls; center dominant; right slim */
+  grid-template-columns:
+    minmax(260px, 0.95fr)
+    minmax(0, 2.2fr)
+    minmax(0, 1fr) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   align-items: stretch !important;
   gap: 0.35rem !important;
@@ -816,12 +820,18 @@ footer,
     inset 0 0 0 1.5px rgba(15, 23, 42, 0.95),
     var(--ft-glow) !important;
 }
-/* Radio / toggle chips: single-row body height */
+/* Radio / toggle chips: horizontal wrap so col-1 width fits the screen */
 #controls fieldset,
 #controls .wrap,
 #controls [data-testid="radio-group"],
-#controls .form {
-  gap: 0.25rem !important;
+#controls .form,
+#controls .block .wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.3rem 0.45rem !important;
+  width: 100% !important;
 }
 #controls fieldset label,
 #controls label:has(input[type="radio"]),
@@ -832,13 +842,22 @@ footer,
   min-height: var(--ft-btn-row-h) !important;
   max-height: var(--ft-btn-row-h) !important;
   height: var(--ft-btn-row-h) !important;
-  padding: 0 0.4rem !important;
+  width: auto !important;
+  flex: 0 0 auto !important;
+  padding: 0 0.45rem !important;
   margin: 0 !important;
   line-height: 1.15 !important;
   font-size: 0.72rem !important;
   display: inline-flex !important;
   align-items: center !important;
   box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+/* Action buttons stay full width under controls */
+#controls #scan-btn,
+#controls #run-btn {
+  width: 100% !important;
+  flex: 1 1 100% !important;
 }
 /* Outer chips always neutral (never full green body) */
 #controls .wrap button.selected,
