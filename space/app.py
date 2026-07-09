@@ -237,60 +237,61 @@ footer { display: none !important; }
 }
 
 /*
- * Selected state: ONLY the oval/circle indicator fills #00FF00
- * (not the full radio/checkbox button chrome or border)
+ * Global oval toggle style (default_button_style=oval):
+ * - All binary/radio selections use oval indicators
+ * - Latched True: oval fills #00FF00 + mild glow (theme_default_button_effect_glowing)
+ * - Outer chip/border stays dark (not full-button green)
  */
 #controls input[type="checkbox"],
 #controls input[type="radio"] {
-  accent-color: #00FF00 !important;
-  /* native oval/circle only — no box fill override on the control chrome */
-  width: 1em !important;
-  height: 1em !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 1.15em !important;
+  height: 1.85em !important;          /* tall oval like plane x/y/z */
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(148, 163, 184, 0.55) !important;
+  background: rgba(15, 23, 42, 0.85) !important;
   flex-shrink: 0 !important;
+  margin: 0 0.35em 0 0 !important;
+  cursor: pointer !important;
+  vertical-align: middle !important;
+  transition: background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease !important;
 }
+/* Latched / selected oval only */
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked {
+  background: #00FF00 !important;
+  background-color: #00FF00 !important;
+  border-color: #00FF00 !important;
+  /* mild glow while latched true */
+  box-shadow:
+    0 0 6px 1px rgba(0, 255, 0, 0.55),
+    0 0 14px 2px rgba(0, 255, 0, 0.28) !important;
   accent-color: #00FF00 !important;
 }
-/* Do NOT paint whole Gradio radio pills / labels green */
+/* Outer radio/checkbox label chips stay neutral */
 #controls .wrap button.selected,
 #controls button.selected,
 #controls [role="radio"][aria-checked="true"],
 #controls label:has(input[type="radio"]:checked),
+#controls label:has(input[type="checkbox"]:checked),
 #controls fieldset label:has(input:checked),
 #controls [data-testid="radio-group"] label:has(input:checked) {
-  background: rgba(15, 23, 42, 0.55) !important;
-  background-color: rgba(15, 23, 42, 0.55) !important;
-  border-color: rgba(100, 116, 139, 0.45) !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  border-color: rgba(100, 116, 139, 0.4) !important;
   color: #e2e8f0 !important;
   box-shadow: none !important;
 }
-/* Gradio custom radio circle (oval) when selected */
-#controls input[type="radio"]:checked {
+/* If Gradio paints a custom oval span, match glow there too */
+#controls label:has(input:checked) > span:first-child,
+#controls [role="radio"][aria-checked="true"]::before {
   background-color: #00FF00 !important;
   border-color: #00FF00 !important;
-  box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.9) !important;
-}
-/* Gradio 5/6 may use a span circle next to label text */
-#controls label:has(input[type="radio"]:checked) > span:first-child,
-#controls label:has(input[type="radio"]:checked)::before,
-#controls [role="radio"][aria-checked="true"]::before,
-#controls .selected > span:first-child:not(:only-child) {
-  background-color: #00FF00 !important;
-  border-color: #00FF00 !important;
-  color: transparent !important;
-}
-/* Checkbox: only the box indicator, not surrounding label */
-#controls input[type="checkbox"]:checked {
-  accent-color: #00FF00 !important;
-  background-color: #00FF00 !important;
-  border-radius: 0.25em !important;
-}
-#controls label:has(input[type="checkbox"]:checked) {
-  background: transparent !important;
-  border-color: transparent !important;
-  color: #cbd5e1 !important;
-  box-shadow: none !important;
+  border-radius: 999px !important;
+  box-shadow:
+    0 0 6px 1px rgba(0, 255, 0, 0.55),
+    0 0 14px 2px rgba(0, 255, 0, 0.28) !important;
 }
 /* Seed status takes remaining column height */
 #status-md {
@@ -353,6 +354,14 @@ def _empty_imgs():
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
 
 
+def _as_on(value) -> bool:
+    """Map oval On/Off radios (or legacy bool) → bool latched state."""
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    return s in ("on", "true", "1", "yes")
+
+
 def run_ui(
     payload,
     seed,
@@ -372,12 +381,12 @@ def run_ui(
             seed=int(seed),
             turbulence=float(turbulence),
             n_steps=int(n_steps),
-            use_tpt=bool(use_tpt),
-            build_3d=bool(build_3d),
-            force_stub=bool(force_stub),
+            use_tpt=_as_on(use_tpt),
+            build_3d=_as_on(build_3d),
+            force_stub=_as_on(force_stub),
             slice_frac=float(slice_frac),
             slice_plane=str(slice_plane or "z"),
-            show_slice=bool(show_slice),
+            show_slice=_as_on(show_slice),
         )
         return (
             out["img_shell"],
@@ -402,7 +411,7 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
         shell,
         slice_frac=float(slice_frac) if slice_frac is not None else 0.5,
         slice_plane=str(slice_plane or "z"),
-        show_slice=bool(show_slice),
+        show_slice=_as_on(show_slice),
     )
 
 
@@ -415,7 +424,7 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
         slice_plane=str(slice_plane or "z"),
         n_frames=n,
         # Default off in UI too — ping-pong reads as bounce/glitch
-        ping_pong=bool(ping_pong),
+        ping_pong=_as_on(ping_pong),
         duration_ms=90,
     )
     # Gradio Image autoplays GIF paths; fall back to blank if missing
@@ -481,20 +490,44 @@ def build_app() -> gr.Blocks:
                     with gr.Accordion(
                         "Shell / lattice", open=False, elem_classes=["layer-fg"]
                     ):
-                        use_tpt = gr.Checkbox(value=True, label="TPT closure")
-                        build_3d = gr.Checkbox(value=True, label="3D shell")
-                        force_stub = gr.Checkbox(
-                            value=True, label="Fast stub lattice"
+                        # Global oval toggles (On/Off radios)
+                        use_tpt = gr.Radio(
+                            choices=["On", "Off"],
+                            value="On",
+                            label="TPT closure",
+                            type="value",
+                            elem_classes=["oval-toggle"],
+                        )
+                        build_3d = gr.Radio(
+                            choices=["On", "Off"],
+                            value="On",
+                            label="3D shell",
+                            type="value",
+                            elem_classes=["oval-toggle"],
+                        )
+                        force_stub = gr.Radio(
+                            choices=["On", "Off"],
+                            value="On",
+                            label="Fast stub lattice",
+                            type="value",
+                            elem_classes=["oval-toggle"],
                         )
                     with gr.Accordion(
                         "Matrix slice", open=False, elem_classes=["layer-fg"]
                     ):
-                        show_slice = gr.Checkbox(value=True, label="Show green slice")
+                        show_slice = gr.Radio(
+                            choices=["On", "Off"],
+                            value="On",
+                            label="Show green slice",
+                            type="value",
+                            elem_classes=["oval-toggle"],
+                        )
                         slice_plane = gr.Radio(
                             choices=["x", "y", "z"],
                             value="z",
                             label="Slice plane",
                             type="value",
+                            elem_classes=["oval-toggle"],
                         )
                         slice_frac = gr.Slider(
                             0.0,
@@ -510,9 +543,12 @@ def build_app() -> gr.Blocks:
                             step=1,
                             label="Scan frames",
                         )
-                        scan_ping = gr.Checkbox(
-                            value=False,
+                        scan_ping = gr.Radio(
+                            choices=["On", "Off"],
+                            value="Off",
                             label="Ping-pong scan (can look bouncy)",
+                            type="value",
+                            elem_classes=["oval-toggle"],
                         )
                         scan_btn = gr.Button(
                             "▶ Play matrix scan",
