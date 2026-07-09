@@ -56,47 +56,111 @@ html, body, .gradio-container {
 }
 footer { display: none !important; }
 
-/* Top navigation */
+/*
+ * theme_default_tabs
+ *   idle_text   = #64748b
+ *   active_text = #00FF00  (tab_state=True)
+ *   active_bar  = 2px #00FF00 underline
+ *   rail        = thin dim baseline under tab row
+ * Applied: main #nav-bar · col-1 #col1-tabs
+ */
+:root {
+  --ft-tab-idle: #64748b;
+  --ft-tab-hover: #94a3b8;
+  --ft-tab-active: #00FF00;
+  --ft-tab-rail: rgba(148, 163, 184, 0.22);
+  --ft-tab-font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Top navigation — same tab language as CONTROLS | REFERENCES */
 #nav-bar {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
+  gap: 0.85rem;
+  padding: 0.35rem 0.75rem 0;
   background: rgba(15, 23, 42, 0.92);
-  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  border-bottom: none;
   min-height: 44px;
-  max-height: 48px;
+  max-height: 52px;
+  position: relative;
+}
+#nav-bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--ft-tab-rail);
+  pointer-events: none;
 }
 #nav-bar .nav-title {
   color: #e2e8f0;
   font-weight: 600;
   font-size: 0.95rem;
-  margin-right: 0.75rem;
+  margin-right: 0.5rem;
   letter-spacing: 0.02em;
+  padding-bottom: 0.45rem;
 }
-#nav-bar .nav-links a, #nav-bar button {
-  color: #94a3b8 !important;
+#nav-bar button,
+#nav-bar button span {
+  position: relative !important;
+  color: var(--ft-tab-idle) !important;
+  font-family: var(--ft-tab-font) !important;
   font-size: 0.78rem !important;
-  padding: 0.25rem 0.55rem !important;
-  border-radius: 6px !important;
-  border: 1px solid transparent !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.04em !important;
+  padding: 0.35rem 0.2rem 0.55rem 0.2rem !important;
+  border: none !important;
+  border-radius: 0 !important;
   background: transparent !important;
+  box-shadow: none !important;
   min-width: auto !important;
+  height: auto !important;
 }
-#nav-bar button:hover {
-  color: #e0f2fe !important;
-  border-color: rgba(56, 189, 248, 0.35) !important;
-  background: rgba(56, 189, 248, 0.08) !important;
+#nav-bar button:hover,
+#nav-bar button:hover span {
+  color: var(--ft-tab-hover) !important;
+  background: transparent !important;
+  border: none !important;
 }
-#nav-bar button.primary, #nav-bar .nav-active {
-  color: #0f172a !important;
-  background: #38bdf8 !important;
-  border-color: #38bdf8 !important;
+/* active main nav tab */
+#nav-bar button.nav-active,
+#nav-bar button.nav-active span,
+#nav-bar button.primary,
+#nav-bar button.primary span,
+#nav-bar button.selected,
+#nav-bar button.selected span {
+  color: var(--ft-tab-active) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+#nav-bar button.nav-active::after,
+#nav-bar button.primary::after,
+#nav-bar button.selected::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  height: 2px !important;
+  background: var(--ft-tab-active) !important;
+  border-radius: 1px !important;
+  z-index: 1 !important;
 }
 #nav-meta {
   margin-left: auto;
   color: #64748b;
   font-size: 0.72rem;
+  padding-bottom: 0.45rem;
+}
+#nav-meta a {
+  color: #64748b !important;
+  text-decoration: none !important;
+}
+#nav-meta a:hover {
+  color: var(--ft-tab-hover) !important;
 }
 
 /* Glass / translucent layers — user requested opacity 0.3 */
@@ -175,14 +239,11 @@ footer { display: none !important; }
   font-size: 0.65rem !important;
   line-height: 1.1 !important;
 }
-/* Column-1 sub-nav: CONTROLS | REFERENCES
- * Gradio 6 markup: .tab-wrapper > .tab-container > button.selected
- * active_tab → tab_text_color = #00FF00
+/* Column-1: CONTROLS | REFERENCES — theme_default_tabs
+ * Gradio 6: .tab-wrapper > .tab-container > button.selected
  */
 #col1-tabs {
-  --color-accent: #00FF00;
-  --ft-tab-idle: #64748b;
-  --ft-tab-active: #00FF00;
+  --color-accent: var(--ft-tab-active);
   margin: 0 !important;
   padding: 0 !important;
   gap: 0 !important;
@@ -729,9 +790,11 @@ def build_app() -> gr.Blocks:
             gr.HTML(
                 '<span class="nav-title">✦ flux_trajectoid</span>'
             )
-            btn_demo = gr.Button("Demo", size="sm", elem_classes=["nav-active"])
-            btn_ref = gr.Button("Reference", size="sm")
-            btn_about = gr.Button("About", size="sm")
+            btn_demo = gr.Button(
+                "Demo", size="sm", elem_classes=["nav-tab", "nav-active"]
+            )
+            btn_ref = gr.Button("Reference", size="sm", elem_classes=["nav-tab"])
+            btn_about = gr.Button("About", size="sm", elem_classes=["nav-tab"])
             gr.HTML(
                 f'<span id="nav-meta">'
                 f'<a href="{GITHUB}" style="color:#64748b;text-decoration:none;">GitHub</a>'
@@ -1058,9 +1121,25 @@ def _make_theme():
 
 
 # Gradio injects launch(js=...) as <script>textContent</script> — must be an
-# IIFE (plain () => {} is never called). Injects rail+fill under each range.
+# IIFE (plain () => {} is never called). Slider fill + main nav active tab.
 SLIDER_FILL_JS = """
 (() => {
+  /* theme_default_tabs: main nav active underline/text */
+  function bindNavTabs() {
+    const bar = document.querySelector('#nav-bar');
+    if (!bar) return;
+    bar.querySelectorAll('button').forEach((btn) => {
+      if (btn.dataset.ftNavBound === '1') return;
+      btn.dataset.ftNavBound = '1';
+      btn.addEventListener('click', () => {
+        bar.querySelectorAll('button').forEach((b) => {
+          b.classList.remove('nav-active', 'primary', 'selected');
+        });
+        btn.classList.add('nav-active');
+      });
+    });
+  }
+
   function pctOf(el) {
     const min = parseFloat(el.min || '0');
     const max = parseFloat(el.max || '100');
@@ -1130,16 +1209,16 @@ SLIDER_FILL_JS = """
   // Gradio may inject this script before components mount
   const start = () => {
     bindAll();
-    const obs = new MutationObserver(() => bindAll());
-    obs.observe(document.documentElement, { childList: true, subtree: true });
-    setInterval(bindAll, 400);
+    bindNavTabs();
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
   } else {
     start();
   }
-  // late mounts (SPA / Gradio Blocks)
+  const obs = new MutationObserver(() => start());
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+  setInterval(start, 400);
   setTimeout(start, 0);
   setTimeout(start, 250);
   setTimeout(start, 1000);
