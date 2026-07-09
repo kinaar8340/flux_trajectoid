@@ -16,5 +16,6 @@ venv/
 outputs/
 *.png
 !docs/**/*.png
+!space/assets/**/*.png
 .ipynb_checkpoints/
 
