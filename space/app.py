@@ -189,45 +189,53 @@ footer { display: none !important; }
 }
 /*
  * theme_default_slider
- *   analog_fill_color   = #00FF00  (was light blue)
- *   analog_bar_height   = ~10% of prior (~1.5–2px vs ~12–16px)
+ *   analog_fill_color     = #00FF00  (follows knob — left filled only)
+ *   analog_bar_height     = ~1.5px (~90% thinner)
  *   analog_effect_glowing = True
+ * --ft-slider-pct set by JS from knob value
  */
 :root {
   --ft-slider-fill: #00FF00;
   --ft-slider-track: rgba(100, 116, 139, 0.45);
-  --ft-slider-h: 1.5px;              /* bar height after ~90% reduction */
+  --ft-slider-h: 1.5px;
   --ft-slider-thumb: 10px;
+  --ft-slider-pct: 0%;
   --ft-slider-glow: 0 0 4px 1px rgba(0, 255, 0, 0.55),
                     0 0 8px 2px rgba(0, 255, 0, 0.28);
 }
-/* Native range (and Gradio range inputs) */
+/* Native range: fill on the element itself (WebKit-friendly) */
 #controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 100% !important;
-  height: var(--ft-slider-h) !important;
-  min-height: var(--ft-slider-h) !important;
-  max-height: var(--ft-slider-h) !important;
-  background: transparent !important;
+  height: var(--ft-slider-thumb) !important; /* hit area */
+  min-height: var(--ft-slider-thumb) !important;
   border: none !important;
   outline: none !important;
-  padding: 0.55rem 0 !important;   /* hit area without thick bar */
-  margin: 0.15rem 0 0.35rem 0 !important;
-  accent-color: var(--ft-slider-fill) !important;
+  margin: 0.2rem 0 0.4rem 0 !important;
+  padding: 0 !important;
   cursor: pointer !important;
+  accent-color: var(--ft-slider-fill) !important;
+  /* Green only from 0 → knob; rest dim track */
+  background: linear-gradient(
+    to right,
+    var(--ft-slider-fill) 0%,
+    var(--ft-slider-fill) var(--ft-slider-pct),
+    var(--ft-slider-track) var(--ft-slider-pct),
+    var(--ft-slider-track) 100%
+  ) !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% var(--ft-slider-h) !important;
+  background-position: center !important;
+  border-radius: 999px !important;
+  box-shadow: var(--ft-slider-glow) !important;
 }
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: linear-gradient(
-    to right,
-    var(--ft-slider-fill) 0%,
-    var(--ft-slider-fill) var(--ft-slider-pct, 50%),
-    var(--ft-slider-track) var(--ft-slider-pct, 50%),
-    var(--ft-slider-track) 100%
-  ) !important;
-  box-shadow: var(--ft-slider-glow) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 #controls input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
@@ -240,14 +248,17 @@ footer { display: none !important; }
   border: 1.5px solid var(--ft-slider-fill) !important;
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
+  position: relative !important;
+  z-index: 2 !important;
 }
 #controls input[type="range"]::-moz-range-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
   background: var(--ft-slider-track) !important;
-  box-shadow: var(--ft-slider-glow) !important;
   border: none !important;
+  box-shadow: none !important;
 }
+/* Firefox: native progress follows knob */
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
@@ -263,32 +274,14 @@ footer { display: none !important; }
   border: 1.5px solid var(--ft-slider-fill) !important;
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
+  border: 1.5px solid var(--ft-slider-fill) !important;
 }
-/* Gradio custom slider track / fill (Svelte / div-based) */
+/* Gradio accent vars */
 #controls .slider,
 #controls [class*="slider"],
-#controls .range,
 #controls [data-testid="slider"] {
   --slider-color: var(--ft-slider-fill) !important;
   --color-accent: var(--ft-slider-fill) !important;
-}
-#controls .slider > div,
-#controls [class*="slider"] > div,
-#controls input[type="range"] + div,
-#controls .range div {
-  height: var(--ft-slider-h) !important;
-  min-height: var(--ft-slider-h) !important;
-}
-/* Filled portion (left of thumb) — green + glow */
-#controls .slider [style*="background"],
-#controls [class*="slider"] .progress,
-#controls [class*="slider"] [class*="fill"],
-#controls [class*="slider"] [class*="track"] > div:first-child {
-  background-color: var(--ft-slider-fill) !important;
-  background: var(--ft-slider-fill) !important;
-  box-shadow: var(--ft-slider-glow) !important;
-  height: var(--ft-slider-h) !important;
-  border-radius: 999px !important;
 }
 /* Collapsed accordion headers ~ one compact row each */
 #controls .label-wrap,
@@ -908,6 +901,70 @@ def _make_theme():
         return None
 
 
+# Keeps green fill aligned to knob (WebKit has no ::progress on range)
+SLIDER_FILL_JS = """
+() => {
+  const FILL = '#00FF00';
+  const TRACK = 'rgba(100, 116, 139, 0.45)';
+  function pctOf(el) {
+    const min = parseFloat(el.min || '0');
+    const max = parseFloat(el.max || '100');
+    const val = parseFloat(el.value);
+    const den = max - min;
+    if (!isFinite(den) || den === 0) return 0;
+    return Math.max(0, Math.min(100, ((val - min) / den) * 100));
+  }
+  function paint(el) {
+    const pct = pctOf(el);
+    el.style.setProperty('--ft-slider-pct', pct + '%');
+    el.style.background =
+      'linear-gradient(to right,' +
+      FILL + ' 0%,' +
+      FILL + ' ' + pct + '%,' +
+      TRACK + ' ' + pct + '%,' +
+      TRACK + ' 100%)';
+    el.style.backgroundSize = '100% 1.5px';
+    el.style.backgroundPosition = 'center';
+    el.style.backgroundRepeat = 'no-repeat';
+  }
+  function bindAll(root) {
+    const scope = root || document;
+    scope.querySelectorAll('input[type="range"]').forEach((el) => {
+      if (el.dataset.ftSliderBound === '1') {
+        paint(el);
+        return;
+      }
+      el.dataset.ftSliderBound = '1';
+      const upd = () => paint(el);
+      el.addEventListener('input', upd);
+      el.addEventListener('change', upd);
+      // capture Gradio programmatic updates
+      const desc = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype, 'value'
+      );
+      if (desc && desc.set) {
+        const orig = desc.set;
+        Object.defineProperty(el, 'value', {
+          get: desc.get,
+          set(v) {
+            orig.call(this, v);
+            paint(this);
+          },
+          configurable: true,
+        });
+      }
+      paint(el);
+    });
+  }
+  bindAll(document);
+  const obs = new MutationObserver(() => bindAll(document));
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+  // periodic safety (Gradio re-renders)
+  setInterval(() => bindAll(document), 800);
+}
+"""
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", os.environ.get("GRADIO_SERVER_PORT", "7860")))
     demo = build_app()
@@ -922,13 +979,23 @@ if __name__ == "__main__":
             show_error=True,
             theme=theme,
             css=CUSTOM_CSS,
+            js=SLIDER_FILL_JS,
         )
     except TypeError:
-        # Fallback: inject CSS via head if launch rejects css=
+        # Fallback: inject CSS via head if launch rejects css/js
         demo.css = CUSTOM_CSS  # type: ignore[attr-defined]
-        queued.launch(
-            server_name="0.0.0.0",
-            server_port=port,
-            share=False,
-            show_error=True,
-        )
+        try:
+            queued.launch(
+                server_name="0.0.0.0",
+                server_port=port,
+                share=False,
+                show_error=True,
+                js=SLIDER_FILL_JS,
+            )
+        except TypeError:
+            queued.launch(
+                server_name="0.0.0.0",
+                server_port=port,
+                share=False,
+                show_error=True,
+            )
