@@ -482,6 +482,46 @@ footer,
   opacity: 1 !important;
   pointer-events: auto !important;
 }
+/* Gradio HTML block must not collapse (flex min-height:0 was zeroing plots) */
+#img-shell,
+#img-path,
+#img-radial,
+#img-metrics,
+#vp-shell .html-container,
+#vp-path .html-container,
+#vp-radial .html-container,
+#vp-score .html-container,
+#vp-shell .prose,
+#vp-path .prose,
+#vp-radial .prose,
+#vp-score .prose,
+#vp-shell .ft-vp-html,
+#vp-path .ft-vp-html,
+#vp-radial .ft-vp-html,
+#vp-score .ft-vp-html {
+  position: relative !important;
+  z-index: 6 !important;
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-height: 320px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  background: #0a0f18 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+/* Kill pending fade on plot HTML */
+#vp-shell .pending,
+#vp-path .pending,
+#vp-radial .pending,
+#vp-score .pending {
+  opacity: 1 !important;
+}
 /* HTML plot host — always on top of any Gradio chrome inside the cell */
 #vp-shell .ft-vp-img-wrap,
 #vp-path .ft-vp-img-wrap,
@@ -489,17 +529,16 @@ footer,
 #vp-score .ft-vp-img-wrap,
 .ft-vp-img-wrap {
   position: relative !important;
-  z-index: 6 !important;
-  flex: 1 1 auto !important;
+  z-index: 7 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   width: 100% !important;
-  height: 100% !important;
-  min-height: 200px !important;
+  height: auto !important;
+  min-height: 300px !important;
   margin: 0 !important;
   padding: 0 !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #0a0f18 !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -1489,7 +1528,13 @@ def _to_html(arr_or_path, stem: str = "plot") -> str:
 
 
 def _display_html(value, *, stem: str = "plot", elem_id=None, elem_classes=None):
-    """gr.HTML plot viewport — file-URL <img>, always frontmost."""
+    """gr.HTML plot viewport — file-URL <img>, always frontmost.
+
+    Gradio 5 HTML collapses to 0px inside flex columns unless min_height is set
+    (see html/Index.svelte style:min-height). padding=False avoids chrome.
+    """
+    import inspect
+
     classes = list(elem_classes or [])
     if "vp-plot" not in classes:
         classes.append("vp-plot")
@@ -1498,9 +1543,18 @@ def _display_html(value, *, stem: str = "plot", elem_id=None, elem_classes=None)
     kwargs = {
         "value": _to_html(value, stem=stem),
         "elem_classes": classes,
+        "show_label": False,
     }
     if elem_id is not None:
         kwargs["elem_id"] = elem_id
+    params = inspect.signature(gr.HTML.__init__).parameters
+    if "min_height" in params:
+        kwargs["min_height"] = 320
+    if "padding" in params:
+        kwargs["padding"] = False
+    if "container" in params:
+        kwargs["container"] = False
+    kwargs = {k: v for k, v in kwargs.items() if k in params or k in ("elem_id", "elem_classes")}
     return gr.HTML(**kwargs)
 
 
