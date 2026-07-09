@@ -357,8 +357,9 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
         shell,
         slice_plane=str(slice_plane or "z"),
         n_frames=n,
+        # Default off in UI too — ping-pong reads as bounce/glitch
         ping_pong=bool(ping_pong),
-        duration_ms=80,
+        duration_ms=90,
     )
     # Gradio Image autoplays GIF paths; fall back to blank if missing
     return (
@@ -454,7 +455,8 @@ def build_app() -> gr.Blocks:
                             label="Scan frames",
                         )
                         scan_ping = gr.Checkbox(
-                            value=True, label="Ping-pong scan"
+                            value=False,
+                            label="Ping-pong scan (can look bouncy)",
                         )
                         scan_btn = gr.Button(
                             "▶ Play matrix scan",

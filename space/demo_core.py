@@ -31,10 +31,10 @@ def asset_path(name: str) -> str | None:
     return str(p) if p.is_file() else None
 
 
-def _fig_to_rgb(fig) -> np.ndarray:
+def _fig_to_rgb(fig, *, size: tuple[int, int] | None = None) -> np.ndarray:
+    """Rasterize figure to RGB; optionally force exact (H, W) for GIF stability."""
     fig.canvas.draw()
     w, h = fig.canvas.get_width_height()
-    # matplotlib 3.8+ uses buffer_rgba
     try:
         buf = np.asarray(fig.canvas.buffer_rgba())
         rgb = buf[:, :, :3].copy()
@@ -42,6 +42,14 @@ def _fig_to_rgb(fig) -> np.ndarray:
         buf = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
         rgb = buf.reshape(h, w, 3).copy()
     plt.close(fig)
+    if size is not None:
+        th, tw = size
+        if rgb.shape[0] != th or rgb.shape[1] != tw:
+            from PIL import Image
+
+            rgb = np.asarray(
+                Image.fromarray(rgb).resize((tw, th), Image.Resampling.BILINEAR)
+            )
     return rgb
 
 
@@ -132,6 +140,12 @@ def _draw_green_slice(
         pass
 
 
+# Fixed raster sizes for GIF frames (prevents loop glitch from layout jitter)
+_SHELL_SIZE = (360, 420)  # H, W
+_RADIAL_SIZE = (320, 420)
+_PATH_SIZE = (550, 320)
+
+
 def plot_shell_3d(
     shell,
     *,
@@ -139,7 +153,7 @@ def plot_shell_3d(
     slice_plane: str = "z",
     show_slice: bool = True,
 ) -> np.ndarray:
-    fig = plt.figure(figsize=(4.2, 3.6), facecolor="#0b1220")
+    fig = plt.figure(figsize=(4.2, 3.6), facecolor="#0b1220", dpi=100)
     ax = fig.add_subplot(111, projection="3d", facecolor="#0b1220")
     ax.tick_params(colors="#8aa0c0", labelsize=7)
     for axis in (ax.xaxis, ax.yaxis, ax.zaxis):
@@ -148,6 +162,8 @@ def plot_shell_3d(
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_zticks([])
+    # Lock camera so frames don't jump between slices
+    ax.view_init(elev=22, azim=-55)
 
     if getattr(shell, "is_3d", False) and shell.surface is not None:
         s = shell.surface
@@ -168,6 +184,14 @@ def plot_shell_3d(
             ax.plot(p[:, 0], p[:, 1], p[:, 2], color="#f87171", lw=1.8, alpha=0.95)
         if show_slice:
             _draw_green_slice(ax, shell, slice_frac=slice_frac, plane=slice_plane)
+        # Fixed axis limits from full surface
+        pts = s.reshape(-1, 3)
+        lo, hi = pts.min(axis=0), pts.max(axis=0)
+        mid = 0.5 * (lo + hi)
+        span = float(np.max(hi - lo) * 0.55 + 1e-9)
+        ax.set_xlim(mid[0] - span, mid[0] + span)
+        ax.set_ylim(mid[1] - span, mid[1] + span)
+        ax.set_zlim(mid[2] - span, mid[2] + span)
     else:
         v = shell.vertices
         ax.plot(
@@ -179,10 +203,10 @@ def plot_shell_3d(
         if show_slice:
             _draw_green_slice(ax, shell, slice_frac=slice_frac, plane=slice_plane)
 
-    title = f"3D Trajectoid Shell · slice {slice_plane}={slice_frac:.2f}"
-    ax.set_title(title, color="#e2e8f0", fontsize=9, pad=2)
-    fig.tight_layout(pad=0.3)
-    return _fig_to_rgb(fig)
+    # Fixed-length title (no layout thrash from changing digit strings)
+    ax.set_title("3D Trajectoid Shell · matrix scan", color="#e2e8f0", fontsize=9, pad=2)
+    fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.92)
+    return _fig_to_rgb(fig, size=_SHELL_SIZE)
 
 
 def plot_radial_map(
@@ -192,7 +216,10 @@ def plot_radial_map(
     slice_plane: str = "z",
 ) -> np.ndarray:
     """Radial / trench map; optional matrix-green band locked to scan frac."""
-    fig, ax = plt.subplots(figsize=(4.2, 3.2), facecolor="#0b1220")
+    fig = plt.figure(figsize=(4.2, 3.2), facecolor="#0b1220", dpi=100)
+    # Fixed axes box so colorbar/layout never shifts frame-to-frame
+    ax = fig.add_axes([0.08, 0.10, 0.72, 0.78])
+    cax = fig.add_axes([0.84, 0.10, 0.03, 0.78])
     ax.set_facecolor("#0b1220")
     plane = str(slice_plane or "z").lower()
     if plane not in ("x", "y", "z"):
@@ -200,50 +227,60 @@ def plot_radial_map(
     f = None if slice_frac is None else float(np.clip(slice_frac, 0.0, 1.0))
 
     if shell.radial_map is not None:
-        rmap = shell.radial_map
+        rmap = np.asarray(shell.radial_map, dtype=float)
         n_lat, n_lon = rmap.shape
-        im = ax.imshow(rmap, origin="lower", cmap="magma", aspect="auto")
-        cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cb.ax.yaxis.set_tick_params(color="#94a3b8")
+        vmin = float(np.nanmin(rmap))
+        vmax = float(np.nanmax(rmap))
+        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmin >= vmax:
+            vmin, vmax = 0.0, 1.0
+        im = ax.imshow(
+            rmap,
+            origin="lower",
+            cmap="magma",
+            aspect="auto",
+            vmin=vmin,
+            vmax=vmax,
+            interpolation="nearest",
+        )
+        cb = fig.colorbar(im, cax=cax)
+        cb.ax.yaxis.set_tick_params(color="#94a3b8", labelsize=7)
         plt.setp(plt.getp(cb.ax.axes, "yticklabels"), color="#94a3b8", fontsize=7)
+        ax.set_xlim(-0.5, n_lon - 0.5)
+        ax.set_ylim(-0.5, n_lat - 0.5)
         if f is not None:
             # UV map: rows ~ polar (z), cols ~ azimuth (x/y scan proxy)
             if plane == "z":
-                i = int(f * max(n_lat - 1, 1))
+                i = f * max(n_lat - 1, 1)  # continuous position (no integer snap jitter)
                 ax.axhline(i, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
-                ax.axhspan(i - 0.9, i + 0.9, color="#00FF00", alpha=0.12, zorder=4)
+                ax.axhspan(i - 0.85, i + 0.85, color="#00FF00", alpha=0.12, zorder=4)
             else:
-                j = int(f * max(n_lon - 1, 1))
+                j = f * max(n_lon - 1, 1)
                 ax.axvline(j, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
-                ax.axvspan(j - 0.9, j + 0.9, color="#00FF00", alpha=0.12, zorder=4)
-            ax.set_title(
-                f"Radial map · scan {plane}={f:.2f}",
-                color="#e2e8f0",
-                fontsize=10,
-            )
-        else:
-            ax.set_title("Radial map · trench / shave", color="#e2e8f0", fontsize=10)
+                ax.axvspan(j - 0.85, j + 0.85, color="#00FF00", alpha=0.12, zorder=4)
+        ax.set_title("Radial map · trench / shave", color="#e2e8f0", fontsize=10)
     else:
+        cax.set_visible(False)
         curv = shell.curvature_signal
         if curv is not None and len(curv):
+            curv = np.asarray(curv, dtype=float)
             ax.plot(curv, color="#38bdf8", lw=1.4, alpha=0.85)
+            ax.set_xlim(0, max(len(curv) - 1, 1))
+            ymin, ymax = float(np.nanmin(curv)), float(np.nanmax(curv))
+            pad = 0.05 * (ymax - ymin + 1e-9)
+            ax.set_ylim(ymin - pad, ymax + pad)
             if f is not None:
-                i = int(f * max(len(curv) - 1, 1))
+                i = f * max(len(curv) - 1, 1)
                 ax.axvline(i, color="#00FF00", lw=2.0, alpha=0.95)
-                ax.scatter([i], [curv[i]], c="#00FF00", s=36, zorder=5)
-            ax.set_title(
-                f"Curvature · scan {plane}={f:.2f}" if f is not None else "Curvature signal",
-                color="#e2e8f0",
-                fontsize=10,
-            )
+                ii = int(round(i))
+                ax.scatter([ii], [curv[ii]], c="#00FF00", s=36, zorder=5)
+            ax.set_title("Curvature signal", color="#e2e8f0", fontsize=10)
         else:
             ax.text(0.5, 0.5, "no radial map", ha="center", color="#64748b")
             ax.set_axis_off()
     ax.tick_params(colors="#64748b", labelsize=7)
     for sp in ax.spines.values():
         sp.set_color("#334155")
-    fig.tight_layout(pad=0.4)
-    return _fig_to_rgb(fig)
+    return _fig_to_rgb(fig, size=_RADIAL_SIZE)
 
 
 def plot_protected_field(flux) -> np.ndarray:
@@ -274,7 +311,8 @@ def plot_path_panel(
 
     If ``progress`` ∈ [0, 1] is set, draw a scan-head trail synced to matrix scan.
     """
-    fig, ax = plt.subplots(figsize=(3.2, 5.5), facecolor="#0b1220")
+    fig = plt.figure(figsize=(3.2, 5.5), facecolor="#0b1220", dpi=100)
+    ax = fig.add_axes([0.08, 0.04, 0.84, 0.90])
     ax.set_facecolor("#0b1220")
     path = shell.vertices[:, :2]
     # Normalize and stretch vertically like the figure columns
@@ -286,30 +324,42 @@ def plot_path_panel(
     y = s * 4.0 + p[:, 1] * 0.25
     color = "#38bdf8" if style == "theory" else "#f472b6"
 
-    # Ghost full path
+    # Ghost full path (always full length — stable composition)
     ax.plot(x, y, color="#64748b", lw=1.2, alpha=0.35, zorder=1)
     ax.plot(x * 0.92 + 0.08, y, color="#475569", lw=0.9, alpha=0.25, zorder=0)
 
     if progress is None:
         ax.plot(x, y, color=color, lw=1.6, alpha=0.95, zorder=2)
         ax.scatter([x[0], x[-1]], [y[0], y[-1]], c="#f8fafc", s=18, zorder=3)
-        ax.set_title("Rolling path", color="#e2e8f0", fontsize=10)
     else:
         f = float(np.clip(progress, 0.0, 1.0))
-        idx = int(f * max(len(x) - 1, 1))
+        # Continuous head position (lerp) reduces discrete snap
+        t = f * max(len(x) - 1, 1)
+        i0 = int(np.floor(t))
+        i1 = min(i0 + 1, len(x) - 1)
+        a = t - i0
+        hx = (1 - a) * x[i0] + a * x[i1]
+        hy = (1 - a) * y[i0] + a * y[i1]
+        idx = i1
         ax.plot(x[: idx + 1], y[: idx + 1], color=color, lw=2.0, alpha=0.95, zorder=2)
         ax.scatter([x[0]], [y[0]], c="#f8fafc", s=16, zorder=3)
-        ax.scatter([x[idx]], [y[idx]], c="#00FF00", s=48, zorder=5, edgecolors="#bbf7d0", linewidths=0.6)
-        # Scan tick on vertical progress axis
-        ax.axhline(y[idx], color="#00FF00", lw=0.8, alpha=0.35, zorder=1)
-        ax.set_title(f"Rolling path · {f:.2f}", color="#e2e8f0", fontsize=10)
+        ax.scatter(
+            [hx],
+            [hy],
+            c="#00FF00",
+            s=48,
+            zorder=5,
+            edgecolors="#bbf7d0",
+            linewidths=0.6,
+        )
+        ax.axhline(hy, color="#00FF00", lw=0.8, alpha=0.35, zorder=1)
 
+    ax.set_title("Rolling path · matrix scan", color="#e2e8f0", fontsize=10)
     ax.set_xlim(-0.7, 0.7)
     ax.set_ylim(-0.15, 4.2)
     ax.set_aspect("equal")
     ax.axis("off")
-    fig.tight_layout(pad=0.2)
-    return _fig_to_rgb(fig)
+    return _fig_to_rgb(fig, size=_PATH_SIZE)
 
 
 def plot_metrics_bars(metrics) -> np.ndarray:
@@ -515,7 +565,18 @@ def replot_shell_only(
 def _write_gif(frames_rgb: list[np.ndarray], path: Path, duration_ms: int) -> None:
     from PIL import Image
 
-    pil_frames = [Image.fromarray(rgb) for rgb in frames_rgb]
+    if not frames_rgb:
+        raise ValueError("no frames")
+    # Normalize every frame to identical size (kills loop glitch)
+    h0, w0 = frames_rgb[0].shape[:2]
+    pil_frames = []
+    for rgb in frames_rgb:
+        im = Image.fromarray(rgb)
+        if im.size != (w0, h0):
+            im = im.resize((w0, h0), Image.Resampling.BILINEAR)
+        # Flatten to palette-friendly RGB without per-frame dither variance
+        pil_frames.append(im.convert("RGB"))
+    # disposal=2 + fixed duration: clean browser loops
     pil_frames[0].save(
         path,
         save_all=True,
@@ -523,6 +584,7 @@ def _write_gif(frames_rgb: list[np.ndarray], path: Path, duration_ms: int) -> No
         duration=duration_ms,
         loop=0,
         optimize=False,
+        disposal=2,
     )
 
 
@@ -531,8 +593,8 @@ def animate_matrix_scan(
     *,
     slice_plane: str = "z",
     n_frames: int = 14,
-    ping_pong: bool = True,
-    duration_ms: int = 80,
+    ping_pong: bool = False,
+    duration_ms: int = 90,
     out_dir: Path | None = None,
 ) -> tuple[str | None, str | None, str | None, str]:
     """
@@ -543,7 +605,7 @@ def animate_matrix_scan(
     3. Rolling path progress head
 
     Returns (gif_shell, gif_radial, gif_path, status_md).
-    Default ~14 frames for a balanced demo.
+    Default one-way 14-frame scan (no ping-pong bounce).
     """
     if shell is None:
         empty = "### Scan\n_No shell yet — run **Build** first._"
@@ -556,9 +618,11 @@ def animate_matrix_scan(
     n_frames = int(np.clip(n_frames, 8, 24))
     duration_ms = int(np.clip(duration_ms, 50, 150))
 
+    # One-way scan by default (ping-pong causes visible bounce/glitch)
     fracs = np.linspace(0.0, 1.0, n_frames)
     if ping_pong:
-        fracs = np.concatenate([fracs, fracs[-2:0:-1]])
+        # Smooth turnaround: hold end frame once, then reverse interior
+        fracs = np.concatenate([fracs, fracs[-1:], fracs[-2:0:-1]])
 
     shells: list[np.ndarray] = []
     radials: list[np.ndarray] = []
@@ -590,18 +654,20 @@ def animate_matrix_scan(
 
     out_dir = out_dir or (ROOT / "outputs" / "space_anim")
     out_dir.mkdir(parents=True, exist_ok=True)
-    p_shell = out_dir / f"matrix_scan_{plane}_shell.gif"
-    p_radial = out_dir / f"matrix_scan_{plane}_radial.gif"
-    p_path = out_dir / f"matrix_scan_{plane}_path.gif"
+    # Unique names avoid browser/Gradio caching old glitchy GIFs
+    stamp = int(np.random.randint(0, 1_000_000))
+    p_shell = out_dir / f"matrix_scan_{plane}_shell_{stamp}.gif"
+    p_radial = out_dir / f"matrix_scan_{plane}_radial_{stamp}.gif"
+    p_path = out_dir / f"matrix_scan_{plane}_path_{stamp}.gif"
 
     _write_gif(shells, p_shell, duration_ms)
     _write_gif(radials, p_radial, duration_ms)
     _write_gif(paths, p_path, duration_ms)
 
+    mode = "ping-pong" if ping_pong else "one-way (smooth loop)"
     msg = (
         f"### Matrix scan (synced)\n"
-        f"Plane **{plane}** · {len(fracs)} frames · {duration_ms} ms/frame · "
-        f"{'ping-pong' if ping_pong else 'one-way'}\n\n"
+        f"Plane **{plane}** · {len(fracs)} frames · {duration_ms} ms/frame · {mode}\n\n"
         f"| Viewport | File |\n|---|---|\n"
         f"| 3D shell | `{p_shell.name}` |\n"
         f"| Radial map | `{p_radial.name}` |\n"
