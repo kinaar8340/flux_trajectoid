@@ -244,21 +244,20 @@ footer,
 }
 
 /*
- * FIXED viewport panels — independent of Gradio flex nesting.
- * Parent chain has repeatedly zeroed #plots-col width/height; pin both
- * panes to the browser viewport so the 2×2 startup page always paints.
+ * Desired layout (Image #2):
  *
- *   [ #controls fixed left ] [ #plots-col fixed right ]
- *                            [ top: shell | path      ]
- *                            [ bot: radial | score    ]
+ *   [ controls ] [ shell .............. ] [ path ... ]
+ *   [ controls ] [ radial ............. ] [ score .. ]
+ *
+ * Pin #controls + #plots-col to the viewport. Force #plots-top/#plots-bot
+ * to equal-height ROWS (not stacked full-width bands).
  */
 :root {
   --ft-nav-h: 48px;
-  --ft-ctrl-w: 320px;
+  --ft-ctrl-w: 300px;
   --ft-gap: 0.4rem;
 }
 #workspace {
-  /* marker only — children are position:fixed to the viewport */
   position: relative !important;
   width: 100% !important;
   min-height: calc(100vh - var(--ft-nav-h)) !important;
@@ -268,6 +267,7 @@ footer,
   background: #070b14 !important;
   overflow: visible !important;
 }
+/* ---- Left controls pane ---- */
 #controls {
   position: fixed !important;
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
@@ -276,8 +276,6 @@ footer,
   max-width: var(--ft-ctrl-w) !important;
   min-width: var(--ft-ctrl-w) !important;
   bottom: var(--ft-gap) !important;
-  height: auto !important;
-  max-height: none !important;
   z-index: 40 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
@@ -285,27 +283,64 @@ footer,
   flex-direction: column !important;
   box-sizing: border-box !important;
   padding: 0.35rem 0.45rem !important;
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  background: rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-radius: 10px !important;
   scrollbar-width: thin;
   visibility: visible !important;
   opacity: 1 !important;
 }
+/* ---- Right plots pane: 2 equal rows ---- */
 #plots-col {
   position: fixed !important;
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
   left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
   right: var(--ft-gap) !important;
   bottom: var(--ft-gap) !important;
-  width: auto !important;
-  height: auto !important;
-  min-width: 240px !important;
-  min-height: 240px !important;
   z-index: 40 !important;
-  display: grid !important;
-  grid-template-rows: 1fr 1fr !important;
-  grid-template-columns: 1fr !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--ft-gap) !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 280px !important;
+}
+/* Stretch Gradio Column internals as a column host (NOT display:contents) */
+#plots-col > .form,
+#plots-col > .wrap,
+#plots-col > div {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  gap: var(--ft-gap) !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* Top row = shell | path · Bottom row = radial | score */
+#plots-top,
+#plots-bot {
+  flex: 1 1 50% !important;
+  min-height: 0 !important;
+  height: 50% !important;
+  max-height: 50% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: row !important; /* side-by-side cells */
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
   gap: var(--ft-gap) !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -316,64 +351,61 @@ footer,
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* Gradio Column body: become a transparent grid host */
-#plots-col > .form,
-#plots-col > .wrap,
-#plots-col > div {
-  display: contents !important; /* children participate in #plots-col grid */
-}
-#plots-top {
-  grid-row: 1 / 2 !important;
-  display: grid !important;
-  grid-template-columns: 2.2fr 1fr !important;
-  gap: var(--ft-gap) !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-}
-#plots-bot {
-  grid-row: 2 / 3 !important;
-  display: grid !important;
-  grid-template-columns: 2.2fr 1fr !important;
-  gap: var(--ft-gap) !important;
-  min-height: 0 !important;
-  overflow: hidden !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
-}
+/* Gradio Row internals must stay ROW */
 #plots-top > .form,
 #plots-top > .wrap,
 #plots-top > div,
 #plots-bot > .form,
 #plots-bot > .wrap,
 #plots-bot > div {
-  display: contents !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  gap: var(--ft-gap) !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* Viewport cells — shell/radial wider, path/score narrower */
+#vp-shell,
+#vp-radial {
+  flex: 2.2 1 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+}
+#vp-path,
+#vp-score {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
 }
 #vp-shell,
 #vp-path,
 #vp-radial,
 #vp-score {
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 0.35rem 0.45rem !important;
+  padding: 0.3rem 0.4rem !important;
   box-sizing: border-box !important;
   visibility: visible !important;
   opacity: 1 !important;
-  background: rgba(15, 23, 42, 0.95) !important;
-  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  background: rgba(15, 23, 42, 0.96) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-radius: 10px !important;
 }
 #vp-shell .viewport-title,
@@ -381,12 +413,13 @@ footer,
 #vp-path .viewport-title,
 #vp-score .viewport-title {
   flex: 0 0 auto !important;
-  margin: 0 0 0.2rem 0 !important;
+  margin: 0 0 0.15rem 0 !important;
   color: #64748b !important;
-  font-size: 0.7rem !important;
+  font-size: 0.68rem !important;
   text-transform: uppercase !important;
   letter-spacing: 0.06em !important;
 }
+/* Plots fill the cell (not tiny centered stamps) */
 #vp-shell .vp-plot,
 #vp-radial .vp-plot,
 #vp-path .vp-plot,
@@ -395,14 +428,14 @@ footer,
 #vp-radial [data-testid="image"],
 #vp-path [data-testid="image"],
 #vp-score [data-testid="image"] {
-  flex: 1 1 auto !important;
-  min-height: 80px !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
   width: 100% !important;
   height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
-  background: rgba(7, 11, 20, 0.55) !important;
+  background: rgba(7, 11, 20, 0.45) !important;
   display: flex !important;
   flex-direction: column !important;
   visibility: visible !important;
@@ -420,10 +453,10 @@ footer,
 #vp-radial .vp-plot > .wrap,
 #vp-path .vp-plot > .wrap,
 #vp-score .vp-plot > .wrap {
-  flex: 1 1 auto !important;
+  flex: 1 1 0 !important;
   width: 100% !important;
   height: 100% !important;
-  min-height: 80px !important;
+  min-height: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -435,9 +468,10 @@ footer,
 #vp-score img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: auto !important;
-  height: auto !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
+  object-position: center !important;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -445,7 +479,11 @@ footer,
 #vp-shell button.icon-button,
 #vp-radial button.icon-button,
 #vp-path button.icon-button,
-#vp-score button.icon-button {
+#vp-score button.icon-button,
+#vp-shell .icon-button-wrapper,
+#vp-radial .icon-button-wrapper,
+#vp-path .icon-button-wrapper,
+#vp-score .icon-button-wrapper {
   display: none !important;
 }
 
@@ -1850,30 +1888,81 @@ SLIDER_FILL_JS = """
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
-    const ws = document.querySelector('#workspace');
-    if (ws) {
-      ws.style.position = 'fixed';
-      ws.style.top = navH + 'px';
-      ws.style.left = '0';
-      ws.style.right = '0';
-      ws.style.bottom = '0';
-      ws.style.zIndex = '900';
-      ws.style.display = 'flex';
-      ws.style.flexDirection = 'row';
-      ws.style.overflow = 'hidden';
+    const gap = 6;
+    const ctrlW = 300;
+    const ctrl = document.querySelector('#controls');
+    if (ctrl) {
+      ctrl.style.setProperty('position', 'fixed', 'important');
+      ctrl.style.setProperty('top', (navH + gap) + 'px', 'important');
+      ctrl.style.setProperty('left', gap + 'px', 'important');
+      ctrl.style.setProperty('width', ctrlW + 'px', 'important');
+      ctrl.style.setProperty('bottom', gap + 'px', 'important');
+      ctrl.style.setProperty('z-index', '40', 'important');
+      ctrl.style.setProperty('display', 'flex', 'important');
+      ctrl.style.setProperty('flex-direction', 'column', 'important');
     }
-    // Ensure plots column is visible (do not touch img styles every tick)
     const pc = document.querySelector('#plots-col');
     if (pc) {
-      pc.style.display = 'flex';
-      pc.style.flexDirection = 'column';
-      pc.style.flex = '1 1 auto';
-      pc.style.minWidth = '200px';
-      pc.style.minHeight = '0';
-      pc.style.height = '100%';
-      pc.style.visibility = 'visible';
-      pc.style.opacity = '1';
+      pc.style.setProperty('position', 'fixed', 'important');
+      pc.style.setProperty('top', (navH + gap) + 'px', 'important');
+      pc.style.setProperty('left', (ctrlW + 2 * gap) + 'px', 'important');
+      pc.style.setProperty('right', gap + 'px', 'important');
+      pc.style.setProperty('bottom', gap + 'px', 'important');
+      pc.style.setProperty('z-index', '40', 'important');
+      pc.style.setProperty('display', 'flex', 'important');
+      pc.style.setProperty('flex-direction', 'column', 'important');
+      pc.style.setProperty('gap', gap + 'px', 'important');
+      pc.style.setProperty('visibility', 'visible', 'important');
+      pc.style.setProperty('opacity', '1', 'important');
+      pc.style.setProperty('overflow', 'hidden', 'important');
     }
+    // Force equal-height rows: shell|path  /  radial|score
+    ['#plots-top', '#plots-bot'].forEach((sel) => {
+      const row = document.querySelector(sel);
+      if (!row) return;
+      row.style.setProperty('display', 'flex', 'important');
+      row.style.setProperty('flex-direction', 'row', 'important');
+      row.style.setProperty('flex-wrap', 'nowrap', 'important');
+      row.style.setProperty('flex', '1 1 50%', 'important');
+      row.style.setProperty('min-height', '0', 'important');
+      row.style.setProperty('height', '50%', 'important');
+      row.style.setProperty('width', '100%', 'important');
+      row.style.setProperty('gap', gap + 'px', 'important');
+      row.style.setProperty('overflow', 'hidden', 'important');
+      // Gradio Row wrapper(s)
+      row.querySelectorAll(':scope > div, :scope > .form, :scope > .wrap').forEach((w) => {
+        if (w.id && w.id.startsWith('vp-')) return;
+        w.style.setProperty('display', 'flex', 'important');
+        w.style.setProperty('flex-direction', 'row', 'important');
+        w.style.setProperty('flex', '1 1 auto', 'important');
+        w.style.setProperty('width', '100%', 'important');
+        w.style.setProperty('height', '100%', 'important');
+        w.style.setProperty('min-height', '0', 'important');
+        w.style.setProperty('gap', gap + 'px', 'important');
+      });
+    });
+    const wide = ['#vp-shell', '#vp-radial'];
+    const slim = ['#vp-path', '#vp-score'];
+    wide.forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.style.setProperty('flex', '2.2 1 0', 'important');
+      el.style.setProperty('display', 'flex', 'important');
+      el.style.setProperty('flex-direction', 'column', 'important');
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('min-width', '0', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
+    slim.forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      el.style.setProperty('flex', '1 1 0', 'important');
+      el.style.setProperty('display', 'flex', 'important');
+      el.style.setProperty('flex-direction', 'column', 'important');
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('min-width', '0', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
   }
 
   function start() {
