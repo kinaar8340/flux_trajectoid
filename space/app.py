@@ -125,7 +125,7 @@ footer { display: none !important; }
   height: 100% !important;
 }
 
-/* Compact controls */
+/* Compact controls + accordion glass (opacity 0.3) */
 #controls label, #controls span, #controls p {
   color: #94a3b8 !important;
   font-size: 0.72rem !important;
@@ -135,6 +135,19 @@ footer { display: none !important; }
   border-color: rgba(100, 116, 139, 0.4) !important;
   color: #e2e8f0 !important;
   font-size: 0.8rem !important;
+}
+#controls .label-wrap,
+#controls .accordion,
+#controls details {
+  background: rgba(15, 23, 42, 0.3) !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  border-radius: 8px !important;
+  margin-bottom: 0.3rem !important;
+}
+#controls summary,
+#controls .label-wrap span {
+  color: #cbd5e1 !important;
+  font-size: 0.75rem !important;
 }
 #run-btn {
   background: linear-gradient(90deg, #2563eb, #7c3aed) !important;
@@ -193,7 +206,19 @@ def _empty_imgs():
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
 
 
-def run_ui(payload, seed, turbulence, n_steps, use_tpt, build_3d, force_stub, view):
+def run_ui(
+    payload,
+    seed,
+    turbulence,
+    n_steps,
+    use_tpt,
+    build_3d,
+    force_stub,
+    slice_frac,
+    slice_plane,
+    show_slice,
+    view,
+):
     try:
         out = run_pipeline(
             payload=payload,
@@ -203,6 +228,9 @@ def run_ui(payload, seed, turbulence, n_steps, use_tpt, build_3d, force_stub, vi
             use_tpt=bool(use_tpt),
             build_3d=bool(build_3d),
             force_stub=bool(force_stub),
+            slice_frac=float(slice_frac),
+            slice_plane=str(slice_plane),
+            show_slice=bool(show_slice),
         )
         return (
             out["img_shell"],
@@ -247,26 +275,43 @@ def build_app() -> gr.Blocks:
 
         # ---- Workspace (single page, multi-column) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Column 1 — controls (glass)
+            # Column 1 — accordion / vertically stacked controls
             with gr.Column(scale=2, min_width=200, elem_classes=["layer-inner"], elem_id="controls"):
                 gr.Markdown('<p class="viewport-title">Controls</p>')
-                payload = gr.Textbox(
-                    value="Hello from the shell",
-                    label="Payload",
-                    lines=1,
-                    max_lines=2,
-                )
-                with gr.Row():
+                with gr.Accordion("Payload & identity", open=True, elem_classes=["layer-fg"]):
+                    payload = gr.Textbox(
+                        value="Hello from the shell",
+                        label="Payload",
+                        lines=1,
+                        max_lines=2,
+                    )
                     seed = gr.Number(value=42, label="Seed", precision=0)
-                    turbulence = gr.Slider(0.0, 0.8, value=0.25, step=0.05, label="Turbulence")
-                n_steps = gr.Slider(4, 32, value=12, step=1, label="Channel steps")
-                with gr.Row():
+                with gr.Accordion("Channel", open=True, elem_classes=["layer-fg"]):
+                    turbulence = gr.Slider(
+                        0.0, 0.8, value=0.25, step=0.05, label="Turbulence"
+                    )
+                    n_steps = gr.Slider(4, 32, value=12, step=1, label="Channel steps")
+                with gr.Accordion("Shell / lattice", open=False, elem_classes=["layer-fg"]):
                     use_tpt = gr.Checkbox(value=True, label="TPT closure")
                     build_3d = gr.Checkbox(value=True, label="3D shell")
                     force_stub = gr.Checkbox(value=True, label="Fast stub lattice")
+                with gr.Accordion("Matrix slice", open=True, elem_classes=["layer-fg"]):
+                    show_slice = gr.Checkbox(value=True, label="Show green slice")
+                    slice_plane = gr.Radio(
+                        choices=["x", "y", "z"],
+                        value="z",
+                        label="Slice plane",
+                    )
+                    slice_frac = gr.Slider(
+                        0.0,
+                        1.0,
+                        value=0.5,
+                        step=0.02,
+                        label="Slice position",
+                    )
                 run_btn = gr.Button("Build · Propagate · Recover", elem_id="run-btn")
                 status = gr.Markdown(
-                    "Set payload & hit **Build**. Fast stub keeps the UI snappy.",
+                    "Set payload & hit **Build**. Green slice = matrix frame on 3D shell.",
                     elem_id="status-md",
                     elem_classes=["layer-fg"],
                 )
@@ -347,10 +392,23 @@ def build_app() -> gr.Blocks:
         )
 
         outs = [img_shell, img_radial, img_field, img_path, img_metrics, img_trace, status]
+        ctrl_inputs = [
+            payload,
+            seed,
+            turbulence,
+            n_steps,
+            use_tpt,
+            build_3d,
+            force_stub,
+            slice_frac,
+            slice_plane,
+            show_slice,
+            view_state,
+        ]
 
         run_btn.click(
             fn=run_ui,
-            inputs=[payload, seed, turbulence, n_steps, use_tpt, build_3d, force_stub, view_state],
+            inputs=ctrl_inputs,
             outputs=outs,
         )
 
@@ -410,7 +468,7 @@ def build_app() -> gr.Blocks:
         # Auto-run once on load for immediate visual
         demo.load(
             fn=run_ui,
-            inputs=[payload, seed, turbulence, n_steps, use_tpt, build_3d, force_stub, view_state],
+            inputs=ctrl_inputs,
             outputs=outs,
         )
 

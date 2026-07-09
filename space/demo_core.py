@@ -45,7 +45,85 @@ def _fig_to_rgb(fig) -> np.ndarray:
     return rgb
 
 
-def plot_shell_3d(shell) -> np.ndarray:
+def _draw_green_slice(
+    ax,
+    shell,
+    slice_frac: float = 0.5,
+    plane: str = "z",
+) -> None:
+    """
+    Matrix-green outlined rectangular slice through the shell.
+
+    Edge: #00FF00 solid · face fill: #00FF00 @ alpha 0.1
+    """
+    if shell.surface is None and shell.mesh_vertices is None:
+        return
+    if shell.surface is not None:
+        pts = shell.surface.reshape(-1, 3)
+    else:
+        pts = np.asarray(shell.mesh_vertices, dtype=float)
+
+    lo = pts.min(axis=0)
+    hi = pts.max(axis=0)
+    pad = 0.03 * (hi - lo + 1e-9)
+    lo = lo - pad
+    hi = hi + pad
+
+    axis = {"x": 0, "y": 1, "z": 2}.get(plane, 2)
+    a0, a1 = [i for i in range(3) if i != axis]
+    c = float(lo[axis] + np.clip(slice_frac, 0.0, 1.0) * (hi[axis] - lo[axis]))
+
+    # Outline rectangle
+    corners_uv = np.array(
+        [
+            [lo[a0], lo[a1]],
+            [hi[a0], lo[a1]],
+            [hi[a0], hi[a1]],
+            [lo[a0], hi[a1]],
+            [lo[a0], lo[a1]],
+        ]
+    )
+    outline = np.zeros((5, 3))
+    outline[:, a0] = corners_uv[:, 0]
+    outline[:, a1] = corners_uv[:, 1]
+    outline[:, axis] = c
+    ax.plot(
+        outline[:, 0],
+        outline[:, 1],
+        outline[:, 2],
+        color="#00FF00",
+        lw=1.8,
+        alpha=1.0,
+        zorder=10,
+    )
+
+    # Face fill @ opacity 0.1
+    u = np.linspace(lo[a0], hi[a0], 2)
+    v = np.linspace(lo[a1], hi[a1], 2)
+    U, V = np.meshgrid(u, v)
+    XYZ = [np.zeros_like(U), np.zeros_like(U), np.zeros_like(U)]
+    XYZ[a0] = U
+    XYZ[a1] = V
+    XYZ[axis] = np.full_like(U, c)
+    ax.plot_surface(
+        XYZ[0],
+        XYZ[1],
+        XYZ[2],
+        color="#00FF00",
+        alpha=0.1,
+        linewidth=0,
+        shade=False,
+        zorder=5,
+    )
+
+
+def plot_shell_3d(
+    shell,
+    *,
+    slice_frac: float = 0.5,
+    slice_plane: str = "z",
+    show_slice: bool = True,
+) -> np.ndarray:
     fig = plt.figure(figsize=(4.2, 3.6), facecolor="#0b1220")
     ax = fig.add_subplot(111, projection="3d", facecolor="#0b1220")
     ax.tick_params(colors="#8aa0c0", labelsize=7)
@@ -73,11 +151,21 @@ def plot_shell_3d(shell) -> np.ndarray:
         if shell.path_on_body is not None:
             p = shell.path_on_body
             ax.plot(p[:, 0], p[:, 1], p[:, 2], color="#f87171", lw=1.8, alpha=0.95)
+        if show_slice:
+            _draw_green_slice(ax, shell, slice_frac=slice_frac, plane=slice_plane)
     else:
         v = shell.vertices
-        ax.plot(v[:, 0], v[:, 1], v[:, 2] if v.shape[1] > 2 else np.zeros(len(v)), color="#60a5fa")
+        ax.plot(
+            v[:, 0],
+            v[:, 1],
+            v[:, 2] if v.shape[1] > 2 else np.zeros(len(v)),
+            color="#60a5fa",
+        )
+        if show_slice:
+            _draw_green_slice(ax, shell, slice_frac=slice_frac, plane=slice_plane)
 
-    ax.set_title("3D Trajectoid Shell", color="#e2e8f0", fontsize=10, pad=2)
+    title = f"3D Trajectoid Shell · slice {slice_plane}={slice_frac:.2f}"
+    ax.set_title(title, color="#e2e8f0", fontsize=9, pad=2)
     fig.tight_layout(pad=0.3)
     return _fig_to_rgb(fig)
 
@@ -204,12 +292,19 @@ def run_pipeline(
     use_tpt: bool,
     build_3d: bool,
     force_stub: bool,
+    slice_frac: float = 0.5,
+    slice_plane: str = "z",
+    show_slice: bool = True,
 ) -> dict[str, Any]:
     """Build → propagate → recover; return images + text metrics."""
     payload = (payload or "Photon Seed Asteroid").strip()[:80]
     seed = int(seed)
     turbulence = float(np.clip(turbulence, 0.0, 1.0))
     n_steps = int(np.clip(n_steps, 4, 48))
+    slice_frac = float(np.clip(slice_frac, 0.0, 1.0))
+    slice_plane = str(slice_plane or "z").lower()
+    if slice_plane not in ("x", "y", "z"):
+        slice_plane = "z"
 
     # Fast defaults for interactive UI
     ast = PhotonSeedAsteroid(payload, seed=seed).build(
@@ -237,7 +332,12 @@ def run_pipeline(
     shell = ast.shell
     assert shell is not None
 
-    img_shell = plot_shell_3d(shell)
+    img_shell = plot_shell_3d(
+        shell,
+        slice_frac=slice_frac,
+        slice_plane=slice_plane,
+        show_slice=bool(show_slice),
+    )
     img_radial = plot_radial_map(shell)
     img_field = plot_protected_field(ast.flux_state)
     img_path = plot_path_panel(shell)
