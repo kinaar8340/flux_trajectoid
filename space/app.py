@@ -1283,18 +1283,18 @@ def run_ui(
             show_slice=_as_on(show_slice),
         )
         return (
-            _to_html(out["img_shell"]),
-            _to_html(out["img_radial"]),
+            _to_html(out["img_shell"], "shell"),
+            _to_html(out["img_radial"], "radial"),
             _to_pil(out["img_field"]),
-            _to_html(out["img_path"]),
-            _to_html(out["img_metrics"]),
+            _to_html(out["img_path"], "path"),
+            _to_html(out["img_metrics"], "metrics"),
             _to_pil(out["img_trace"]),
             out["status_md"],
             out.get("shell"),
         )
     except Exception as exc:
         logger.exception("pipeline failed")
-        err_h = _to_html(blank_rgb())
+        err_h = _to_html(blank_rgb(), "err")
         err_i = _to_pil(blank_rgb())
         md = f"### Error\n```\n{exc!r}\n```"
         return err_h, err_h, err_i, err_h, err_h, err_i, md, None
@@ -1313,7 +1313,7 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
         slice_plane=str(slice_plane or "z"),
         show_slice=_as_on(show_slice),
     )
-    return _to_html(s), _to_html(r), _to_html(p)
+    return _to_html(s, "shell"), _to_html(r, "radial"), _to_html(p, "path")
 
 
 def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
@@ -1329,9 +1329,9 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
         duration_ms=90,
     )
     return (
-        _to_html(g_shell if g_shell else blank_rgb(300, 360)),
-        _to_html(g_radial if g_radial else blank_rgb(300, 360)),
-        _to_html(g_path if g_path else blank_rgb(400, 220)),
+        _to_html(g_shell if g_shell else blank_rgb(300, 360), "shell"),
+        _to_html(g_radial if g_radial else blank_rgb(300, 360), "radial"),
+        _to_html(g_path if g_path else blank_rgb(400, 220), "path"),
         msg,
     )
 
@@ -1377,62 +1377,126 @@ def _to_pil(arr_or_path):
     return PILImage.fromarray(_as_uint8_rgb(np.asarray(arr_or_path)))
 
 
-def _to_html(arr_or_path) -> str:
-    """Viewport plot as HTML <img> — bypasses Gradio Image empty/overlay layers.
+def _file_url(rel_path: str) -> str:
+    """Same-origin Gradio file URL (verified working on this Space)."""
+    import time
 
-    Pixels are base64 data-URIs so nothing depends on /tmp file serving or
-    nested Image z-index chrome. Always paints above cell background.
-    """
-    import base64
-    import io
+    rel = str(rel_path).replace("\\", "/").lstrip("./")
+    return f"/gradio_api/file={rel}?v={int(time.time() * 1000)}"
+
+
+def _persist_plot(arr_or_path, stem: str) -> str:
+    """Write plot bytes under assets/boot/live_{stem}.* and return rel path."""
+    import shutil
 
     from PIL import Image as PILImage
 
-    # Pass-through already-rendered HTML
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in stem)[:40] or "plot"
+    boot = _boot_dir()
+
+    # Pass-through / resolve existing file
+    if isinstance(arr_or_path, (str, Path)):
+        s = str(arr_or_path)
+        if "ft-vp-img" in s or s.lstrip().startswith("<"):
+            return ""  # caller handles HTML passthrough
+        p = Path(arr_or_path)
+        if not p.is_file():
+            p2 = Path(__file__).resolve().parent / s
+            p = p2 if p2.is_file() else p
+        if p.is_file():
+            ext = p.suffix.lower() if p.suffix else ".png"
+            if ext not in (".png", ".gif", ".jpg", ".jpeg", ".webp"):
+                ext = ".png"
+            dest = boot / f"live_{safe}{ext}"
+            try:
+                if p.resolve() != dest.resolve():
+                    shutil.copy2(p, dest)
+                return f"assets/boot/{dest.name}"
+            except Exception:
+                logger.exception("copy plot failed %s → %s", p, dest)
+
+    pil = _to_pil(arr_or_path)
+    dest = boot / f"live_{safe}.png"
+    try:
+        pil.save(dest, format="PNG", optimize=True)
+    except Exception:
+        logger.exception("save plot failed %s", dest)
+        # fall back to shipped boot if present
+        shipped = boot / f"img_{safe}.png"
+        if not shipped.is_file():
+            # map stems shell/path/radial/metrics → boot names
+            alt = {
+                "shell": "img_shell.png",
+                "path": "img_path.png",
+                "radial": "img_radial.png",
+                "metrics": "img_metrics.png",
+                "score": "img_metrics.png",
+            }.get(safe)
+            if alt:
+                shipped = boot / alt
+        if shipped.is_file():
+            return f"assets/boot/{shipped.name}"
+        PILImage.fromarray(blank_rgb(360, 420)).save(dest, format="PNG")
+    return f"assets/boot/{dest.name}"
+
+
+def _to_html(arr_or_path, stem: str = "plot") -> str:
+    """Viewport plot as HTML <img> using /gradio_api/file=… (not data: URIs).
+
+    data:image URIs often get stripped by Gradio's HTML sanitizer → empty cells.
+    File URLs under assets/boot/ are served (200 OK on this Space) and paint.
+    Inline styles force size/z-index so outer CSS cannot collapse the layer.
+    """
     if isinstance(arr_or_path, str) and (
         "ft-vp-img" in arr_or_path or arr_or_path.lstrip().startswith("<div")
     ):
         return arr_or_path
 
-    # GIF path (matrix scan) → animated data-URI
+    # Prefer known shipped boot files when value is already that path
+    rel = ""
     if isinstance(arr_or_path, (str, Path)):
-        p = Path(arr_or_path)
-        if not p.is_file():
-            p2 = Path(__file__).resolve().parent / str(arr_or_path)
-            p = p2 if p2.is_file() else p
-        if p.is_file() and p.suffix.lower() == ".gif":
-            try:
-                b64 = base64.b64encode(p.read_bytes()).decode("ascii")
-                return (
-                    '<div class="ft-vp-img-wrap">'
-                    f'<img class="ft-vp-img" src="data:image/gif;base64,{b64}" '
-                    'alt="matrix scan" draggable="false"/>'
-                    "</div>"
-                )
-            except Exception:
-                logger.exception("gif→html failed for %s", p)
+        s = str(arr_or_path).replace("\\", "/")
+        if s.startswith("assets/boot/") and (Path(__file__).resolve().parent / s).is_file():
+            rel = s
+    if not rel:
+        rel = _persist_plot(arr_or_path, stem)
+    if not rel:
+        # last resort: shipped name
+        guess = {
+            "shell": "assets/boot/img_shell.png",
+            "path": "assets/boot/img_path.png",
+            "radial": "assets/boot/img_radial.png",
+            "metrics": "assets/boot/img_metrics.png",
+            "score": "assets/boot/img_metrics.png",
+        }.get(stem, "assets/boot/img_shell.png")
+        rel = guess
 
-    pil = _to_pil(arr_or_path)
-    buf = io.BytesIO()
-    pil.save(buf, format="PNG", optimize=True)
-    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    url = _file_url(rel)
+    # Inline styles only — cannot be defeated by flex collapse / sanitizer class rules
     return (
-        '<div class="ft-vp-img-wrap">'
-        f'<img class="ft-vp-img" src="data:image/png;base64,{b64}" '
-        'alt="plot" draggable="false"/>'
+        f'<div class="ft-vp-img-wrap" data-stem="{stem}" '
+        'style="position:relative;z-index:50;display:flex!important;'
+        "align-items:center;justify-content:center;width:100%;"
+        "min-height:280px;height:100%;max-height:100%;box-sizing:border-box;"
+        'background:#0a0f18;overflow:hidden;opacity:1;visibility:visible;">'
+        f'<img class="ft-vp-img" src="{url}" alt="{stem}" draggable="false" '
+        'style="position:relative;z-index:51;display:block!important;'
+        "max-width:100%;max-height:100%;width:auto;height:auto;"
+        "min-width:100px;min-height:100px;object-fit:contain;"
+        'opacity:1;visibility:visible;border:0;"/>'
         "</div>"
     )
 
 
-def _display_html(value, *, elem_id=None, elem_classes=None):
-    """gr.HTML plot viewport — no Image chrome, image always frontmost."""
+def _display_html(value, *, stem: str = "plot", elem_id=None, elem_classes=None):
+    """gr.HTML plot viewport — file-URL <img>, always frontmost."""
     classes = list(elem_classes or [])
     if "vp-plot" not in classes:
         classes.append("vp-plot")
     if "ft-vp-html" not in classes:
         classes.append("ft-vp-html")
     kwargs = {
-        "value": _to_html(value),
+        "value": _to_html(value, stem=stem),
         "elem_classes": classes,
     }
     if elem_id is not None:
@@ -1761,6 +1825,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_shell = _display_html(
                             boot["img_shell"],
+                            stem="shell",
                             elem_classes=["vp-plot"],
                             elem_id="img-shell",
                         )
@@ -1775,6 +1840,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_path = _display_html(
                             boot["img_path"],
+                            stem="path",
                             elem_classes=["vp-plot"],
                             elem_id="img-path",
                         )
@@ -1790,6 +1856,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_radial = _display_html(
                             boot["img_radial"],
+                            stem="radial",
                             elem_classes=["vp-plot"],
                             elem_id="img-radial",
                         )
@@ -1804,6 +1871,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_metrics = _display_html(
                             boot["img_metrics"],
+                            stem="metrics",
                             elem_classes=["vp-plot"],
                             elem_id="img-metrics",
                         )
@@ -1986,10 +2054,10 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
 
         def _seed_plots():
             return (
-                _to_html(_seed[0]),
-                _to_html(_seed[1]),
-                _to_html(_seed[2]),
-                _to_html(_seed[3]),
+                _to_html(_seed[0], "shell"),
+                _to_html(_seed[1], "path"),
+                _to_html(_seed[2], "radial"),
+                _to_html(_seed[3], "metrics"),
             )
 
         try:
