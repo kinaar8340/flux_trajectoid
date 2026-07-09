@@ -176,9 +176,13 @@ footer { display: none !important; }
   line-height: 1.1 !important;
 }
 /* Column-1 sub-nav: CONTROLS | REFERENCES
- * Match .viewport-title type; selected tab text = #00FF00
+ * Gradio 6 markup: .tab-wrapper > .tab-container > button.selected
+ * active_tab → tab_text_color = #00FF00
  */
 #col1-tabs {
+  --color-accent: #00FF00;
+  --ft-tab-idle: #64748b;
+  --ft-tab-active: #00FF00;
   margin: 0 !important;
   padding: 0 !important;
   gap: 0 !important;
@@ -187,54 +191,78 @@ footer { display: none !important; }
   display: flex !important;
   flex-direction: column !important;
 }
-#col1-tabs > .tab-nav,
-#col1-tabs .tab-nav {
-  display: flex !important;
-  gap: 0.5rem !important;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18) !important;
-  margin: 0 0 0.35rem 0 !important;
-  padding: 0 !important;
+#col1-tabs .tab-wrapper,
+#controls #col1-tabs .tab-wrapper {
+  height: auto !important;
+  min-height: 1.5rem !important;
+  padding-bottom: 0.15rem !important;
+  margin-bottom: 0.35rem !important;
   background: transparent !important;
 }
-/* Unselected: same as CONTROLS / .viewport-title */
-#col1-tabs .tab-nav button,
-#col1-tabs .tab-nav button *,
-#col1-tabs .tab-nav button span,
-#controls #col1-tabs .tab-nav button,
-#controls #col1-tabs .tab-nav button span {
-  color: #64748b !important;
+#col1-tabs .tab-container,
+#controls #col1-tabs .tab-container {
+  height: auto !important;
+  min-height: 1.4rem !important;
+  gap: 0.65rem !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+#col1-tabs .tab-container:after {
+  background-color: rgba(148, 163, 184, 0.18) !important;
+  height: 1px !important;
+}
+/* Idle tabs — match .viewport-title / CONTROLS label type */
+#col1-tabs .tab-container button,
+#col1-tabs .tab-wrapper button,
+#controls #col1-tabs .tab-container button,
+#controls #col1-tabs .tab-wrapper button,
+#controls #col1-tabs .tab-container button span,
+#controls #col1-tabs .tab-wrapper button span {
+  color: var(--ft-tab-idle) !important;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
   font-size: 0.7rem !important;
   font-weight: 400 !important;
   line-height: 1.1 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.06em !important;
-  padding: 0.2rem 0.15rem 0.35rem 0.15rem !important;
+  padding: 0.15rem 0.1rem 0.4rem 0.1rem !important;
+  margin: 0 !important;
+  height: auto !important;
+  min-width: auto !important;
   background: transparent !important;
   border: none !important;
-  border-bottom: 2px solid transparent !important;
   border-radius: 0 !important;
-  min-width: auto !important;
   box-shadow: none !important;
+  flex: 0 0 auto !important;
 }
-/* Selected: green text (both CONTROLS & REFERENCES) */
-#col1-tabs .tab-nav button.selected,
-#col1-tabs .tab-nav button.selected *,
-#col1-tabs .tab-nav button.selected span,
-#col1-tabs .tab-nav button[aria-selected="true"],
-#col1-tabs .tab-nav button[aria-selected="true"] *,
-#col1-tabs .tab-nav button[aria-selected="true"] span,
-#controls #col1-tabs .tab-nav button.selected,
-#controls #col1-tabs .tab-nav button.selected span,
-#controls #col1-tabs .tab-nav button[aria-selected="true"],
-#controls #col1-tabs .tab-nav button[aria-selected="true"] span {
-  color: #00FF00 !important;
-  border-bottom-color: #00FF00 !important;
+#col1-tabs .tab-container button:hover:not(.selected),
+#controls #col1-tabs .tab-container button:hover:not(.selected) {
+  color: #94a3b8 !important;
+  background: transparent !important;
+}
+/* active_tab (tab_state=True): CONTROLS or REFERENCES → #00FF00 */
+#col1-tabs .tab-container button.selected,
+#col1-tabs .tab-wrapper button.selected,
+#col1-tabs button.selected,
+#controls #col1-tabs .tab-container button.selected,
+#controls #col1-tabs .tab-wrapper button.selected,
+#controls #col1-tabs button.selected,
+#controls #col1-tabs .tab-container button.selected span,
+#controls #col1-tabs .tab-wrapper button.selected span,
+#controls #col1-tabs button.selected span {
+  color: var(--ft-tab-active) !important;
   background: transparent !important;
   font-weight: 400 !important;
 }
+/* Gradio draws active underline via button.selected::after */
+#col1-tabs .tab-container button.selected:after,
+#col1-tabs button.selected:after,
+#controls #col1-tabs button.selected:after {
+  background-color: var(--ft-tab-active) !important;
+  height: 2px !important;
+}
 #col1-tabs .tabitem,
-#col1-tabs > div:not(.tab-nav) {
+#col1-tabs [role="tabpanel"] {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow: auto !important;
