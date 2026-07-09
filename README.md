@@ -185,6 +185,18 @@ flux_trajectoid/
 
 ---
 
+## Local Space demo (Gradio)
+
+Single-page visual app (HF Space: [kinaar111/flux_trajectoid](https://huggingface.co/spaces/kinaar111/flux_trajectoid)):
+
+```bash
+pip install -r space/requirements.txt
+PYTHONPATH=src python space/app.py
+# → http://127.0.0.1:7860
+```
+
+Top nav · multi-column viewports · glass layers at **opacity 0.3** · Nature-style trajectoid hero art in `space/assets/`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
