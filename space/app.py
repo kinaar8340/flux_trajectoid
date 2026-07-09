@@ -644,7 +644,8 @@ def build_app() -> gr.Blocks:
             ):
                 with gr.Column(elem_id="controls-top"):
                     gr.Markdown('<p class="viewport-title">Controls</p>')
-                    # Startup: all four accordions collapsed
+                    # Startup layout (matches preferred Demo view):
+                    # Demo nav active · Matrix slice open · others collapsed
                     with gr.Accordion(
                         "Payload & identity", open=False, elem_classes=["layer-fg"]
                     ):
@@ -688,7 +689,7 @@ def build_app() -> gr.Blocks:
                             elem_classes=["oval-toggle"],
                         )
                     with gr.Accordion(
-                        "Matrix slice", open=False, elem_classes=["layer-fg"]
+                        "Matrix slice", open=True, elem_classes=["layer-fg"]
                     ):
                         show_slice = gr.Radio(
                             choices=["On", "Off"],
@@ -707,20 +708,20 @@ def build_app() -> gr.Blocks:
                         slice_frac = gr.Slider(
                             0.0,
                             1.0,
-                            value=0.5,
+                            value=1.0,
                             step=0.02,
                             label="Slice position",
                         )
                         scan_frames = gr.Slider(
                             8,
                             24,
-                            value=14,
+                            value=24,
                             step=1,
                             label="Scan frames",
                         )
                         scan_ping = gr.Radio(
                             choices=["On", "Off"],
-                            value="Off",
+                            value="On",
                             label="Ping-pong scan (can look bouncy)",
                             type="value",
                             elem_classes=["oval-toggle"],
