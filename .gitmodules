@@ -1,0 +1,9 @@
+[submodule "external/oam_flux"]
+	path = external/oam_flux
+	url = https://github.com/kinaar8340/oam_flux.git
+[submodule "external/vqc_proto"]
+	path = external/vqc_proto
+	url = https://github.com/kinaar8340/vqc_proto.git
+[submodule "external/vqc_sims_public"]
+	path = external/vqc_sims_public
+	url = https://github.com/kinaar8340/vqc_sims_public.git

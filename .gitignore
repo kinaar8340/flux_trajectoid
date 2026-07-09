@@ -17,4 +17,4 @@ outputs/
 *.png
 !docs/**/*.png
 .ipynb_checkpoints/
-external/
+
