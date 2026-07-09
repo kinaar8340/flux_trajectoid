@@ -1033,7 +1033,7 @@ def build_app() -> gr.Blocks:
                                     elem_classes=["oval-toggle"],
                                 )
                                 slice_plane = gr.Radio(
-                                    choices=["x", "y", "z"],
+                                    choices=["x", "y", "z", "xyz"],
                                     value="z",
                                     label="Slice plane",
                                     type="value",
@@ -1220,9 +1220,9 @@ def build_app() -> gr.Blocks:
         )
 
         # Live matrix slice: replot shell + radial + path stills (synced)
-        # Replacing GIF paths with RGB stops leftover animations on plane change
+        # Frac / show_slice: always stills. Plane XYZ: full X→Y→Z sequence.
         slice_inputs = [shell_state, slice_frac, slice_plane, show_slice]
-        for ctrl in (slice_frac, slice_plane, show_slice):
+        for ctrl in (slice_frac, show_slice):
             ctrl.change(
                 fn=update_slice_ui,
                 inputs=slice_inputs,
@@ -1244,6 +1244,48 @@ def build_app() -> gr.Blocks:
                 interactive=True,
                 elem_classes=[],
             )
+
+        def on_slice_plane_change(
+            shell, slice_frac, plane, show_slice, n_frames, ping_pong
+        ):
+            """X/Y/Z → synced stills; XYZ → play X then Y then Z sequence."""
+            pl = str(plane or "z").lower().strip()
+            if pl == "xyz":
+                return play_scan_ui(shell, "xyz", n_frames, ping_pong)
+            s, r, p = update_slice_ui(shell, slice_frac, plane, show_slice)
+            return s, r, p, gr.update()  # keep status
+
+        def _plane_btn_prelude(plane):
+            # Glow Play only while XYZ sequence is generating
+            if str(plane or "").lower().strip() == "xyz":
+                return _scan_btn_on()
+            return gr.update()
+
+        def _plane_btn_epilogue(plane):
+            if str(plane or "").lower().strip() == "xyz":
+                return _scan_btn_off()
+            return gr.update()
+
+        slice_plane.change(
+            fn=_plane_btn_prelude,
+            inputs=[slice_plane],
+            outputs=[scan_btn],
+        ).then(
+            fn=on_slice_plane_change,
+            inputs=[
+                shell_state,
+                slice_frac,
+                slice_plane,
+                show_slice,
+                scan_frames,
+                scan_ping,
+            ],
+            outputs=[img_shell, img_radial, img_path, status],
+        ).then(
+            fn=_plane_btn_epilogue,
+            inputs=[slice_plane],
+            outputs=[scan_btn],
+        )
 
         scan_btn.click(
             fn=_scan_btn_on,

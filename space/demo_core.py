@@ -714,6 +714,9 @@ def replot_scan_suite(
         return blank_s, blank_r, blank_p
 
     plane = str(slice_plane or "z").lower()
+    # Still-frame preview: XYZ uses X until full sequence is played
+    if plane == "xyz":
+        plane = "x"
     if plane not in ("x", "y", "z"):
         plane = "z"
     ff = float(np.clip(slice_frac, 0.0, 1.0))
@@ -792,15 +795,23 @@ def animate_matrix_scan(
 
     Returns (gif_shell, gif_radial, gif_path, status_md).
     Default one-way 14-frame scan (no ping-pong bounce).
+
+    plane=\"xyz\" concatenates X then Y then Z scans into one synced suite.
     """
     if shell is None:
         empty = "### Scan\n_No shell yet — run **Build** first._"
         return None, None, None, empty
 
-    plane = str(slice_plane or "z").lower()
-    if plane not in ("x", "y", "z"):
+    plane = str(slice_plane or "z").lower().strip()
+    if plane == "xyz":
+        planes = ["x", "y", "z"]
+    elif plane in ("x", "y", "z"):
+        planes = [plane]
+    else:
+        planes = ["z"]
         plane = "z"
-    # Balanced demo defaults: 8–24, preferred 14
+
+    # Balanced demo defaults: 8–24, preferred 14 (per axis)
     n_frames = int(np.clip(n_frames, 8, 24))
     duration_ms = int(np.clip(duration_ms, 50, 150))
 
@@ -813,20 +824,28 @@ def animate_matrix_scan(
     shells: list[np.ndarray] = []
     radials: list[np.ndarray] = []
     paths: list[np.ndarray] = []
-    for f in fracs:
-        ff = float(f)
-        shells.append(
-            plot_shell_3d(
-                shell,
-                slice_frac=ff,
-                slice_plane=plane,
-                show_slice=True,
+    hold = 2  # brief hold between axes in XYZ sequence
+    for pl in planes:
+        for f in fracs:
+            ff = float(f)
+            shells.append(
+                plot_shell_3d(
+                    shell,
+                    slice_frac=ff,
+                    slice_plane=pl,
+                    show_slice=True,
+                )
             )
-        )
-        radials.append(
-            plot_radial_map(shell, slice_frac=ff, slice_plane=plane)
-        )
-        paths.append(plot_path_panel(shell, progress=ff))
+            radials.append(
+                plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
+            )
+            paths.append(plot_path_panel(shell, progress=ff))
+        # Hold last frame of this axis before switching (XYZ only)
+        if len(planes) > 1 and shells:
+            for _ in range(hold):
+                shells.append(shells[-1].copy())
+                radials.append(radials[-1].copy())
+                paths.append(paths[-1].copy())
 
     try:
         from PIL import Image  # noqa: F401
@@ -842,21 +861,35 @@ def animate_matrix_scan(
     out_dir.mkdir(parents=True, exist_ok=True)
     # Unique names avoid browser/Gradio caching old glitchy GIFs
     stamp = int(np.random.randint(0, 1_000_000))
-    p_shell = out_dir / f"matrix_scan_{plane}_shell_{stamp}.gif"
-    p_radial = out_dir / f"matrix_scan_{plane}_radial_{stamp}.gif"
-    p_path = out_dir / f"matrix_scan_{plane}_path_{stamp}.gif"
+    tag = "xyz" if len(planes) > 1 else planes[0]
+    p_shell = out_dir / f"matrix_scan_{tag}_shell_{stamp}.gif"
+    p_radial = out_dir / f"matrix_scan_{tag}_radial_{stamp}.gif"
+    p_path = out_dir / f"matrix_scan_{tag}_path_{stamp}.gif"
 
     _write_gif(shells, p_shell, duration_ms)
     _write_gif(radials, p_radial, duration_ms)
     _write_gif(paths, p_path, duration_ms)
 
     mode = "ping-pong" if ping_pong else "one-way (smooth loop)"
-    msg = (
-        f"### Matrix scan (synced)\n"
-        f"Plane **{plane}** · {len(fracs)} frames · {duration_ms} ms/frame · {mode}\n\n"
-        f"| Viewport | File |\n|---|---|\n"
-        f"| 3D shell | `{p_shell.name}` |\n"
-        f"| Radial map | `{p_radial.name}` |\n"
-        f"| Rolling path | `{p_path.name}` |\n"
-    )
+    if len(planes) > 1:
+        seq = " → ".join(p.upper() for p in planes)
+        msg = (
+            f"### Matrix scan (synced · XYZ sequence)\n"
+            f"Planes **{seq}** · {n_frames} frames/axis · "
+            f"{len(shells)} total · {duration_ms} ms/frame · {mode}\n\n"
+            f"| Viewport | File |\n|---|---|\n"
+            f"| 3D shell | `{p_shell.name}` |\n"
+            f"| Radial map | `{p_radial.name}` |\n"
+            f"| Rolling path | `{p_path.name}` |\n"
+        )
+    else:
+        msg = (
+            f"### Matrix scan (synced)\n"
+            f"Plane **{planes[0]}** · {len(fracs)} frames · "
+            f"{duration_ms} ms/frame · {mode}\n\n"
+            f"| Viewport | File |\n|---|---|\n"
+            f"| 3D shell | `{p_shell.name}` |\n"
+            f"| Radial map | `{p_radial.name}` |\n"
+            f"| Rolling path | `{p_path.name}` |\n"
+        )
     return str(p_shell), str(p_radial), str(p_path), msg
