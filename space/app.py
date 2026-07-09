@@ -189,26 +189,36 @@ footer { display: none !important; }
 }
 /*
  * theme_default_slider
- *   analog_fill_color     = #00FF00  (follows knob — left filled only)
- *   analog_bar_height     = ~1.5px (~90% thinner)
- *   analog_effect_glowing = True
- * --ft-slider-pct set by JS from knob value
+ *   analog_fill_color     = #00FF00  (left of knob only)
+ *   analog_bar_height     = ~1.5px
+ *   analog_effect_glowing = True (thumb + filled track)
+ *
+ * Gradio 6 paints fill on ::-webkit-slider-runnable-track via
+ *   --slider-color + --range_progress  (updated as the knob moves).
+ * Do NOT zero the track background or put full-width green glow on
+ * the <input> — that made the whole bar look filled.
  */
 :root {
   --ft-slider-fill: #00FF00;
   --ft-slider-track: rgba(100, 116, 139, 0.45);
   --ft-slider-h: 1.5px;
   --ft-slider-thumb: 10px;
-  --ft-slider-pct: 0%;
   --ft-slider-glow: 0 0 4px 1px rgba(0, 255, 0, 0.55),
                     0 0 8px 2px rgba(0, 255, 0, 0.28);
 }
-/* Native range: fill on the element itself (WebKit-friendly) */
+/* Gradio reads these; also force on every range host */
+#controls .slider,
+#controls [class*="slider"],
+#controls [data-testid="slider"],
+#controls input[type="range"] {
+  --slider-color: var(--ft-slider-fill) !important;
+  --color-accent: var(--ft-slider-fill) !important;
+}
 #controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   width: 100% !important;
-  height: var(--ft-slider-thumb) !important; /* hit area */
+  height: var(--ft-slider-thumb) !important;
   min-height: var(--ft-slider-thumb) !important;
   border: none !important;
   outline: none !important;
@@ -216,25 +226,24 @@ footer { display: none !important; }
   padding: 0 !important;
   cursor: pointer !important;
   accent-color: var(--ft-slider-fill) !important;
-  /* Green only from 0 → knob; rest dim track */
-  background: linear-gradient(
-    to right,
-    var(--ft-slider-fill) 0%,
-    var(--ft-slider-fill) var(--ft-slider-pct),
-    var(--ft-slider-track) var(--ft-slider-pct),
-    var(--ft-slider-track) 100%
-  ) !important;
-  background-repeat: no-repeat !important;
-  background-size: 100% var(--ft-slider-h) !important;
-  background-position: center !important;
+  background: transparent !important; /* fill lives on the track */
   border-radius: 999px !important;
-  box-shadow: var(--ft-slider-glow) !important;
+  box-shadow: none !important; /* no full-bar green glow */
 }
+/* WebKit/Chromium: progressive fill follows --range_progress (knob) */
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: transparent !important;
   border: none !important;
+  /* green 0 → knob; dim after */
+  background: linear-gradient(
+    to right,
+    var(--ft-slider-fill) 0%,
+    var(--ft-slider-fill) var(--range_progress, 0%),
+    var(--ft-slider-track) var(--range_progress, 0%),
+    var(--ft-slider-track) 100%
+  ) !important;
+  /* no full-track green box-shadow — only the fill color + thumb glow */
   box-shadow: none !important;
 }
 #controls input[type="range"]::-webkit-slider-thumb {
@@ -258,12 +267,14 @@ footer { display: none !important; }
   border: none !important;
   box-shadow: none !important;
 }
-/* Firefox: native progress follows knob */
+/* Firefox: ::-moz-range-progress tracks the knob natively */
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
   background: var(--ft-slider-fill) !important;
-  box-shadow: var(--ft-slider-glow) !important;
+  box-shadow:
+    0 0 3px 0 rgba(0, 255, 0, 0.45),
+    0 0 6px 0 rgba(0, 255, 0, 0.22) !important;
   border: none !important;
 }
 #controls input[type="range"]::-moz-range-thumb {
@@ -274,14 +285,6 @@ footer { display: none !important; }
   border: 1.5px solid var(--ft-slider-fill) !important;
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
-  border: 1.5px solid var(--ft-slider-fill) !important;
-}
-/* Gradio accent vars */
-#controls .slider,
-#controls [class*="slider"],
-#controls [data-testid="slider"] {
-  --slider-color: var(--ft-slider-fill) !important;
-  --color-accent: var(--ft-slider-fill) !important;
 }
 /* Collapsed accordion headers ~ one compact row each */
 #controls .label-wrap,
@@ -901,11 +904,10 @@ def _make_theme():
         return None
 
 
-# Keeps green fill aligned to knob (WebKit has no ::progress on range)
+# Reinforces Gradio --range_progress so green fill always tracks the knob
+# (WebKit has no ::-moz-range-progress; Gradio uses --range_progress on the track)
 SLIDER_FILL_JS = """
 () => {
-  const FILL = '#00FF00';
-  const TRACK = 'rgba(100, 116, 139, 0.45)';
   function pctOf(el) {
     const min = parseFloat(el.min || '0');
     const max = parseFloat(el.max || '100');
@@ -916,29 +918,24 @@ SLIDER_FILL_JS = """
   }
   function paint(el) {
     const pct = pctOf(el);
-    el.style.setProperty('--ft-slider-pct', pct + '%');
-    el.style.background =
-      'linear-gradient(to right,' +
-      FILL + ' 0%,' +
-      FILL + ' ' + pct + '%,' +
-      TRACK + ' ' + pct + '%,' +
-      TRACK + ' 100%)';
-    el.style.backgroundSize = '100% 1.5px';
-    el.style.backgroundPosition = 'center';
-    el.style.backgroundRepeat = 'no-repeat';
+    // Gradio native var used by ::-webkit-slider-runnable-track gradient
+    el.style.setProperty('--range_progress', pct + '%');
+    el.style.setProperty('--slider-color', '#00FF00');
   }
-  function bindAll(root) {
-    const scope = root || document;
-    scope.querySelectorAll('input[type="range"]').forEach((el) => {
+  function bindAll() {
+    document.querySelectorAll('#controls input[type="range"], input[type="range"]').forEach((el) => {
       if (el.dataset.ftSliderBound === '1') {
         paint(el);
         return;
       }
       el.dataset.ftSliderBound = '1';
       const upd = () => paint(el);
-      el.addEventListener('input', upd);
-      el.addEventListener('change', upd);
-      // capture Gradio programmatic updates
+      el.addEventListener('input', upd, { passive: true });
+      el.addEventListener('change', upd, { passive: true });
+      el.addEventListener('pointermove', () => {
+        if (el.matches(':active')) paint(el);
+      }, { passive: true });
+      // Gradio sets .value programmatically
       const desc = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype, 'value'
       );
@@ -956,11 +953,10 @@ SLIDER_FILL_JS = """
       paint(el);
     });
   }
-  bindAll(document);
-  const obs = new MutationObserver(() => bindAll(document));
+  bindAll();
+  const obs = new MutationObserver(() => bindAll());
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  // periodic safety (Gradio re-renders)
-  setInterval(() => bindAll(document), 800);
+  setInterval(bindAll, 600);
 }
 """
 
