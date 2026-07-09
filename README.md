@@ -19,29 +19,37 @@ Inspired by **macadamia nuts** (hard shell, dense kernel) and **[trajectoids](ht
 
 ## Demo video
 
-Silent ~11s walkthrough of the public Gradio Space: **Build → matrix slice → rolling path / radial trench / scorecard** (synced X/Y/Z scans).
+Walkthrough of the public Gradio Space: **2×2 viewports** (shell · rolling path · radial trench · scorecard) with synced **X → Y → Z** matrix scan.
 
-[![Watch the demo on X](https://img.shields.io/badge/▶%20Watch%20demo%20on%20X-1DA1F2?style=for-the-badge&logo=x&logoColor=white)](https://x.com/kinaar111/status/2075134240703029650)
+https://github.com/kinaar8340/flux_trajectoid/raw/main/xyz_demo.mp4
 
 <p align="center">
-  <a href="https://x.com/kinaar111/status/2075134240703029650">
-    <img src="space/assets/boot/img_shell.png" alt="3D trajectoid shell · matrix scan — click for full demo video on X" width="560"/>
-  </a>
-  &nbsp;
-  <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid">
-    <img src="space/assets/boot/img_path.png" alt="Rolling path scan" width="200"/>
-  </a>
-  <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid">
-    <img src="space/assets/boot/img_radial.png" alt="Radial trench map" width="200"/>
-  </a>
-  <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid">
-    <img src="space/assets/boot/img_metrics.png" alt="Turbulence scorecard" width="200"/>
-  </a>
+  <video src="xyz_demo.mp4" controls playsinline muted loop width="900"
+    style="max-width:100%;border-radius:8px;border:1px solid #334155;">
+    Your browser does not support the video tag.
+    <a href="xyz_demo.mp4">Download xyz_demo.mp4</a>
+  </video>
 </p>
 
-<p align="center"><em>Boot stills from the public Space 2×2 (shell · path · radial · scorecard). Click the shell for the X screencast; open the <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid">HF Space</a> to play live.</em></p>
+<p align="center">
+  <a href="xyz_demo.mp4"><img src="https://img.shields.io/badge/▶%20xyz__demo.mp4-in%20repo-2ea44f?style=for-the-badge" alt="Play xyz_demo.mp4"/></a>
+  &nbsp;
+  <a href="https://x.com/kinaar111/status/2075134240703029650"><img src="https://img.shields.io/badge/X-original%20post-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="X post"/></a>
+  &nbsp;
+  <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid"><img src="https://img.shields.io/badge/🤗-Live%20Space-yellow?style=for-the-badge" alt="HF Space"/></a>
+</p>
 
-**HF Space (playable):** open the [Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid) → **Build** · **Play matrix scan** · **SLM export**.
+<details>
+<summary><strong>Still frames</strong> (shell · path · radial · scorecard)</summary>
+<p align="center">
+  <img src="space/assets/boot/img_shell.png" alt="3D trajectoid shell" width="280"/>
+  <img src="space/assets/boot/img_path.png" alt="Rolling path" width="140"/>
+  <img src="space/assets/boot/img_radial.png" alt="Radial trench" width="140"/>
+  <img src="space/assets/boot/img_metrics.png" alt="Scorecard" width="140"/>
+</p>
+</details>
+
+**Play live:** [HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid) → **Build** · **Play matrix scan** (plane **xyz**) · **SLM export**.
 
 ---
 
