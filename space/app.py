@@ -25,6 +25,7 @@ from demo_core import (
     animate_matrix_scan,
     asset_path,
     blank_rgb,
+    replot_scan_suite,
     replot_shell_only,
     run_pipeline,
 )
@@ -894,8 +895,13 @@ def run_ui(
 
 
 def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
-    """Live matrix-slice replot (no full pipeline)."""
-    return replot_shell_only(
+    """
+    Live replot of all three scan viewports (shell / radial / path).
+
+    Always returns RGB stills at the same (frac, plane) so a plane change
+    cancels any playing GIFs and keeps the suite synchronized.
+    """
+    return replot_scan_suite(
         shell,
         slice_frac=float(slice_frac) if slice_frac is not None else 0.5,
         slice_plane=str(slice_plane or "z"),
@@ -1213,13 +1219,14 @@ def build_app() -> gr.Blocks:
             outputs=outs + [shell_state],
         )
 
-        # Live matrix slice: replot 3D shell only (no full pipeline)
+        # Live matrix slice: replot shell + radial + path stills (synced)
+        # Replacing GIF paths with RGB stops leftover animations on plane change
         slice_inputs = [shell_state, slice_frac, slice_plane, show_slice]
         for ctrl in (slice_frac, slice_plane, show_slice):
             ctrl.change(
                 fn=update_slice_ui,
                 inputs=slice_inputs,
-                outputs=[img_shell],
+                outputs=[img_shell, img_radial, img_path],
             )
 
         # Synced axial scan: shell + radial + path (same timeline)

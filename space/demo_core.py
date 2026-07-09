@@ -686,20 +686,66 @@ def replot_shell_only(
     show_slice: bool = True,
 ) -> np.ndarray:
     """Fast re-render of 3D shell for live matrix-slice controls (no rebuild)."""
+    img_shell, _, _ = replot_scan_suite(
+        shell,
+        slice_frac=slice_frac,
+        slice_plane=slice_plane,
+        show_slice=show_slice,
+    )
+    return img_shell
+
+
+def replot_scan_suite(
+    shell,
+    slice_frac: float = 0.5,
+    slice_plane: str = "z",
+    show_slice: bool = True,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Synced still frames for the three scan viewports at one (frac, plane).
+
+    Replaces any playing GIFs with RGB stills so shell / radial / path stay
+    locked when the user moves slice position or changes plane (x/y/z).
+    """
+    blank_s = blank_rgb(*_SHELL_SIZE)
+    blank_r = blank_rgb(*_RADIAL_SIZE)
+    blank_p = blank_rgb(*_PATH_SIZE)
     if shell is None:
-        return blank_rgb(300, 360)
+        return blank_s, blank_r, blank_p
+
     plane = str(slice_plane or "z").lower()
     if plane not in ("x", "y", "z"):
         plane = "z"
+    ff = float(np.clip(slice_frac, 0.0, 1.0))
+    show = bool(show_slice)
+
     try:
-        return plot_shell_3d(
+        img_shell = plot_shell_3d(
             shell,
-            slice_frac=float(np.clip(slice_frac, 0.0, 1.0)),
+            slice_frac=ff,
             slice_plane=plane,
-            show_slice=bool(show_slice),
+            show_slice=show,
         )
     except Exception:
-        return blank_rgb(300, 360)
+        img_shell = blank_s
+
+    try:
+        # Always pass frac so band/head match shell even when show_slice is off
+        # (band still tracks demo sync; hide via alpha only on shell plane)
+        img_radial = plot_radial_map(
+            shell,
+            slice_frac=ff if show else None,
+            slice_plane=plane,
+        )
+    except Exception:
+        img_radial = blank_r
+
+    try:
+        img_path = plot_path_panel(shell, progress=ff if show else None)
+    except Exception:
+        img_path = blank_p
+
+    return img_shell, img_radial, img_path
 
 
 def _write_gif(frames_rgb: list[np.ndarray], path: Path, duration_ms: int) -> None:
