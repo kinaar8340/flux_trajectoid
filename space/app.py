@@ -125,35 +125,100 @@ footer { display: none !important; }
   height: 100% !important;
 }
 
-/* Compact controls + accordion glass (opacity 0.3) */
+/* Column 1: compact top stack + Seed Status fills remainder */
+#controls {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0.35rem 0.4rem !important;
+  gap: 0.25rem !important;
+}
+#controls-top {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.2rem !important;
+  min-height: 0 !important;
+}
+#controls .viewport-title {
+  margin: 0 0 0.1rem 0 !important;
+  font-size: 0.65rem !important;
+  line-height: 1.1 !important;
+}
 #controls label, #controls span, #controls p {
   color: #94a3b8 !important;
-  font-size: 0.72rem !important;
+  font-size: 0.68rem !important;
 }
 #controls input, #controls textarea {
   background: rgba(15, 23, 42, 0.55) !important;
   border-color: rgba(100, 116, 139, 0.4) !important;
   color: #e2e8f0 !important;
-  font-size: 0.8rem !important;
+  font-size: 0.75rem !important;
+  min-height: 1.6rem !important;
+  padding: 0.15rem 0.35rem !important;
 }
+/* Collapsed accordion headers ~ one compact row each */
 #controls .label-wrap,
 #controls .accordion,
 #controls details {
   background: rgba(15, 23, 42, 0.3) !important;
   border: 1px solid rgba(148, 163, 184, 0.15) !important;
-  border-radius: 8px !important;
-  margin-bottom: 0.3rem !important;
+  border-radius: 6px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+#controls .label-wrap {
+  padding: 0.2rem 0.45rem !important;
+  min-height: 1.55rem !important;
+  max-height: 1.7rem !important;
 }
 #controls summary,
 #controls .label-wrap span {
   color: #cbd5e1 !important;
-  font-size: 0.75rem !important;
+  font-size: 0.7rem !important;
+  line-height: 1.2 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+#controls .gradio-accordion,
+#controls [class*="accordion"] {
+  margin: 0 !important;
+  padding: 0 !important;
 }
 #run-btn {
   background: linear-gradient(90deg, #2563eb, #7c3aed) !important;
   color: white !important;
   border: none !important;
   font-weight: 600 !important;
+  font-size: 0.78rem !important;
+  min-height: 1.85rem !important;
+  max-height: 2rem !important;
+  padding: 0.25rem 0.5rem !important;
+  margin: 0.15rem 0 0 0 !important;
+}
+/* Seed status takes remaining column height */
+#status-md {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: auto !important;
+  margin: 0 !important;
+  padding: 0.35rem 0.45rem !important;
+  color: #cbd5e1 !important;
+  font-size: 0.72rem !important;
+}
+#status-md table {
+  width: 100%;
+  font-size: 0.7rem;
+}
+#status-md h1, #status-md h2, #status-md h3 {
+  margin: 0.15rem 0 0.35rem 0 !important;
+  font-size: 0.85rem !important;
+  color: #e2e8f0 !important;
 }
 
 /* Images fill viewports without scrollbars */
@@ -167,16 +232,6 @@ footer { display: none !important; }
   margin: 0 0 0.15rem 0 !important;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-}
-#status-md {
-  color: #cbd5e1 !important;
-  font-size: 0.75rem !important;
-  max-height: 100%;
-  overflow: auto !important;
-}
-#status-md table {
-  width: 100%;
-  font-size: 0.72rem;
 }
 #hero-caption {
   color: #64748b !important;
@@ -275,43 +330,59 @@ def build_app() -> gr.Blocks:
 
         # ---- Workspace (single page, multi-column) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Column 1 — accordion / vertically stacked controls
+            # Column 1 — compact collapsed accordions + Seed Status fills rest
             with gr.Column(scale=2, min_width=200, elem_classes=["layer-inner"], elem_id="controls"):
-                gr.Markdown('<p class="viewport-title">Controls</p>')
-                with gr.Accordion("Payload & identity", open=True, elem_classes=["layer-fg"]):
-                    payload = gr.Textbox(
-                        value="Hello from the shell",
-                        label="Payload",
-                        lines=1,
-                        max_lines=2,
+                with gr.Column(elem_id="controls-top"):
+                    gr.Markdown('<p class="viewport-title">Controls</p>')
+                    # Startup: all four accordions collapsed
+                    with gr.Accordion(
+                        "Payload & identity", open=False, elem_classes=["layer-fg"]
+                    ):
+                        payload = gr.Textbox(
+                            value="Hello from the shell",
+                            label="Payload",
+                            lines=1,
+                            max_lines=1,
+                        )
+                        seed = gr.Number(value=42, label="Seed", precision=0)
+                    with gr.Accordion("Channel", open=False, elem_classes=["layer-fg"]):
+                        turbulence = gr.Slider(
+                            0.0, 0.8, value=0.25, step=0.05, label="Turbulence"
+                        )
+                        n_steps = gr.Slider(
+                            4, 32, value=12, step=1, label="Channel steps"
+                        )
+                    with gr.Accordion(
+                        "Shell / lattice", open=False, elem_classes=["layer-fg"]
+                    ):
+                        use_tpt = gr.Checkbox(value=True, label="TPT closure")
+                        build_3d = gr.Checkbox(value=True, label="3D shell")
+                        force_stub = gr.Checkbox(
+                            value=True, label="Fast stub lattice"
+                        )
+                    with gr.Accordion(
+                        "Matrix slice", open=False, elem_classes=["layer-fg"]
+                    ):
+                        show_slice = gr.Checkbox(value=True, label="Show green slice")
+                        slice_plane = gr.Radio(
+                            choices=["x", "y", "z"],
+                            value="z",
+                            label="Slice plane",
+                        )
+                        slice_frac = gr.Slider(
+                            0.0,
+                            1.0,
+                            value=0.5,
+                            step=0.02,
+                            label="Slice position",
+                        )
+                    run_btn = gr.Button(
+                        "Build · Propagate · Recover",
+                        elem_id="run-btn",
+                        size="sm",
                     )
-                    seed = gr.Number(value=42, label="Seed", precision=0)
-                with gr.Accordion("Channel", open=True, elem_classes=["layer-fg"]):
-                    turbulence = gr.Slider(
-                        0.0, 0.8, value=0.25, step=0.05, label="Turbulence"
-                    )
-                    n_steps = gr.Slider(4, 32, value=12, step=1, label="Channel steps")
-                with gr.Accordion("Shell / lattice", open=False, elem_classes=["layer-fg"]):
-                    use_tpt = gr.Checkbox(value=True, label="TPT closure")
-                    build_3d = gr.Checkbox(value=True, label="3D shell")
-                    force_stub = gr.Checkbox(value=True, label="Fast stub lattice")
-                with gr.Accordion("Matrix slice", open=True, elem_classes=["layer-fg"]):
-                    show_slice = gr.Checkbox(value=True, label="Show green slice")
-                    slice_plane = gr.Radio(
-                        choices=["x", "y", "z"],
-                        value="z",
-                        label="Slice plane",
-                    )
-                    slice_frac = gr.Slider(
-                        0.0,
-                        1.0,
-                        value=0.5,
-                        step=0.02,
-                        label="Slice position",
-                    )
-                run_btn = gr.Button("Build · Propagate · Recover", elem_id="run-btn")
                 status = gr.Markdown(
-                    "Set payload & hit **Build**. Green slice = matrix frame on 3D shell.",
+                    "### Seed status\n_Run **Build** to fill this panel._",
                     elem_id="status-md",
                     elem_classes=["layer-fg"],
                 )
