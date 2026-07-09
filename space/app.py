@@ -205,7 +205,7 @@ footer { display: none !important; }
                     0 0 8px 2px rgba(0, 255, 0, 0.28);
 }
 /* Shell: rail + fill sit under a transparent range input */
-#controls .ft-slider-shell {
+.ft-slider-shell {
   position: relative !important;
   flex: 1 1 auto !important;
   width: 100% !important;
@@ -215,7 +215,8 @@ footer { display: none !important; }
   align-items: center !important;
   margin: 0.2rem 0 0.4rem 0 !important;
 }
-#controls .ft-slider-rail {
+/* Dim full-width rail (always visible baseline) */
+.ft-slider-rail {
   position: absolute !important;
   left: 0 !important;
   right: 0 !important;
@@ -226,26 +227,28 @@ footer { display: none !important; }
   background: var(--ft-slider-rail) !important;
   pointer-events: none !important;
   z-index: 0 !important;
-  overflow: hidden !important; /* clip fill glow to filled segment */
+  overflow: visible !important; /* allow green glow bloom on fill */
 }
-/* Inner layer — only this is green; width set by JS as % of rail */
-#controls .ft-slider-fill {
+/* Inner layer — green glowing line from 0 → knob (width set by JS) */
+.ft-slider-fill {
   position: absolute !important;
   left: 0 !important;
   top: 0 !important;
   bottom: 0 !important;
   width: 0%;
+  min-width: 0;
   border-radius: 999px !important;
   background: var(--ft-slider-fill) !important;
   box-shadow:
-    0 0 4px 0 rgba(0, 255, 0, 0.7),
-    0 0 8px 1px rgba(0, 255, 0, 0.35) !important;
+    0 0 3px 0.5px rgba(0, 255, 0, 0.95),
+    0 0 6px 1px rgba(0, 255, 0, 0.55),
+    0 0 12px 2px rgba(0, 255, 0, 0.28) !important;
   pointer-events: none !important;
   z-index: 1 !important;
   transition: none !important;
 }
 /* Range sits on top; its own track is fully invisible */
-#controls .ft-slider-shell > input[type="range"],
+.ft-slider-shell > input[type="range"],
 #controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
@@ -262,11 +265,10 @@ footer { display: none !important; }
   background: transparent !important;
   box-shadow: none !important;
   accent-color: transparent !important;
-  /* kill Gradio progressive green on the native track */
   --slider-color: transparent !important;
   --range_progress: 0% !important;
 }
-#controls .ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
+.ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
@@ -274,7 +276,7 @@ footer { display: none !important; }
   border: none !important;
   box-shadow: none !important;
 }
-#controls .ft-slider-shell > input[type="range"]::-webkit-slider-thumb,
+.ft-slider-shell > input[type="range"]::-webkit-slider-thumb,
 #controls input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
   appearance: none !important;
@@ -289,7 +291,7 @@ footer { display: none !important; }
   position: relative !important;
   z-index: 3 !important;
 }
-#controls .ft-slider-shell > input[type="range"]::-moz-range-track,
+.ft-slider-shell > input[type="range"]::-moz-range-track,
 #controls input[type="range"]::-moz-range-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
@@ -297,14 +299,14 @@ footer { display: none !important; }
   border: none !important;
   box-shadow: none !important;
 }
-#controls .ft-slider-shell > input[type="range"]::-moz-range-progress,
+.ft-slider-shell > input[type="range"]::-moz-range-progress,
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
-#controls .ft-slider-shell > input[type="range"]::-moz-range-thumb,
+.ft-slider-shell > input[type="range"]::-moz-range-thumb,
 #controls input[type="range"]::-moz-range-thumb {
   width: var(--ft-slider-thumb) !important;
   height: var(--ft-slider-thumb) !important;
@@ -932,9 +934,10 @@ def _make_theme():
         return None
 
 
-# Inner-layer fill: inject .ft-slider-fill under each range; width = knob %
+# Gradio injects launch(js=...) as <script>textContent</script> — must be an
+# IIFE (plain () => {} is never called). Injects rail+fill under each range.
 SLIDER_FILL_JS = """
-() => {
+(() => {
   function pctOf(el) {
     const min = parseFloat(el.min || '0');
     const max = parseFloat(el.max || '100');
@@ -964,8 +967,8 @@ SLIDER_FILL_JS = """
     if (!shell) return;
     const fill = shell.querySelector('.ft-slider-fill');
     if (!fill) return;
+    // green glowing line from 0 → knob
     fill.style.width = pctOf(el) + '%';
-    // prevent Gradio from repainting native track green
     el.style.setProperty('--slider-color', 'transparent');
     el.style.setProperty('--range_progress', '0%');
   }
@@ -1001,11 +1004,23 @@ SLIDER_FILL_JS = """
       paint(el);
     });
   }
-  bindAll();
-  const obs = new MutationObserver(() => bindAll());
-  obs.observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(bindAll, 500);
-}
+  // Gradio may inject this script before components mount
+  const start = () => {
+    bindAll();
+    const obs = new MutationObserver(() => bindAll());
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+    setInterval(bindAll, 400);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+  // late mounts (SPA / Gradio Blocks)
+  setTimeout(start, 0);
+  setTimeout(start, 250);
+  setTimeout(start, 1000);
+})();
 """
 
 
