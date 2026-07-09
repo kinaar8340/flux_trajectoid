@@ -215,68 +215,101 @@ footer { display: none !important; }
 }
 
 /*
- * 2×N viewport grid (cols 2–3 merged):
- *   · equal row heights → shared horizontal baselines
- *   · column ratio 4fr : 3fr (different widths OK)
- *   · each cell fills its grid slot edge-to-edge
+ * Balanced viewport grid (cols 2–3 merged)
+ *   outer shell: #viewport-grid (no glass — just layout)
+ *   glass cells:  .vp-cell.layer-inner (plot frame)
+ *   plot layer:   Gradio Image inside cell (must keep min-height)
+ *   row heights equal → shared horizontals; col scale 4:3
  */
 #viewport-grid {
   height: 100% !important;
   max-height: 100% !important;
   min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0.35rem !important;
-  padding: 0.3rem !important;
   overflow: hidden !important;
+  padding: 0 !important;
+  /* layout only — do not paint a glass layer here */
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  backdrop-filter: none !important;
 }
-/* Each row: equal share of vertical space (fixed horizontal mid-lines) */
-#viewport-grid > .vp-row,
+/* Gradio wraps Column children; force the wrap + rows to fill */
+#viewport-grid,
+#viewport-grid > .wrap,
+#viewport-grid > .form,
 #viewport-grid > div {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  gap: 0.35rem !important;
+}
+/* Equal row bands (fixed horizontal baselines across both columns) */
+#viewport-grid .vp-row {
   flex: 1 1 0 !important;
   min-height: 0 !important;
-  max-height: none !important;
-  height: auto !important;
   overflow: hidden !important;
   gap: 0.35rem !important;
   align-items: stretch !important;
+  display: flex !important;
+  flex-direction: row !important;
 }
-/* Cells stretch full row height; width ratio from Gradio scale */
+/* If Gradio nests the row, still stretch its direct children */
+#viewport-grid .vp-row > div,
+#viewport-grid .vp-row > .form,
+#viewport-grid .vp-row > .wrap {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  gap: 0.35rem !important;
+  align-items: stretch !important;
+}
+/* Glass frame = outer cell only (not the image itself) */
 #viewport-grid .vp-cell {
   display: flex !important;
   flex-direction: column !important;
+  flex: 1 1 0 !important;
   min-height: 0 !important;
   height: 100% !important;
   overflow: hidden !important;
-  padding: 0.3rem 0.4rem !important;
+  padding: 0.35rem 0.45rem !important;
+  /* layer-inner supplies glass; ensure it doesn't clip plots to 0 */
+  box-sizing: border-box !important;
 }
-#viewport-grid .vp-cell > .viewport-title,
 #viewport-grid .vp-cell .viewport-title {
   flex: 0 0 auto !important;
-  margin: 0 0 0.2rem 0 !important;
+  margin: 0 0 0.25rem 0 !important;
 }
-/* Image block fills remaining cell height */
-#viewport-grid .vp-cell > .block,
+/* Gradio Image block = inner plot layer; keep real height */
 #viewport-grid .vp-cell .block,
-#viewport-grid .vp-cell [data-testid="image"],
-#viewport-grid .vp-cell .image-container {
+#viewport-grid .vp-cell [data-testid="image"] {
   flex: 1 1 auto !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: none !important;
-  display: flex !important;
-  flex-direction: column !important;
+  min-height: 140px !important;
+  height: auto !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  background: rgba(7, 11, 20, 0.55) !important;
+  border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  border-radius: 8px !important;
 }
-#viewport-grid .vp-cell img,
-#viewport-grid .vp-cell .image-container img {
+#viewport-grid .vp-cell .image-container {
   width: 100% !important;
   height: 100% !important;
+  min-height: 140px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+#viewport-grid .vp-cell img {
+  width: 100% !important;
+  height: auto !important;
   max-height: 100% !important;
   object-fit: contain !important;
-  flex: 1 1 auto !important;
+  display: block !important;
+  opacity: 1 !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
@@ -1032,7 +1065,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(300, 360),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
                     with gr.Column(
                         scale=3,
@@ -1047,7 +1081,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(400, 220),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
                 with gr.Row(
                     equal_height=True,
@@ -1067,7 +1102,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(300, 360),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
                     with gr.Column(
                         scale=3,
@@ -1080,7 +1116,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(260, 360),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
                 with gr.Row(
                     equal_height=True,
@@ -1100,7 +1137,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(260, 360),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
                     with gr.Column(
                         scale=3,
@@ -1113,7 +1151,8 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(200, 360),
                             label=None,
                             show_label=False,
-                            container=True,
+                            height=220,
+                            elem_classes=["vp-plot"],
                         )
 
         # Hidden reference / about swap targets (still one page — toggle visibility via content)
