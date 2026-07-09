@@ -293,51 +293,125 @@ footer { display: none !important; }
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 0.35rem 0.45rem !important;
+  padding: 0.25rem 0.35rem 0.3rem 0.35rem !important;
   box-sizing: border-box !important;
 }
 #col-center .vp-cell .viewport-title,
 #col-right .vp-cell .viewport-title {
   flex: 0 0 auto !important;
-  margin: 0 0 0.2rem 0 !important;
+  margin: 0 0 0.15rem 0 !important;
 }
-/* Plot fills remaining cell space */
+/*
+ * Fit plot into allotted viewport: every Gradio Image ancestor
+ * stretches, img object-fit:contain fills the plot frame.
+ */
+#col-center .vp-cell > .block,
+#col-center .vp-cell > div,
+#col-right .vp-cell > .block,
+#col-right .vp-cell > div,
 #col-center .vp-cell .block,
-#col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell .block,
-#col-right .vp-cell [data-testid="image"],
 #col-center .vp-plot,
-#col-right .vp-plot {
+#col-right .vp-plot,
+#col-center .vp-cell [data-testid="image"],
+#col-right .vp-cell [data-testid="image"] {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   height: 100% !important;
   max-height: 100% !important;
+  width: 100% !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
+  position: relative !important;
   background: rgba(7, 11, 20, 0.45) !important;
   border-radius: 8px !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+/* Stretch all intermediate wraps between cell and <img> */
+#col-center .vp-cell .block > *,
+#col-right .vp-cell .block > *,
+#col-center .vp-plot > *,
+#col-right .vp-plot > *,
+#col-center .vp-cell [data-testid="image"] > *,
+#col-right .vp-cell [data-testid="image"] > * {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  max-height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 #col-center .vp-cell .image-container,
-#col-right .vp-cell .image-container {
+#col-right .vp-cell .image-container,
+#col-center .vp-cell .wrap,
+#col-right .vp-cell .wrap,
+#col-center .vp-cell .image-frame,
+#col-right .vp-cell .image-frame {
   flex: 1 1 auto !important;
   width: 100% !important;
   height: 100% !important;
   min-height: 0 !important;
+  max-height: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
 }
+/* Actual raster: scale to cell, keep aspect */
 #col-center .vp-cell img,
-#col-right .vp-cell img {
+#col-right .vp-cell img,
+#col-center .vp-cell .image-container img,
+#col-right .vp-cell .image-container img {
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
   object-fit: contain !important;
+  object-position: center center !important;
   display: block !important;
   opacity: 1 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  flex: 1 1 auto !important;
+}
+/* Icon chrome: overlay so it doesn't steal plot height */
+#col-center .vp-cell .icon-button,
+#col-right .vp-cell .icon-button,
+#col-center .vp-cell button.icon-button,
+#col-right .vp-cell button.icon-button {
+  opacity: 0.55 !important;
+}
+#col-center .vp-cell .icon-buttons,
+#col-right .vp-cell .icon-buttons,
+#col-center .vp-cell [class*="icon-button-wrapper"],
+#col-right .vp-cell [class*="icon-button-wrapper"],
+#col-center .vp-cell .download-button,
+#col-right .vp-cell .download-button {
+  position: absolute !important;
+  bottom: 4px !important;
+  right: 4px !important;
+  z-index: 5 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  max-height: none !important;
+}
+/* Hide empty upload / source UI in display-only viewports */
+#col-center .vp-cell .upload-container,
+#col-right .vp-cell .upload-container,
+#col-center .vp-cell [data-testid="upload"],
+#col-right .vp-cell [data-testid="upload"] {
+  display: none !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
@@ -776,10 +850,9 @@ footer { display: none !important; }
   color: #e2e8f0 !important;
 }
 
-/* Images fill viewports without scrollbars */
-#workspace .image-container, #workspace img {
+/* Default image fit; viewport cells override with fill rules above */
+#workspace .image-container {
   max-height: 100% !important;
-  object-fit: contain !important;
 }
 .viewport-title {
   color: #64748b !important;
