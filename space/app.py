@@ -458,48 +458,50 @@ footer,
   max-height: 100% !important;
 }
 
-/* Column 1: compact top stack + Seed Status fills remainder
- * Keep column flex vertical — never force .wrap to row (breaks Gradio 5). */
+/* Column 1: compact controls stack
+ * IMPORTANT: do NOT force display on .tabitem — Gradio 5 hides inactive
+ * panels with inline display:none. Forcing flex + hiding :not(.selected)
+ * wiped the entire CONTROLS body (panels never get .selected; only buttons do).
+ */
 #controls {
   display: flex !important;
   flex-direction: column !important;
   padding: 0.3rem 0.45rem !important;
   gap: 0.2rem !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 #controls > .wrap,
 #controls > .form,
-#controls > div,
-#controls .tabs,
-#controls .tabitem,
-#controls .tabitem > .wrap,
-#controls .tabitem > .form,
-#controls .tabitem > div,
 #col1-tabs,
-#col1-tabs > .tabitem,
-#controls-top,
-#controls-top > .wrap,
-#controls-top > .form,
-#controls-top > div {
+#controls-top {
   display: flex !important;
   flex-direction: column !important;
   min-width: 0 !important;
   max-width: 100% !important;
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 #controls-top {
   flex: 0 0 auto !important;
   gap: 0.18rem !important;
   min-height: 0 !important;
-  width: 100% !important;
+  overflow: visible !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-/* Accordion bodies stack vertically (Gradio 5/6) */
-#controls .accordion,
-#controls details,
-#controls .label-wrap + div,
-#controls .block {
+#controls-top > .wrap,
+#controls-top > .form,
+#controls-top > div,
+#controls-top .block,
+#controls-top .accordion,
+#controls-top details {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #controls .viewport-title {
   margin: 0 0 0.1rem 0 !important;
@@ -507,7 +509,7 @@ footer,
   line-height: 1.1 !important;
 }
 /* Column-1: CONTROLS | REFERENCES — theme_default_tabs
- * Gradio 6: .tab-wrapper > .tab-container > button.selected
+ * Gradio 5/6: .tab-wrapper > .tab-container > button.selected
  */
 #col1-tabs {
   --color-accent: var(--ft-tab-active);
@@ -516,11 +518,12 @@ footer,
   gap: 0 !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
+  overflow: hidden !important;
 }
+/* Tab button row only */
 #col1-tabs .tab-wrapper,
 #controls #col1-tabs .tab-wrapper {
+  flex: 0 0 auto !important;
   height: auto !important;
   min-height: 1.5rem !important;
   padding-bottom: 0.15rem !important;
@@ -528,8 +531,7 @@ footer,
   background: transparent !important;
 }
 #col1-tabs .tab-container,
-#controls #col1-tabs .tab-container,
-#col1-tabs .tab-wrapper {
+#controls #col1-tabs .tab-container {
   display: flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
@@ -544,7 +546,7 @@ footer,
   background-color: rgba(148, 163, 184, 0.18) !important;
   height: 1px !important;
 }
-/* Idle tabs — match .viewport-title / CONTROLS label type */
+/* Idle tabs */
 #col1-tabs .tab-container button,
 #col1-tabs .tab-wrapper button,
 #controls #col1-tabs .tab-container button,
@@ -573,7 +575,7 @@ footer,
   color: #94a3b8 !important;
   background: transparent !important;
 }
-/* active_tab (tab_state=True): CONTROLS or REFERENCES → #00FF00 */
+/* active_tab → #00FF00 */
 #col1-tabs .tab-container button.selected,
 #col1-tabs .tab-wrapper button.selected,
 #col1-tabs button.selected,
@@ -587,20 +589,32 @@ footer,
   background: transparent !important;
   font-weight: 400 !important;
 }
-/* Gradio draws active underline via button.selected::after */
 #col1-tabs .tab-container button.selected:after,
 #col1-tabs button.selected:after,
 #controls #col1-tabs button.selected:after {
   background-color: var(--ft-tab-active) !important;
   height: 2px !important;
 }
+/*
+ * Tab panels: leave display to Gradio (inline none/block).
+ * Only size/scroll when Gradio leaves the panel visible.
+ */
 #col1-tabs .tabitem,
 #col1-tabs [role="tabpanel"] {
-  flex: 1 1 auto !important;
   min-height: 0 !important;
   overflow: auto !important;
   padding: 0 !important;
   border: none !important;
+  visibility: visible !important;
+}
+#col1-tabs .tabitem > .wrap,
+#col1-tabs .tabitem > .form,
+#col1-tabs .tabitem > div,
+#col1-tabs [role="tabpanel"] > .wrap,
+#col1-tabs [role="tabpanel"] > div {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 #panel-refs {
   display: flex !important;
@@ -614,15 +628,6 @@ footer,
   color: #94a3b8 !important;
   font-size: 0.72rem !important;
   line-height: 1.4 !important;
-}
-/* Only the active col-1 tab body is visible (prevent gallery bleed under CONTROLS) */
-#col1-tabs .tabitem:not(.selected):not([style*="display: block"]),
-#col1-tabs > div > .tabitem[style*="display: none"],
-#col1-tabs .tabitem[hidden] {
-  display: none !important;
-  height: 0 !important;
-  overflow: hidden !important;
-  visibility: hidden !important;
 }
 #controls label, #controls span, #controls p {
   color: #94a3b8 !important;
@@ -1753,11 +1758,42 @@ SLIDER_FILL_JS = """
       el.style.setProperty('max-height', '100%', 'important');
       el.style.setProperty('overflow', sel === '#controls' ? 'auto' : 'hidden', 'important');
       el.style.setProperty('min-width', '0', 'important');
+      el.style.setProperty('visibility', 'visible', 'important');
+      el.style.setProperty('opacity', '1', 'important');
       if (sel !== '#controls') {
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('flex-direction', 'column', 'important');
+      } else {
         el.style.setProperty('display', 'flex', 'important');
         el.style.setProperty('flex-direction', 'column', 'important');
       }
     });
+
+    // Ensure CONTROLS tab body is visible (Gradio manages inactive panels)
+    const top = document.querySelector('#controls-top');
+    if (top) {
+      top.style.setProperty('display', 'flex', 'important');
+      top.style.setProperty('flex-direction', 'column', 'important');
+      top.style.setProperty('visibility', 'visible', 'important');
+      top.style.setProperty('opacity', '1', 'important');
+      top.style.setProperty('height', 'auto', 'important');
+      top.style.setProperty('max-height', 'none', 'important');
+      top.style.setProperty('overflow', 'visible', 'important');
+    }
+    // If every tabitem is display:none (bad CSS residue), show the first
+    const panels = Array.from(
+      document.querySelectorAll('#col1-tabs .tabitem, #col1-tabs [role="tabpanel"]')
+    );
+    if (panels.length && panels.every((p) => {
+      const d = (p.style && p.style.display) || getComputedStyle(p).display;
+      return d === 'none';
+    })) {
+      const first = panels[0];
+      first.style.setProperty('display', 'block', 'important');
+      first.style.setProperty('visibility', 'visible', 'important');
+      first.style.setProperty('height', 'auto', 'important');
+      first.style.setProperty('overflow', 'auto', 'important');
+    }
 
     // Plot cells: equal halves of the column
     const cellH = Math.max(100, Math.floor((wh - 8) / 2));
