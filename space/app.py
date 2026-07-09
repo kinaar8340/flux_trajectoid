@@ -999,8 +999,8 @@ def build_app() -> gr.Blocks:
             with gr.Column(
                 scale=1, min_width=0, elem_classes=["layer-inner"], elem_id="controls"
             ):
-                with gr.Tabs(elem_id="col1-tabs", selected=0) as col1_tabs:
-                    with gr.Tab("CONTROLS", id=0):
+                with gr.Tabs(elem_id="col1-tabs", selected="controls") as col1_tabs:
+                    with gr.Tab("CONTROLS", id="controls"):
                         with gr.Column(elem_id="controls-top"):
                             # Startup: Matrix slice open · others collapsed
                             with gr.Accordion(
@@ -1111,7 +1111,7 @@ def build_app() -> gr.Blocks:
                             elem_id="status-md",
                             elem_classes=["layer-fg"],
                         )
-                    with gr.Tab("REFERENCES", id=1):
+                    with gr.Tab("REFERENCES", id="references"):
                         with gr.Column(elem_id="panel-refs"):
                             gr.Markdown(
                                 '<p class="viewport-title">Trajectoid gallery</p>'
@@ -1337,7 +1337,7 @@ def build_app() -> gr.Blocks:
                 trace_img,
                 md,
                 gr.update(value=ref or hero_p),
-                gr.update(selected=1),  # REFERENCES tab
+                gr.update(selected="references"),
             )
 
         def show_about(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
@@ -1350,7 +1350,7 @@ def build_app() -> gr.Blocks:
                 trace_img,
                 ABOUT_HTML,
                 gr.update(value=asset_path("trajectoid_paths.png")),
-                gr.update(selected=0),  # CONTROLS tab
+                gr.update(selected="controls"),
             )
 
         btn_ref.click(
@@ -1364,7 +1364,7 @@ def build_app() -> gr.Blocks:
             outputs=outs + [hero_img, col1_tabs],
         )
         btn_demo.click(
-            fn=lambda *a: (a[-1], gr.update(selected=0)),
+            fn=lambda *a: (a[-1], gr.update(selected="controls")),
             inputs=outs,
             outputs=[status, col1_tabs],
         )
