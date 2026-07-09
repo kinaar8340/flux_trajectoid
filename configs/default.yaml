@@ -1,0 +1,30 @@
+# Photon Seed Asteroid — default configuration
+
+seed: 42
+
+shell:
+  n_points: 256
+  n_harmonics: 12
+  trajectoid_periods: 2
+  base_radius: 1.0
+  amplitude_scale: 0.35
+
+inner:
+  n_shards: 8
+  oam_ells: [0, 1, -1, 2, 3]
+  imprint_scale: 0.12
+  phi_scale: 0.3
+  lattice_nx: 16
+  flywheel_sites: 4
+  kick_strength: 0.05
+
+propagation:
+  turbulence_level: 0.3
+  n_steps: 32
+  kolmogorov_alpha: 1.6667
+  jitter_std: 0.02
+  lattice_memory: 0.15
+
+recovery:
+  fourier_match_tol: 0.15
+  ica_components: 4
