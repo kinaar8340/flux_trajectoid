@@ -607,12 +607,22 @@ footer,
   flex-direction: column !important;
   gap: 0.35rem !important;
   min-height: 0 !important;
+  overflow: auto !important;
 }
-#panel-refs img,
-#panel-refs .image-container {
-  width: 100% !important;
-  max-height: none !important;
-  object-fit: contain !important;
+#panel-refs p,
+#panel-refs li {
+  color: #94a3b8 !important;
+  font-size: 0.72rem !important;
+  line-height: 1.4 !important;
+}
+/* Only the active col-1 tab body is visible (prevent gallery bleed under CONTROLS) */
+#col1-tabs .tabitem:not(.selected):not([style*="display: block"]),
+#col1-tabs > div > .tabitem[style*="display: none"],
+#col1-tabs .tabitem[hidden] {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
 }
 #controls label, #controls span, #controls p {
   color: #94a3b8 !important;
@@ -1011,11 +1021,6 @@ footer,
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-#hero-caption {
-  color: #64748b !important;
-  font-size: 0.68rem !important;
-  margin: 0.15rem 0 0 0 !important;
-}
 """
 
 ABOUT_HTML = f"""
@@ -1026,8 +1031,8 @@ ABOUT_HTML = f"""
   <b>Nut</b>: hybrid q×scale packing → LG imprint → flywheel flux deposition.<br/>
   <b>Channel</b>: Kolmogorov turbulence scorecard (F, OAM fidelity, Strehl…).<br/>
   <b>Recover</b>: digital / photonic / hybrid with CRC-8.<br/><br/>
-  Hero figure: trajectoid bodies + theory/experiment rolling paths
-  (Sobolev et al. lineage).<br/><br/>
+  Geometry lineage: trajectoid bodies + theory/experiment rolling paths
+  (Sobolev et al.).<br/><br/>
   <a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> ·
   <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a>
 </div>
@@ -1167,8 +1172,6 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
 
 
 def build_app() -> gr.Blocks:
-    hero = asset_path("trajectoid_paths.png")
-
     blocks_kwargs = dict(
         title="flux_trajectoid",
         analytics_enabled=False,
@@ -1330,17 +1333,19 @@ def build_app() -> gr.Blocks:
                     with gr.Tab("REFERENCES", id="references"):
                         with gr.Column(elem_id="panel-refs"):
                             gr.Markdown(
-                                '<p class="viewport-title">Trajectoid gallery</p>'
-                            )
-                            hero_img = gr.Image(
-                                value=hero,
-                                label=None,
-                                show_label=False,
-                                height=420,
+                                """
+<p class="viewport-title">References</p>
+
+**Trajectoid language** — polyhedra + rolling paths (theory black / experiment blue),
+used as the geometric visual language of Photon Seed Asteroids.
+
+**Construction** — inclined path *T*, potential surface, shell / core / remnant
+with shaved region (Nature-style SO(3) rolling).
+
+Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
+[HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid)
+""",
                                 elem_classes=["layer-fg"],
-                            )
-                            gr.Markdown(
-                                '<p id="hero-caption">Trajectoid shapes + theory/experiment paths · used as HF Space visual language</p>',
                             )
 
             # Column 2 (~50%): top/bottom half viewports
@@ -1534,9 +1539,7 @@ def build_app() -> gr.Blocks:
         )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
-            # Open col-1 REFERENCES tab + construction figure
-            ref = asset_path("shell_construction.png")
-            hero_p = asset_path("trajectoid_paths.png")
+            # Open col-1 REFERENCES tab (text only — gallery image removed)
             md = (
                 "### Reference figures\n"
                 "**(gallery)** Trajectoid polyhedra + rolling paths "
@@ -1552,7 +1555,6 @@ def build_app() -> gr.Blocks:
                 metrics_img,
                 trace_img,
                 md,
-                gr.update(value=ref or hero_p),
                 gr.update(selected="references"),
             )
 
@@ -1565,19 +1567,18 @@ def build_app() -> gr.Blocks:
                 metrics_img,
                 trace_img,
                 ABOUT_HTML,
-                gr.update(value=asset_path("trajectoid_paths.png")),
                 gr.update(selected="controls"),
             )
 
         btn_ref.click(
             fn=show_ref,
             inputs=outs,
-            outputs=outs + [hero_img, col1_tabs],
+            outputs=outs + [col1_tabs],
         )
         btn_about.click(
             fn=show_about,
             inputs=outs,
-            outputs=outs + [hero_img, col1_tabs],
+            outputs=outs + [col1_tabs],
         )
         btn_demo.click(
             fn=lambda *a: (a[-1], gr.update(selected="controls")),
