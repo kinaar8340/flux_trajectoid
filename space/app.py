@@ -257,98 +257,111 @@ footer,
 }
 
 /*
- * Workspace layout (natural Gradio flex — no reparent / CSS-grid hacks):
- *
- *   [ controls | plots-col ---------------------- ]
- *              [ plots-top:  shell | path       ]
- *              [ plots-bot:  radial | scorecard ]
+ * Workspace:
+ *   [ controls | plots-col ]
+ *                plots-top:  shell | path
+ *                plots-bot:  radial | score
+ * IMPORTANT: never set #workspace > div { flex-direction:row } — that
+ * overrides #plots-col's column direction and hides the entire plot stack.
  */
 #workspace {
   position: fixed !important;
-  top: var(--ft-nav-h) !important;
+  top: var(--ft-nav-h, 48px) !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
   width: 100% !important;
-  height: auto !important;
   display: flex !important;
   flex-direction: row !important;
   align-items: stretch !important;
-  gap: 0.35rem !important;
-  padding: 0.3rem 0.4rem 0.35rem 0.4rem !important;
+  gap: 0.4rem !important;
+  padding: 0.35rem 0.45rem !important;
   margin: 0 !important;
   overflow: hidden !important;
   box-sizing: border-box !important;
   z-index: 900 !important;
-  background:
-    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
-    #070b14 !important;
+  background: #070b14 !important;
 }
-/* Gradio Row wraps children — stretch the flex row chain */
+/* Only anonymous Gradio wrappers become row hosts — NOT #controls / #plots-col */
 #workspace > .form,
-#workspace > .wrap,
-#workspace > div {
+#workspace > .wrap {
   display: flex !important;
   flex-direction: row !important;
   flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  height: 100% !important;
-  gap: 0.35rem !important;
+  gap: 0.4rem !important;
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
 }
 #controls {
-  flex: 0 0 28% !important;
-  max-width: 380px !important;
+  flex: 0 0 clamp(260px, 28vw, 360px) !important;
+  width: clamp(260px, 28vw, 360px) !important;
+  max-width: 360px !important;
   min-width: 260px !important;
   height: 100% !important;
   max-height: 100% !important;
   min-height: 0 !important;
-  overflow-y: auto !important;
   overflow-x: hidden !important;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.4);
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
   box-sizing: border-box !important;
-}
-#controls::-webkit-scrollbar { width: 8px; }
-#controls::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.4);
-  border-radius: 4px;
+  scrollbar-width: thin;
 }
 #plots-col {
   flex: 1 1 auto !important;
-  min-width: 0 !important;
+  width: auto !important;
+  min-width: 200px !important;
   min-height: 0 !important;
   height: 100% !important;
+  max-height: 100% !important;
   display: flex !important;
-  flex-direction: column !important;
-  gap: 0.35rem !important;
+  flex-direction: column !important; /* critical: stack top/bot rows */
+  gap: 0.4rem !important;
   overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
-/* Gradio wraps Column children */
+/* Gradio Column body inside #plots-col */
 #plots-col > .form,
 #plots-col > .wrap,
 #plots-col > div {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
-  min-height: 0 !important;
+  width: 100% !important;
   height: 100% !important;
-  gap: 0.35rem !important;
+  min-height: 0 !important;
+  gap: 0.4rem !important;
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
 }
 #plots-top,
 #plots-bot {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
-  height: 50% !important;
-  max-height: 50% !important;
+  flex: 1 1 50% !important;
+  min-height: 140px !important;
+  height: auto !important;
+  max-height: none !important;
   display: flex !important;
   flex-direction: row !important;
-  gap: 0.35rem !important;
+  gap: 0.4rem !important;
   overflow: hidden !important;
   align-items: stretch !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #plots-top > .form,
 #plots-top > .wrap,
@@ -359,11 +372,16 @@ footer,
   display: flex !important;
   flex-direction: row !important;
   flex: 1 1 auto !important;
+  width: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
   height: 100% !important;
-  gap: 0.35rem !important;
+  gap: 0.4rem !important;
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
 }
 #vp-shell,
 #vp-path,
@@ -371,23 +389,19 @@ footer,
 #vp-score {
   flex: 1 1 0 !important;
   min-width: 0 !important;
-  min-height: 0 !important;
+  min-height: 120px !important;
   height: 100% !important;
-  max-height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 0.3rem 0.4rem !important;
+  padding: 0.35rem 0.45rem !important;
   box-sizing: border-box !important;
   visibility: visible !important;
   opacity: 1 !important;
-  background: rgba(15, 23, 42, 0.3) !important;
-  border: 1px solid rgba(148, 163, 184, 0.18) !important;
-  border-radius: 10px !important;
 }
-#vp-shell { flex: 2.2 1 0 !important; }
+#vp-shell,
 #vp-radial { flex: 2.2 1 0 !important; }
-#vp-path { flex: 1 1 0 !important; }
+#vp-path,
 #vp-score { flex: 1 1 0 !important; }
 
 #vp-shell .viewport-title,
@@ -395,7 +409,8 @@ footer,
 #vp-path .viewport-title,
 #vp-score .viewport-title {
   flex: 0 0 auto !important;
-  margin: 0 0 0.15rem 0 !important;
+  margin: 0 0 0.2rem 0 !important;
+  color: #64748b !important;
 }
 #vp-shell .vp-plot,
 #vp-radial .vp-plot,
@@ -405,16 +420,15 @@ footer,
 #vp-radial [data-testid="image"],
 #vp-path [data-testid="image"],
 #vp-score [data-testid="image"] {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 100px !important;
   width: 100% !important;
   height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
-  background: rgba(7, 11, 20, 0.35) !important;
-  display: flex !important;
-  flex-direction: column !important;
+  background: rgba(7, 11, 20, 0.55) !important;
+  display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
@@ -426,10 +440,9 @@ footer,
 #vp-radial .vp-plot > div,
 #vp-path .vp-plot > div,
 #vp-score .vp-plot > div {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  min-height: 100px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -441,10 +454,10 @@ footer,
 #vp-score img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: 100% !important;
-  height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 80px !important;
   object-fit: contain !important;
-  object-position: center !important;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
@@ -452,11 +465,7 @@ footer,
 #vp-shell button.icon-button,
 #vp-radial button.icon-button,
 #vp-path button.icon-button,
-#vp-score button.icon-button,
-#vp-shell .icon-button-wrapper:not(:has(img)),
-#vp-radial .icon-button-wrapper:not(:has(img)),
-#vp-path .icon-button-wrapper:not(:has(img)),
-#vp-score .icon-button-wrapper:not(:has(img)) {
+#vp-score button.icon-button {
   display: none !important;
 }
 
@@ -1248,7 +1257,11 @@ def _save_rgb_png(arr: np.ndarray, name: str) -> str:
         img = np.stack([img, img, img], axis=-1)
     # Pillow 10+: fromarray infers mode; avoid deprecated mode= kw
     PILImage.fromarray(img[..., :3]).save(path, format="PNG")
-    return str(path.resolve())
+    # Prefer path relative to app root — Gradio/HF serve these reliably
+    try:
+        return str(path.relative_to(Path(__file__).resolve().parent))
+    except ValueError:
+        return str(path.resolve())
 
 
 def _startup_plots() -> dict:
