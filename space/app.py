@@ -243,19 +243,17 @@ footer,
   color: var(--ft-tab-hover) !important;
 }
 
-/* Glass / translucent layers — user requested opacity 0.3 */
-.layer-inner, .layer-fg {
-  background: rgba(15, 23, 42, 0.3) !important;
+/* Solid panel chrome — no glass/blur layers (those caused visual flicker) */
+#controls,
+#vp-shell,
+#vp-path,
+#vp-radial,
+#vp-score {
+  background: rgba(15, 23, 42, 0.92) !important;
   border: 1px solid rgba(148, 163, 184, 0.18) !important;
   border-radius: 10px !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.layer-panel {
-  background: rgba(30, 41, 59, 0.3) !important;
-  border: 1px solid rgba(56, 189, 248, 0.15) !important;
-  border-radius: 8px !important;
-  padding: 0.35rem 0.5rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /*
@@ -1085,7 +1083,7 @@ footer,
 """
 
 ABOUT_HTML = f"""
-<div class="layer-panel" style="color:#cbd5e1;font-size:0.78rem;line-height:1.45;height:100%;overflow:auto;">
+<div class="ft-about" style="color:#cbd5e1;font-size:0.78rem;line-height:1.45;height:100%;overflow:auto;">
   <b style="color:#e2e8f0;">Photon Seed Asteroids</b> — trajectoid shells + VQC quaternion/OAM
   + live <code>oam_flux</code> Hopf lattice.<br/><br/>
   <b>Shell</b>: 3D shaved sphere from rolling SO(3) + contact trench (Nature-style trajectoids).<br/>
@@ -1317,9 +1315,9 @@ def build_app() -> gr.Blocks:
         title="flux_trajectoid",
         analytics_enabled=False,
     )
+    # Inject JS only once via head (js + head both running = double observers / flicker)
     optional_block = {
         "css": CUSTOM_CSS,
-        "js": SLIDER_FILL_JS,
         "head": f"<script>\n{SLIDER_FILL_JS}\n</script>",
         "fill_height": True,
         "fill_width": True,
@@ -1363,8 +1361,7 @@ def build_app() -> gr.Blocks:
             with gr.Column(
                 scale=3,
                 min_width=280,
-                elem_classes=["layer-inner"],
-                elem_id="controls",
+                                elem_id="controls",
             ):
                 with gr.Tabs(elem_id="col1-tabs", selected="controls") as col1_tabs:
                     with gr.Tab("CONTROLS", id="controls"):
@@ -1373,8 +1370,7 @@ def build_app() -> gr.Blocks:
                             with gr.Accordion(
                                 "Payload & identity",
                                 open=False,
-                                elem_classes=["layer-fg"],
-                            ):
+                                                            ):
                                 payload = gr.Textbox(
                                     value="Hello from the shell",
                                     label="Payload",
@@ -1385,7 +1381,7 @@ def build_app() -> gr.Blocks:
                                     value=42, label="Seed", precision=0
                                 )
                             with gr.Accordion(
-                                "Channel", open=False, elem_classes=["layer-fg"]
+                                "Channel", open=False
                             ):
                                 turbulence = gr.Slider(
                                     0.0,
@@ -1400,8 +1396,7 @@ def build_app() -> gr.Blocks:
                             with gr.Accordion(
                                 "Shell / lattice",
                                 open=False,
-                                elem_classes=["layer-fg"],
-                            ):
+                                                            ):
                                 use_tpt = gr.Radio(
                                     choices=["On", "Off"],
                                     value="On",
@@ -1426,8 +1421,7 @@ def build_app() -> gr.Blocks:
                             with gr.Accordion(
                                 "Matrix slice",
                                 open=True,
-                                elem_classes=["layer-fg"],
-                            ):
+                                                            ):
                                 show_slice = gr.Radio(
                                     choices=["On", "Off"],
                                     value="On",
@@ -1479,8 +1473,7 @@ def build_app() -> gr.Blocks:
                                 "### Seed status\n_Run **Build** to fill this panel._",
                             ),
                             elem_id="status-md",
-                            elem_classes=["layer-fg"],
-                        )
+                                                    )
                     with gr.Tab("REFERENCES", id="references"):
                         with gr.Column(elem_id="panel-refs"):
                             gr.Markdown(
@@ -1496,8 +1489,7 @@ with shaved region (Nature-style SO(3) rolling).
 Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
 [HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid)
 """,
-                                elem_classes=["layer-fg"],
-                            )
+                                                            )
 
             # Right — 2×2 plot stack (equal rows via #plots-top / #plots-bot)
             with gr.Column(
@@ -1509,7 +1501,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     with gr.Column(
                         scale=2,
                         min_width=0,
-                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_classes=["vp-cell"],
                         elem_id="vp-shell",
                     ):
                         gr.Markdown(
@@ -1523,7 +1515,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     with gr.Column(
                         scale=1,
                         min_width=0,
-                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_classes=["vp-cell"],
                         elem_id="vp-path",
                     ):
                         gr.Markdown(
@@ -1538,7 +1530,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     with gr.Column(
                         scale=2,
                         min_width=0,
-                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_classes=["vp-cell"],
                         elem_id="vp-radial",
                     ):
                         gr.Markdown(
@@ -1552,7 +1544,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     with gr.Column(
                         scale=1,
                         min_width=0,
-                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_classes=["vp-cell"],
                         elem_id="vp-score",
                     ):
                         gr.Markdown(
@@ -1754,197 +1746,13 @@ def _make_theme():
         return None
 
 
-# Gradio injects launch(js=...) as <script>textContent</script> — must be an
-# IIFE (plain () => {} is never called). Slider fill + main nav active tab.
+# Gradio injects js as script text — IIFE required. Keep this QUIET:
+# no MutationObserver on attributes, no setInterval fitScreen (those
+# cycled styles and made the startup page flicker through "layers").
 SLIDER_FILL_JS = """
 (() => {
-  /*
-   * Fit the host screen (e.g. 1920×1080) on HF Spaces.
-   *
-   * Bug we hit: body was forced TALLER than the short hub iframe with
-   * overflow:hidden → UI clipped mid-panel and a huge black band below
-   * the iframe. Fix:
-   *  1) Target height ≈ parent/screen minus HF chrome
-   *  2) Grow the hub iframe (parentIFrame + iframe-resizer messages)
-   *  3) Pin every layout node to that height and split plot cells 50/50
-   *  4) Never max-height clip below the target (use min-height + height)
-   */
-  function hostChrome() {
-    // Spaces header + title row + App/Files tabs (approx)
-    return 155;
-  }
-
-  function targetAppHeight() {
-    // Prefer the *current* iframe viewport once it has grown; otherwise
-    // request the host screen size so iFrameResizer/CSS grow expands us.
-    const ih = window.innerHeight || document.documentElement.clientHeight || 0;
-    const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 0;
-    const screenTarget = sh > 0 ? sh - hostChrome() : 0;
-
-    let h = ih;
-    try {
-      if (window.parent && window.parent !== window) {
-        const ph = window.parent.innerHeight || 0;
-        if (ph > 0) h = Math.max(h, ph - hostChrome());
-      }
-    } catch (_) { /* cross-origin hub page */ }
-
-    // If iframe is still the short content-sized band, push toward screen
-    if (screenTarget > 0 && (h < screenTarget * 0.85 || h < 560)) {
-      h = screenTarget;
-    }
-    if (!h || h < 480) h = Math.max(480, screenTarget || 720);
-    if (sh > 0) h = Math.min(h, sh - 60);
-    return Math.round(h);
-  }
-
-  function requestIframeHeight(h) {
-    try {
-      if (window.parentIFrame) {
-        try { window.parentIFrame.autoResize(true); } catch (_) {}
-        try { window.parentIFrame.size(h); } catch (_) {}
-      }
-    } catch (_) {}
-    // Gradio / iframe-resizer message formats
-    const msgs = [
-      '[iFrameSizer]height:' + h,
-      '[iFrameSizer]height:' + h + ':force',
-      { type: 'SET_IFRAME_HEIGHT', height: h },
-      { type: 'iframe-height', height: h },
-      { type: 'setHeight', height: h },
-    ];
-    msgs.forEach((m) => {
-      try { window.parent && window.parent.postMessage(m, '*'); } catch (_) {}
-    });
-  }
-
-  function ensureSpacer(h) {
-    // In-flow element so document/content height = target (grows hub iframe)
-    let s = document.getElementById('ft-spacer');
-    if (!s) {
-      s = document.createElement('div');
-      s.id = 'ft-spacer';
-      s.setAttribute('data-iframe-height', '');
-      const host = document.body || document.documentElement;
-      host.insertBefore(s, host.firstChild);
-    }
-    s.style.cssText = [
-      'display:block',
-      'width:1px',
-      'height:' + h + 'px',
-      'min-height:' + h + 'px',
-      'margin:0',
-      'padding:0',
-      'pointer-events:none',
-      'opacity:0',
-      'overflow:hidden',
-    ].join(';');
-  }
-
-  function fitScreen() {
-    const h = targetAppHeight();
-    const root = document.documentElement;
-    root.style.setProperty('--ft-app-h', h + 'px');
-    root.style.setProperty('height', h + 'px');
-    root.style.setProperty('min-height', h + 'px');
-    root.style.overflow = 'hidden';
-    if (document.body) {
-      document.body.style.setProperty('height', h + 'px');
-      document.body.style.setProperty('min-height', h + 'px');
-      document.body.style.overflow = 'hidden';
-      document.body.style.margin = '0';
-      document.body.style.padding = '0';
-      document.body.style.background = '#070b14';
-    }
-
-    ensureSpacer(h);
-
-    const nav = document.querySelector('#nav-bar');
-    const navH = (nav && nav.offsetHeight) ? nav.offsetHeight : 48;
-    root.style.setProperty('--ft-nav-h', navH + 'px');
-    if (nav) {
-      nav.style.setProperty('position', 'fixed', 'important');
-      nav.style.setProperty('top', '0', 'important');
-      nav.style.setProperty('left', '0', 'important');
-      nav.style.setProperty('right', '0', 'important');
-      nav.style.setProperty('height', navH + 'px', 'important');
-      nav.style.setProperty('z-index', '1000', 'important');
-    }
-
-    // Fixed workspace flex shell only — layout is CSS (#plots-top/#plots-bot).
-    // Do NOT reparent nodes (that fought Gradio and blanked panels).
-    const ws = document.querySelector('#workspace');
-    if (ws) {
-      ws.style.setProperty('position', 'fixed', 'important');
-      ws.style.setProperty('top', navH + 'px', 'important');
-      ws.style.setProperty('left', '0', 'important');
-      ws.style.setProperty('right', '0', 'important');
-      ws.style.setProperty('bottom', '0', 'important');
-      ws.style.setProperty('display', 'flex', 'important');
-      ws.style.setProperty('flex-direction', 'row', 'important');
-      ws.style.setProperty('overflow', 'hidden', 'important');
-      ws.style.setProperty('z-index', '900', 'important');
-    }
-    const plots = document.querySelector('#plots-col');
-    if (plots) {
-      plots.style.setProperty('display', 'flex', 'important');
-      plots.style.setProperty('flex-direction', 'column', 'important');
-      plots.style.setProperty('flex', '1 1 auto', 'important');
-      plots.style.setProperty('min-height', '0', 'important');
-      plots.style.setProperty('overflow', 'hidden', 'important');
-    }
-    ['#plots-top', '#plots-bot'].forEach((sel) => {
-      const row = document.querySelector(sel);
-      if (!row) return;
-      row.style.setProperty('display', 'flex', 'important');
-      row.style.setProperty('flex-direction', 'row', 'important');
-      row.style.setProperty('flex', '1 1 0', 'important');
-      row.style.setProperty('min-height', '0', 'important');
-      row.style.setProperty('overflow', 'hidden', 'important');
-    });
-    ['#vp-shell', '#vp-radial', '#vp-path', '#vp-score'].forEach((sel) => {
-      const cell = document.querySelector(sel);
-      if (!cell) return;
-      cell.style.setProperty('display', 'flex', 'important');
-      cell.style.setProperty('flex-direction', 'column', 'important');
-      cell.style.setProperty('min-height', '0', 'important');
-      cell.style.setProperty('overflow', 'hidden', 'important');
-      cell.style.setProperty('visibility', 'visible', 'important');
-      cell.style.setProperty('opacity', '1', 'important');
-    });
-    document.querySelectorAll(
-      '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img'
-    ).forEach((el) => {
-      el.style.setProperty('object-fit', 'contain', 'important');
-      el.style.setProperty('visibility', 'visible', 'important');
-      el.style.setProperty('opacity', '1', 'important');
-      el.style.setProperty('display', 'block', 'important');
-    });
-
-    requestIframeHeight(h);
-
-    // If the hub iframe grew, re-fit cells to the new innerHeight
-    const ih = window.innerHeight || h;
-    if (Math.abs(ih - h) > 40) {
-      root.style.setProperty('--ft-app-h', ih + 'px');
-    }
-  }
-
-  /* theme_default_tabs: main nav active underline/text */
-  function bindNavTabs() {
-    const bar = document.querySelector('#nav-bar');
-    if (!bar) return;
-    bar.querySelectorAll('button').forEach((btn) => {
-      if (btn.dataset.ftNavBound === '1') return;
-      btn.dataset.ftNavBound = '1';
-      btn.addEventListener('click', () => {
-        bar.querySelectorAll('button').forEach((b) => {
-          b.classList.remove('nav-active', 'primary', 'selected');
-        });
-        btn.classList.add('nav-active');
-      });
-    });
-  }
+  if (window.__ftUiInit) return; // single init even if injected twice
+  window.__ftUiInit = true;
 
   function pctOf(el) {
     const min = parseFloat(el.min || '0');
@@ -1955,40 +1763,17 @@ SLIDER_FILL_JS = """
     return Math.max(0, Math.min(100, ((val - min) / den) * 100));
   }
 
-  /* Thin analog line (~1.5px) + mild glow — never full input height */
   const FILL_STYLE = [
-    'position:absolute',
-    'left:0',
-    'top:50%',
-    'transform:translateY(-50%)',
-    'height:1.5px',
-    'min-height:1.5px',
-    'max-height:1.5px',
-    'border-radius:999px',
-    'background:#00FF00',
-    'background-color:#00FF00',
+    'position:absolute','left:0','top:50%','transform:translateY(-50%)',
+    'height:1.5px','min-height:1.5px','max-height:1.5px','border-radius:999px',
+    'background:#00FF00','background-color:#00FF00',
     'box-shadow:0 0 2px 0.4px rgba(0,255,0,0.7),0 0 4px 0.8px rgba(0,255,0,0.35)',
-    'pointer-events:none',
-    'z-index:2',
-    'display:block',
-    'opacity:1',
-    'visibility:visible',
-    'margin:0',
-    'padding:0',
-    'border:none',
+    'pointer-events:none','z-index:2','display:block','margin:0','padding:0','border:none',
   ].join(';');
-
   const RAIL_STYLE = [
-    'position:absolute',
-    'left:0',
-    'right:0',
-    'top:50%',
-    'transform:translateY(-50%)',
-    'height:1.5px',
-    'border-radius:999px',
-    'background:rgba(100,116,139,0.45)',
-    'pointer-events:none',
-    'z-index:1',
+    'position:absolute','left:0','right:0','top:50%','transform:translateY(-50%)',
+    'height:1.5px','border-radius:999px','background:rgba(100,116,139,0.45)',
+    'pointer-events:none','z-index:1',
   ].join(';');
 
   function ensureShell(el) {
@@ -1996,15 +1781,7 @@ SLIDER_FILL_JS = """
     if (!shell) {
       shell = document.createElement('div');
       shell.className = 'ft-slider-shell';
-      shell.style.cssText = [
-        'position:relative',
-        'display:block',
-        'width:100%',
-        'height:14px',
-        'margin:0.3rem 0 0.5rem 0',
-        'overflow:visible',
-        'box-sizing:border-box',
-      ].join(';');
+      shell.style.cssText = 'position:relative;display:block;width:100%;height:14px;margin:0.3rem 0 0.5rem 0;overflow:visible;box-sizing:border-box;';
       const parent = el.parentNode;
       if (!parent) return null;
       parent.insertBefore(shell, el);
@@ -2023,10 +1800,7 @@ SLIDER_FILL_JS = """
       fill.className = 'ft-slider-fill';
       shell.insertBefore(fill, el);
     }
-    // keep fill above rail, under input hit-target
-    if (fill.nextSibling !== el) {
-      shell.insertBefore(fill, el);
-    }
+    if (fill.nextSibling !== el) shell.insertBefore(fill, el);
     return shell;
   }
 
@@ -2034,35 +1808,21 @@ SLIDER_FILL_JS = """
     if (!el || el.type !== 'range') return;
     const shell = ensureShell(el);
     if (!shell) return;
-    const pct = pctOf(el);
     const fill = shell.querySelector(':scope > .ft-slider-fill');
     if (!fill) return;
-
-    // Width in px to the knob center (accounts for thumb radius)
-    const shellW = shell.clientWidth || shell.getBoundingClientRect().width || 0;
+    const pct = pctOf(el);
+    const shellW = shell.clientWidth || 0;
     const thumb = 12;
-    let wPx;
-    if (shellW > 0) {
-      // value maps across (width - thumb) with thumb centered
-      wPx = Math.max(0, (thumb / 2) + ((shellW - thumb) * pct) / 100);
-    } else {
-      wPx = null;
-    }
-
+    const wPx = shellW > 0
+      ? Math.max(0, (thumb / 2) + ((shellW - thumb) * pct) / 100)
+      : null;
     fill.style.cssText = FILL_STYLE + ';width:' + (
-      wPx != null ? (wPx.toFixed(2) + 'px') : (pct.toFixed(3) + '%')
+      wPx != null ? wPx.toFixed(2) + 'px' : pct.toFixed(3) + '%'
     );
-
-    const pctStr = pct.toFixed(3) + '%';
-    shell.style.setProperty('--ft-fill-pct', pctStr);
-    el.style.setProperty('--ft-fill-pct', pctStr);
-    // Keep input body fully transparent — fat green bar was from full-height bg
-    el.style.setProperty('background', 'transparent', 'important');
-    el.style.setProperty('background-image', 'none', 'important');
-    el.style.setProperty('background-color', 'transparent', 'important');
+    el.style.background = 'transparent';
   }
 
-  function bindAll() {
+  function bindSliders() {
     document.querySelectorAll('input[type="range"]').forEach((el) => {
       if (!el.closest('.ft-slider-shell')) el.dataset.ftSliderBound = '0';
       if (el.dataset.ftSliderBound === '1') {
@@ -2072,80 +1832,77 @@ SLIDER_FILL_JS = """
       el.dataset.ftSliderBound = '1';
       ensureShell(el);
       const upd = () => paint(el);
-      ['input', 'change', 'pointerdown', 'pointerup', 'touchstart', 'touchmove'].forEach((ev) => {
-        el.addEventListener(ev, upd, { passive: true });
-      });
-      el.addEventListener('pointermove', () => {
-        if (el.matches(':active')) paint(el);
-      }, { passive: true });
+      el.addEventListener('input', upd, { passive: true });
+      el.addEventListener('change', upd, { passive: true });
       paint(el);
     });
   }
-  // Gradio may inject this script before components mount
-  let fitTimer = null;
-  let paintTimer = null;
-  function scheduleFit() {
-    if (fitTimer) return;
-    fitTimer = setTimeout(() => {
-      fitTimer = null;
-      fitScreen();
-      bindNavTabs();
-    }, 50);
+
+  function bindNavTabs() {
+    const bar = document.querySelector('#nav-bar');
+    if (!bar) return;
+    bar.querySelectorAll('button').forEach((btn) => {
+      if (btn.dataset.ftNavBound === '1') return;
+      btn.dataset.ftNavBound = '1';
+      btn.addEventListener('click', () => {
+        bar.querySelectorAll('button').forEach((b) => {
+          b.classList.remove('nav-active', 'primary', 'selected');
+        });
+        btn.classList.add('nav-active');
+      });
+    });
   }
-  function schedulePaint() {
-    if (paintTimer) return;
-    paintTimer = setTimeout(() => {
-      paintTimer = null;
-      bindAll();
-    }, 30);
+
+  function layoutOnce() {
+    const nav = document.querySelector('#nav-bar');
+    const navH = (nav && nav.offsetHeight) || 48;
+    document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
+    const ws = document.querySelector('#workspace');
+    if (ws && !ws.dataset.ftLaidOut) {
+      ws.dataset.ftLaidOut = '1';
+      // rely on CSS; only set fixed shell once
+      ws.style.position = 'fixed';
+      ws.style.top = navH + 'px';
+      ws.style.left = '0';
+      ws.style.right = '0';
+      ws.style.bottom = '0';
+      ws.style.zIndex = '900';
+    }
   }
-  const start = () => {
-    fitScreen();
-    bindAll();
+
+  function start() {
+    layoutOnce();
     bindNavTabs();
-  };
+    bindSliders();
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', start);
   } else {
     start();
   }
-  window.addEventListener('resize', scheduleFit, { passive: true });
-  window.addEventListener('orientationchange', scheduleFit, { passive: true });
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', scheduleFit, { passive: true });
-  }
-  window.addEventListener('message', (ev) => {
-    if (!ev || ev.data == null) return;
-    const d = ev.data;
-    if (d === 'fit' || d?.type === 'resize' || d?.type === 'SET_SCROLLING') {
-      scheduleFit();
-    }
-  });
-  // Any DOM change: re-shell / re-paint sliders (Gradio recreates ranges)
-  const obs = new MutationObserver(() => {
-    schedulePaint();
-    scheduleFit();
-  });
-  obs.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['value', 'style', 'class'],
-  });
-  // Continuous paint while app is live (covers Gradio value writes)
-  setInterval(bindAll, 400);
-  let n = 0;
-  const boot = setInterval(() => {
-    fitScreen();
-    bindAll();
-    n += 1;
-    if (n > 40) clearInterval(boot);
-  }, 500);
-  setTimeout(start, 0);
-  setTimeout(start, 200);
-  setTimeout(start, 600);
-  setTimeout(start, 1500);
-  setTimeout(start, 3000);
+  // One delayed bind for late Gradio mount — no intervals, no attribute observers
+  setTimeout(start, 300);
+  setTimeout(bindSliders, 1000);
+  window.addEventListener('resize', () => {
+    layoutOnce();
+    bindSliders();
+  }, { passive: true });
+  // Only watch for new range inputs (childList), never attributes (avoids loops)
+  try {
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.addedNodes && m.addedNodes.length) {
+          bindSliders();
+          break;
+        }
+      }
+    });
+    mo.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+  } catch (_) {}
 })();
 """
 
@@ -2154,15 +1911,14 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
     """Launch with kwargs filtered to the installed Gradio version."""
     import inspect
 
-    # Ensure Blocks carries css/js even if constructor ignored them
-    for attr, val in (("css", css), ("js", js)):
-        try:
-            setattr(demo, attr, val)
-        except Exception:
-            pass
+    # Single head script only — do not also pass js= (double-init flicker)
     try:
-        if getattr(demo, "head", None) in (None, ""):
-            demo.head = f"<script>\n{js}\n</script>"
+        demo.css = css
+    except Exception:
+        pass
+    try:
+        demo.head = f"<script>\n{js}\n</script>"
+        demo.js = None
     except Exception:
         pass
 
@@ -2176,7 +1932,6 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
     optional = {
         "theme": theme,
         "css": css,
-        "js": js,
         "head": f"<script>\n{js}\n</script>",
         "ssr": False,
         "ssr_mode": False,
