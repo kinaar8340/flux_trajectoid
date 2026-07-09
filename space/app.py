@@ -448,7 +448,7 @@ footer,
   font-size: 0.65rem !important;
   line-height: 1.1 !important;
 }
-/* Column-1: CONTROLS | REFERENCES — theme_default_tabs
+/* Column-1: CONTROLS | FIGURES | DOCS — theme_default_tabs
  * Gradio 5/6: .tab-wrapper > .tab-container > button.selected
  */
 #col1-tabs {
@@ -1031,18 +1031,180 @@ ABOUT_HTML = f"""
   <b>P</b> power · <b>Strehl</b> · <b>OAMf</b> OAM fidelity · <b>Icorr</b> · <b>F</b> field overlap.<br/>
   <b>4 · Recover</b> — hybrid (digital CRC + photonic BER) · unit-quaternion scale fix.<br/>
   <b>5 · SLM</b> — phase-only hologram package for hardware presets.<br/><br/>
-  <b>UI</b> — <b>Build</b> full pipeline · <b>Play</b> X→Y→Z matrix scan ·
-  <b>SLM export</b> download zip · <b>REFERENCES</b> panel legend.<br/><br/>
+  <b>UI</b> — <b>Demo</b> live pipeline · <b>Figures</b> Nature-style art ·
+  <b>Docs</b> how-it-works · <b>Build / Play / SLM export</b> in CONTROLS.<br/><br/>
   <a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> ·
   <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a> ·
   <a href="https://x.com/kinaar111/status/2075134240703029650" style="color:#38bdf8;">Demo video</a>
 </div>
 """
 
+# Left-column DOCS tab + Docs nav view (accessibility for non-specialists)
+DOCS_MD = f"""
+### How it works
+
+**Photon Seed Asteroid** = a layered photonic data carrier:
+
+1. **Outer shell (trajectoid)** — a 3D body designed so rolling along a prescribed path is consistent (geometry as fingerprint + protection).
+2. **Inner nut (VQC + OAM)** — payload packed into quaternion shards + scale on Laguerre–Gaussian modes, coupled into an `oam_flux` Hopf lattice.
+3. **Channel** — simulated turbulence (phase screens, tip/tilt). Metrics report how much structure survives.
+4. **Recovery** — hybrid digital CRC path + photonic BER scorecard.
+5. **SLM export** — phase holograms for lab spatial light modulators.
+
+### Trajectoids (background)
+
+**Trajectoids** are convex 3D shapes engineered to roll along *arbitrary prescribed paths* — introduced by Sobolev et al. (*Nature*, 2023). This demo uses that geometric language (rolling paths, contact trenches, shaved shells) as the visual + structural outer layer of a photonic packet.
+
+- Wikipedia: [Trajectoid](https://en.wikipedia.org/wiki/Trajectoid)
+- Nature paper: [Sobolev et al. 2023](https://www.nature.com/articles/s41586-023-06306-y)
+- Project write-up: [docs/architecture.md]({GITHUB}/blob/main/docs/architecture.md)
+
+### What each 2×2 panel means
+
+| Panel | What you see | Why it matters |
+|---|---|---|
+| **3D shell** | Asteroid mesh + green **matrix slice** (plane ∩ shell) | Geometry ID + scan of the protective body |
+| **Rolling path** | Nature-style path with scan head (X/Y/Z) | Prescribed SO(3) rolling curve encoded by the shell |
+| **Radial trench** | Heat map of contact / shave structure | Where the shell is modulated (potential trench) |
+| **Scorecard** | **P · Strehl · OAMf · Icorr · F** bars | Quantifies packet integrity after the channel |
+
+### Scorecard keys (turbulence)
+
+| Key | Meaning |
+|---|---|
+| **P** | Power retention |
+| **Strehl** | Peak coherence / focusing proxy |
+| **OAMf** | OAM spectral fidelity (angular-momentum structure) |
+| **Icorr** | Intensity-map correlation |
+| **F** | Field overlap fidelity \\|⟨ref\\|obs⟩\\|² |
+
+**Rule of thumb:** as turbulence rises, **F** often drops faster than **OAMf** — structured OAM content is harder to scramble than raw hologram overlap.
+
+### How to use this Space
+
+1. **Demo** (nav) → CONTROLS · open **Matrix slice** · adjust plane / position  
+2. **Build · Propagate · Recover** — full pipeline, fills plots + seed status  
+3. **Play matrix scan** — synced GIFs; plane **xyz** runs **X → Y → Z**  
+4. **SLM export** — download phase package for hardware presets  
+5. **Figures** (nav) — Nature-style construction & path art  
+6. **Docs** (nav) — this guide  
+
+### Links
+
+- [GitHub]({GITHUB}) · [HF Space]({HF_SPACE}) · [Demo video](https://x.com/kinaar111/status/2075134240703029650) · [README]({GITHUB}#readme)
+"""
+
+FIGURES_MD = f"""
+### Figures gallery
+
+These panels show the **geometric language** behind Photon Seed Asteroids — the same visual vocabulary as trajectoid theory/experiment demos (rolling paths, construction cuts, trenches).
+
+| 2×2 cell | Figure |
+|---|---|
+| **Top-left** | Shell construction — path *T*, potential surface, shell / core / remnant |
+| **Top-right** | Trajectoid rolling paths — theory vs experiment style |
+| **Bottom-left** | Radial trench / shave map (demo still) |
+| **Bottom-right** | Turbulence scorecard (demo still) |
+
+Return to **Demo** for the live Build · Play · SLM workflow.
+
+[GitHub figures & docs]({GITHUB}) · [Nature trajectoids](https://www.nature.com/articles/s41586-023-06306-y)
+"""
+
 
 def _empty_imgs():
     b = blank_rgb(280, 360)
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
+
+
+def _figure_panel_html(rel_path: str, title: str, caption: str = "") -> str:
+    """Self-contained figure panel (file URL) for the Figures / Docs nav views."""
+    rel = str(rel_path).replace("\\", "/").lstrip("./")
+    # Ensure asset exists under Space root
+    full = Path(__file__).resolve().parent / rel
+    if not full.is_file():
+        return _to_html(blank_rgb(360, 420), "shell")
+    url = _file_url(rel)
+    cap_html = (
+        f'<div style="flex:0 0 auto;color:#94a3b8;font-size:11px;line-height:1.35;'
+        f'margin-top:6px;">{caption}</div>'
+        if caption
+        else ""
+    )
+    return (
+        f'<div class="ft-vp-panel" data-stem="figure" '
+        'style="box-sizing:border-box;width:100%;height:100%;min-height:280px;'
+        "display:flex;flex-direction:column;padding:8px 10px;"
+        "background:rgba(15,23,42,0.98);border:1px solid rgba(148,163,184,0.28);"
+        "border-radius:10px;overflow:hidden;opacity:1;visibility:visible;"
+        'position:relative;z-index:60;">'
+        f'<div class="ft-vp-title" style="flex:0 0 auto;color:#94a3b8;font-size:11px;'
+        "font-family:IBM Plex Sans,Segoe UI,system-ui,sans-serif;"
+        "text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px 0;"
+        f'line-height:1.2;">{title}</div>'
+        f'<div class="ft-vp-img-wrap" style="flex:1 1 auto;min-height:200px;'
+        "display:flex;align-items:center;justify-content:center;"
+        'width:100%;background:#0a0f18;border-radius:6px;overflow:hidden;'
+        'position:relative;z-index:61;">'
+        f'<img class="ft-vp-img" src="{url}" alt="{title}" draggable="false" '
+        'style="position:relative;z-index:62;display:block!important;'
+        "max-width:100%;max-height:100%;width:auto;height:auto;"
+        "min-width:80px;min-height:80px;object-fit:contain;"
+        'opacity:1;visibility:visible;border:0;"/>'
+        f"</div>{cap_html}</div>"
+    )
+
+
+def _figures_view_panels() -> tuple[str, str, str, str]:
+    """Four educational figures for the Figures nav view."""
+    return (
+        _figure_panel_html(
+            "assets/shell_construction.png",
+            "Shell construction",
+            "Inclined path T · potential surface · shell / core / remnant (Nature-style SO(3))",
+        ),
+        _figure_panel_html(
+            "assets/trajectoid_paths.png",
+            "Trajectoid rolling paths",
+            "Prescribed rolling paths — geometric language of trajectoids (theory / experiment style)",
+        ),
+        _figure_panel_html(
+            "assets/boot/img_radial.png",
+            "Radial trench / shave",
+            "Contact trench heat on a cylindrical map — where the shell modulates the inner field",
+        ),
+        _figure_panel_html(
+            "assets/boot/img_metrics.png",
+            "Turbulence scorecard",
+            "P · Strehl · OAMf · Icorr · F — packet integrity after the optical channel",
+        ),
+    )
+
+
+def _docs_view_panels() -> tuple[str, str, str, str]:
+    """Annotated stills for Docs nav (same assets, teaching captions)."""
+    return (
+        _figure_panel_html(
+            "assets/boot/img_shell.png",
+            "1 · 3D shell",
+            "Protective trajectoid body + green matrix slice (plane ∩ shell). Geometry = ID fingerprint.",
+        ),
+        _figure_panel_html(
+            "assets/boot/img_path.png",
+            "2 · Rolling path",
+            "Prescribed path the shell is built to follow (X/Y/Z scans in Demo).",
+        ),
+        _figure_panel_html(
+            "assets/boot/img_radial.png",
+            "3 · Radial map",
+            "Structural / intensity-like distributions on the shell (trench / shave).",
+        ),
+        _figure_panel_html(
+            "assets/boot/img_metrics.png",
+            "4 · Scorecard",
+            "OAMf often stays high while F drops with turbulence — structured light resilience.",
+        ),
+    )
 
 
 def _display_image(value, *, height=360, elem_classes=None, **extra):
@@ -1633,8 +1795,8 @@ def build_app() -> gr.Blocks:
             btn_demo = gr.Button(
                 "Demo", size="sm", elem_classes=["nav-tab", "nav-active"]
             )
-            btn_ref = gr.Button("Reference", size="sm", elem_classes=["nav-tab"])
-            btn_about = gr.Button("About", size="sm", elem_classes=["nav-tab"])
+            btn_figures = gr.Button("Figures", size="sm", elem_classes=["nav-tab"])
+            btn_docs = gr.Button("Docs", size="sm", elem_classes=["nav-tab"])
             gr.HTML(
                 f'<span id="nav-meta">'
                 f'<a href="{GITHUB}" style="color:#64748b;text-decoration:none;">GitHub</a>'
@@ -1647,7 +1809,7 @@ def build_app() -> gr.Blocks:
 
         # ---- Workspace: controls | (2×2 plots) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Left — CONTROLS | REFERENCES
+            # Left — CONTROLS | FIGURES | DOCS
             with gr.Column(
                 scale=3,
                 min_width=280,
@@ -1789,31 +1951,12 @@ def build_app() -> gr.Blocks:
                             ),
                             elem_id="status-md",
                                                     )
-                    with gr.Tab("REFERENCES", id="references"):
-                        with gr.Column(elem_id="panel-refs"):
-                            gr.Markdown(
-                                """
-<p class="viewport-title">References</p>
-
-**What you are looking at (2×2)**  
-| Panel | Meaning |
-|---|---|
-| **3D shell** | Trajectoid body + green matrix slice (plane ∩ shell) |
-| **Rolling path** | Prescribed SO(3) rolling curve (X/Y/Z scans) |
-| **Radial trench** | Contact / shave heat on a cylindrical map |
-| **Scorecard** | Channel metrics after propagation |
-
-**Scorecard keys** · **P** power · **Strehl** peak coherence · **OAMf** OAM spectrum fidelity · **Icorr** intensity correlation · **F** field overlap  
-
-**Science stack** · Trajectoids (Sobolev et al., Nature 2023) · VQC quaternion/OAM packing · live `oam_flux` Hopf lattice · hybrid digital+photonic recovery · SLM phase export  
-
-**How to use** · **Build** = shell→encode→propagate→recover · **Play** = synced X/Y/Z matrix scan · **SLM export** = download hologram zip  
-
-Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
-[HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid) ·
-[Demo video](https://x.com/kinaar111/status/2075134240703029650)
-""",
-                                                            )
+                    with gr.Tab("FIGURES", id="figures"):
+                        with gr.Column(elem_id="panel-figures"):
+                            gr.Markdown(FIGURES_MD)
+                    with gr.Tab("DOCS", id="docs"):
+                        with gr.Column(elem_id="panel-docs"):
+                            gr.Markdown(DOCS_MD)
 
             # Right placeholder (layout occupied by fixed #img-* panels via CSS/JS)
             with gr.Column(
@@ -1997,55 +2140,6 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
             outputs=[scan_btn],
         )
 
-        def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
-            # Open col-1 REFERENCES tab (text only — gallery image removed)
-            md = (
-                "### Reference figures\n"
-                "**(gallery)** Trajectoid polyhedra + rolling paths "
-                "(theory black / experiment blue).\n\n"
-                "**(construction)** Inclined path T, potential surface, shell/core/remnant "
-                "with shaved region — the geometric language of Photon Seed Asteroids.\n"
-            )
-            return (
-                shell_img,
-                radial_img,
-                field_img,
-                path_img,
-                metrics_img,
-                trace_img,
-                md,
-                gr.update(selected="references"),
-            )
-
-        def show_about(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
-            return (
-                shell_img,
-                radial_img,
-                field_img,
-                path_img,
-                metrics_img,
-                trace_img,
-                ABOUT_HTML,
-                gr.update(selected="controls"),
-            )
-
-        btn_ref.click(
-            fn=show_ref,
-            inputs=outs,
-            outputs=outs + [col1_tabs],
-        )
-        btn_about.click(
-            fn=show_about,
-            inputs=outs,
-            outputs=outs + [col1_tabs],
-        )
-        btn_demo.click(
-            fn=lambda *a: (a[-1], gr.update(selected="controls")),
-            inputs=outs,
-            outputs=[status, col1_tabs],
-        )
-
-        # Re-push HTML plots after hydrate so front layer is never empty.
         _seed = (
             boot.get("img_shell"),
             boot.get("img_path"),
@@ -2060,6 +2154,55 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                 _to_html(_seed[2], "radial"),
                 _to_html(_seed[3], "metrics"),
             )
+
+        def show_figures():
+            """Nav · Figures — Nature-style art in the 2×2 + FIGURES side panel."""
+            s, p, r, m = _figures_view_panels()
+            return (
+                s,
+                p,
+                r,
+                m,
+                FIGURES_MD,
+                gr.update(selected="figures"),
+                "figures",
+            )
+
+        def show_docs():
+            """Nav · Docs — how-it-works + annotated stills (accessibility)."""
+            s, p, r, m = _docs_view_panels()
+            return (
+                s,
+                p,
+                r,
+                m,
+                DOCS_MD,
+                gr.update(selected="docs"),
+                "docs",
+            )
+
+        def show_demo():
+            """Nav · Demo — restore live pipeline panels + CONTROLS."""
+            s, p, r, m = _seed_plots()
+            st = boot.get(
+                "status_md",
+                "### Seed status\n_Run **Build** to fill this panel._",
+            )
+            return (
+                s,
+                p,
+                r,
+                m,
+                st,
+                gr.update(selected="controls"),
+                "demo",
+            )
+
+        nav_outs = [img_shell, img_path, img_radial, img_metrics, status, col1_tabs, view_state]
+
+        btn_figures.click(fn=show_figures, inputs=None, outputs=nav_outs)
+        btn_docs.click(fn=show_docs, inputs=None, outputs=nav_outs)
+        btn_demo.click(fn=show_demo, inputs=None, outputs=nav_outs)
 
         try:
             demo.load(
