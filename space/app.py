@@ -1888,80 +1888,112 @@ SLIDER_FILL_JS = """
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
-    const gap = 6;
+    const gap = 8;
     const ctrlW = 300;
+
     const ctrl = document.querySelector('#controls');
     if (ctrl) {
-      ctrl.style.setProperty('position', 'fixed', 'important');
-      ctrl.style.setProperty('top', (navH + gap) + 'px', 'important');
-      ctrl.style.setProperty('left', gap + 'px', 'important');
-      ctrl.style.setProperty('width', ctrlW + 'px', 'important');
-      ctrl.style.setProperty('bottom', gap + 'px', 'important');
-      ctrl.style.setProperty('z-index', '40', 'important');
-      ctrl.style.setProperty('display', 'flex', 'important');
-      ctrl.style.setProperty('flex-direction', 'column', 'important');
+      Object.assign(ctrl.style, {
+        position: 'fixed', top: (navH + gap) + 'px', left: gap + 'px',
+        width: ctrlW + 'px', bottom: gap + 'px', zIndex: '40',
+        display: 'flex', flexDirection: 'column', overflowY: 'auto',
+        visibility: 'visible', opacity: '1',
+      });
     }
+
     const pc = document.querySelector('#plots-col');
-    if (pc) {
-      pc.style.setProperty('position', 'fixed', 'important');
-      pc.style.setProperty('top', (navH + gap) + 'px', 'important');
-      pc.style.setProperty('left', (ctrlW + 2 * gap) + 'px', 'important');
-      pc.style.setProperty('right', gap + 'px', 'important');
-      pc.style.setProperty('bottom', gap + 'px', 'important');
-      pc.style.setProperty('z-index', '40', 'important');
-      pc.style.setProperty('display', 'flex', 'important');
-      pc.style.setProperty('flex-direction', 'column', 'important');
-      pc.style.setProperty('gap', gap + 'px', 'important');
-      pc.style.setProperty('visibility', 'visible', 'important');
-      pc.style.setProperty('opacity', '1', 'important');
-      pc.style.setProperty('overflow', 'hidden', 'important');
-    }
-    // Force equal-height rows: shell|path  /  radial|score
+    if (!pc) return;
+    Object.assign(pc.style, {
+      position: 'fixed',
+      top: (navH + gap) + 'px',
+      left: (ctrlW + 2 * gap) + 'px',
+      right: gap + 'px',
+      bottom: gap + 'px',
+      zIndex: '40',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: gap + 'px',
+      visibility: 'visible',
+      opacity: '1',
+      overflow: 'hidden',
+      margin: '0',
+      padding: '0',
+    });
+
+    // Pixel-equal half heights — % flex was collapsing #plots-bot to 0
+    const pcH = pc.clientHeight || (window.innerHeight - navH - 2 * gap);
+    const rowH = Math.max(160, Math.floor((pcH - gap) / 2));
+
     ['#plots-top', '#plots-bot'].forEach((sel) => {
       const row = document.querySelector(sel);
       if (!row) return;
-      row.style.setProperty('display', 'flex', 'important');
-      row.style.setProperty('flex-direction', 'row', 'important');
-      row.style.setProperty('flex-wrap', 'nowrap', 'important');
-      row.style.setProperty('flex', '1 1 50%', 'important');
-      row.style.setProperty('min-height', '0', 'important');
-      row.style.setProperty('height', '50%', 'important');
-      row.style.setProperty('width', '100%', 'important');
-      row.style.setProperty('gap', gap + 'px', 'important');
-      row.style.setProperty('overflow', 'hidden', 'important');
-      // Gradio Row wrapper(s)
-      row.querySelectorAll(':scope > div, :scope > .form, :scope > .wrap').forEach((w) => {
-        if (w.id && w.id.startsWith('vp-')) return;
-        w.style.setProperty('display', 'flex', 'important');
-        w.style.setProperty('flex-direction', 'row', 'important');
-        w.style.setProperty('flex', '1 1 auto', 'important');
-        w.style.setProperty('width', '100%', 'important');
-        w.style.setProperty('height', '100%', 'important');
-        w.style.setProperty('min-height', '0', 'important');
-        w.style.setProperty('gap', gap + 'px', 'important');
+      Object.assign(row.style, {
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'nowrap',
+        alignItems: 'stretch',
+        width: '100%',
+        height: rowH + 'px',
+        minHeight: rowH + 'px',
+        maxHeight: rowH + 'px',
+        flex: '0 0 ' + rowH + 'px',
+        gap: gap + 'px',
+        overflow: 'hidden',
+        visibility: 'visible',
+        opacity: '1',
+        margin: '0',
+        padding: '0',
+      });
+      // Gradio Row wrapper → keep as horizontal flex host
+      Array.from(row.children).forEach((w) => {
+        if (w.id && String(w.id).startsWith('vp-')) return;
+        Object.assign(w.style, {
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          flex: '1 1 auto',
+          width: '100%',
+          height: '100%',
+          minHeight: '0',
+          gap: gap + 'px',
+          overflow: 'hidden',
+          margin: '0',
+          padding: '0',
+        });
       });
     });
-    const wide = ['#vp-shell', '#vp-radial'];
-    const slim = ['#vp-path', '#vp-score'];
-    wide.forEach((sel) => {
+
+    const placeCell = (sel, grow) => {
       const el = document.querySelector(sel);
       if (!el) return;
-      el.style.setProperty('flex', '2.2 1 0', 'important');
-      el.style.setProperty('display', 'flex', 'important');
-      el.style.setProperty('flex-direction', 'column', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('min-width', '0', 'important');
-      el.style.setProperty('overflow', 'hidden', 'important');
-    });
-    slim.forEach((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return;
-      el.style.setProperty('flex', '1 1 0', 'important');
-      el.style.setProperty('display', 'flex', 'important');
-      el.style.setProperty('flex-direction', 'column', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('min-width', '0', 'important');
-      el.style.setProperty('overflow', 'hidden', 'important');
+      Object.assign(el.style, {
+        display: 'flex',
+        flexDirection: 'column',
+        flex: grow + ' 1 0',
+        width: 'auto',
+        height: '100%',
+        minWidth: '0',
+        minHeight: '0',
+        overflow: 'hidden',
+        visibility: 'visible',
+        opacity: '1',
+      });
+    };
+    placeCell('#vp-shell', 2.2);
+    placeCell('#vp-radial', 2.2);
+    placeCell('#vp-path', 1);
+    placeCell('#vp-score', 1);
+
+    // Images fill their cells
+    document.querySelectorAll(
+      '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img'
+    ).forEach((img) => {
+      Object.assign(img.style, {
+        maxWidth: '100%', maxHeight: '100%',
+        width: '100%', height: '100%',
+        objectFit: 'contain', display: 'block',
+        visibility: 'visible', opacity: '1',
+      });
     });
   }
 
