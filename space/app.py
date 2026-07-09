@@ -343,7 +343,7 @@ footer,
   border-radius: 4px;
 }
 
-/* Column 2 & 3: two equal-height plot cells filling the fixed workspace */
+/* Column 2 & 3: two equal-height plot cells (shell/radial · path/scorecard) */
 #col-center,
 #col-right {
   height: 100% !important;
@@ -358,7 +358,10 @@ footer,
   display: flex !important;
   flex-direction: column !important;
   gap: 0.35rem !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
+/* Gradio wraps children — force the wrapper to a 2-row flex stack */
 #col-center > .wrap,
 #col-center > .form,
 #col-center > div,
@@ -367,23 +370,25 @@ footer,
 #col-right > div {
   display: flex !important;
   flex-direction: column !important;
+  flex: 1 1 0 !important;
   height: 100% !important;
   min-height: 0 !important;
   max-height: 100% !important;
   gap: 0.35rem !important;
-  flex: 1 1 auto !important;
   overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #col-center .vp-cell,
 #col-right .vp-cell {
   flex: 1 1 0 !important;
-  min-height: 180px !important;
-  height: 50% !important;
+  min-height: 0 !important;
+  height: auto !important;
   max-height: none !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 0.3rem 0.4rem !important;
+  padding: 0.25rem 0.35rem !important;
   box-sizing: border-box !important;
   scrollbar-width: none !important;
   visibility: visible !important;
@@ -412,15 +417,15 @@ footer,
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
 }
-/* Plot fills remaining cell; keep images visible (never collapse to 0) */
+/* Plot fills remaining cell; images must stay visible */
 #col-center .vp-cell .vp-plot,
 #col-right .vp-cell .vp-plot,
 #col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell [data-testid="image"] {
-  flex: 1 1 auto !important;
-  min-height: 160px !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
   width: 100% !important;
-  height: auto !important;
+  height: 100% !important;
   max-height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -434,11 +439,13 @@ footer,
 #col-center .vp-cell .image-container,
 #col-right .vp-cell .image-container,
 #col-center .vp-cell .vp-plot > div,
-#col-right .vp-cell .vp-plot > div {
-  flex: 1 1 auto !important;
-  min-height: 160px !important;
+#col-right .vp-cell .vp-plot > div,
+#col-center .vp-cell .vp-plot > .wrap,
+#col-right .vp-cell .vp-plot > .wrap {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
   width: 100% !important;
-  height: auto !important;
+  height: 100% !important;
   max-height: 100% !important;
   display: flex !important;
   align-items: center !important;
@@ -451,9 +458,8 @@ footer,
 #col-right .vp-cell img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: auto !important;
-  height: auto !important;
-  min-height: 140px !important;
+  width: 100% !important;
+  height: 100% !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
@@ -1232,6 +1238,36 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
     )
 
 
+def _startup_plots() -> dict:
+    """Precompute stub plots so the four viewports are never empty on first paint."""
+    try:
+        return run_pipeline(
+            payload="Hello from the shell",
+            seed=42,
+            turbulence=0.25,
+            n_steps=12,
+            use_tpt=True,
+            build_3d=True,
+            force_stub=True,
+            slice_frac=1.0,
+            slice_plane="z",
+            show_slice=True,
+        )
+    except Exception:
+        logger.exception("startup plots failed")
+        b = blank_rgb(420, 360)
+        return {
+            "shell": None,
+            "img_shell": b,
+            "img_radial": b,
+            "img_field": b,
+            "img_path": blank_rgb(320, 400),
+            "img_metrics": blank_rgb(300, 400),
+            "img_trace": b,
+            "status_md": "### Seed status\n_Startup failed — click **Build**._",
+        }
+
+
 def build_app() -> gr.Blocks:
     # Gradio 5+: css/js/head are set on launch (and on Blocks when supported).
     # Slider fill JS MUST run on page load — head <script> is most reliable on HF.
@@ -1256,6 +1292,8 @@ def build_app() -> gr.Blocks:
     except Exception:
         pass
 
+    boot = _startup_plots()
+
     with gr.Blocks(**blocks_kwargs) as demo:
         # ---- Top navigation ----
         with gr.Row(elem_id="nav-bar"):
@@ -1275,7 +1313,7 @@ def build_app() -> gr.Blocks:
             )
 
         view_state = gr.State("demo")
-        shell_state = gr.State(None)
+        shell_state = gr.State(boot.get("shell"))
 
         # ---- Workspace (single page, multi-column) ----
         with gr.Row(elem_id="workspace", equal_height=True):
@@ -1394,7 +1432,10 @@ def build_app() -> gr.Blocks:
                                 size="sm",
                             )
                         status = gr.Markdown(
-                            "### Seed status\n_Run **Build** to fill this panel._",
+                            boot.get(
+                                "status_md",
+                                "### Seed status\n_Run **Build** to fill this panel._",
+                            ),
                             elem_id="status-md",
                             elem_classes=["layer-fg"],
                         )
@@ -1434,7 +1475,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
                     )
                     img_shell = _display_image(
-                        blank_rgb(640, 480),
+                        boot["img_shell"],
                         height=300,
                         elem_classes=["vp-plot"],
                     )
@@ -1447,7 +1488,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         '<p class="viewport-title">Radial trench / shave</p>'
                     )
                     img_radial = _display_image(
-                        blank_rgb(640, 480),
+                        boot["img_radial"],
                         height=300,
                         elem_classes=["vp-plot"],
                     )
@@ -1470,7 +1511,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         '<p class="viewport-title">Rolling path (Nature-style)</p>'
                     )
                     img_path = _display_image(
-                        blank_rgb(480, 400),
+                        boot["img_path"],
                         height=300,
                         elem_classes=["vp-plot"],
                     )
@@ -1481,19 +1522,19 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                 ):
                     gr.Markdown('<p class="viewport-title">Scorecard</p>')
                     img_metrics = _display_image(
-                        blank_rgb(480, 400),
+                        boot["img_metrics"],
                         height=300,
                         elem_classes=["vp-plot"],
                     )
 
         # Outside #workspace grid so they never steal a column track
         img_field = gr.Image(
-            value=blank_rgb(260, 360),
+            value=boot.get("img_field", blank_rgb(260, 360)),
             visible=False,
             label="Protected OAM field",
         )
         img_trace = gr.Image(
-            value=blank_rgb(200, 360),
+            value=boot.get("img_trace", blank_rgb(200, 360)),
             visible=False,
             label="Fidelity trace",
         )
@@ -1858,17 +1899,36 @@ SLIDER_FILL_JS = """
       first.style.setProperty('overflow', 'auto', 'important');
     }
 
-    // Plot cells: equal halves — keep min height so images never collapse
-    const cellH = Math.max(200, Math.floor((wh - 8) / 2));
-    document.querySelectorAll('#col-center .vp-cell, #col-right .vp-cell').forEach((cell) => {
-      cell.style.setProperty('flex', '1 1 0', 'important');
-      cell.style.setProperty('height', cellH + 'px', 'important');
-      cell.style.setProperty('min-height', '180px', 'important');
-      cell.style.setProperty('overflow', 'hidden', 'important');
-      cell.style.setProperty('display', 'flex', 'important');
-      cell.style.setProperty('flex-direction', 'column', 'important');
-      cell.style.setProperty('visibility', 'visible', 'important');
-      cell.style.setProperty('opacity', '1', 'important');
+    // Plot columns: force two equal rows (shell/radial · path/scorecard)
+    ['#col-center', '#col-right'].forEach((sel) => {
+      const col = document.querySelector(sel);
+      if (!col) return;
+      col.style.setProperty('display', 'flex', 'important');
+      col.style.setProperty('flex-direction', 'column', 'important');
+      col.style.setProperty('height', wh + 'px', 'important');
+      col.style.setProperty('min-height', wh + 'px', 'important');
+      col.style.setProperty('overflow', 'hidden', 'important');
+      // Gradio wrapper holding both vp-cells
+      col.querySelectorAll(':scope > div, :scope > .wrap, :scope > .form').forEach((w) => {
+        w.style.setProperty('display', 'flex', 'important');
+        w.style.setProperty('flex-direction', 'column', 'important');
+        w.style.setProperty('flex', '1 1 0', 'important');
+        w.style.setProperty('height', '100%', 'important');
+        w.style.setProperty('min-height', '0', 'important');
+        w.style.setProperty('gap', '0.35rem', 'important');
+        w.style.setProperty('overflow', 'hidden', 'important');
+      });
+      col.querySelectorAll('.vp-cell').forEach((cell) => {
+        cell.style.setProperty('flex', '1 1 0', 'important');
+        cell.style.setProperty('min-height', '0', 'important');
+        cell.style.setProperty('height', 'auto', 'important');
+        cell.style.setProperty('max-height', 'none', 'important');
+        cell.style.setProperty('display', 'flex', 'important');
+        cell.style.setProperty('flex-direction', 'column', 'important');
+        cell.style.setProperty('overflow', 'hidden', 'important');
+        cell.style.setProperty('visibility', 'visible', 'important');
+        cell.style.setProperty('opacity', '1', 'important');
+      });
     });
 
     document.querySelectorAll(
@@ -1876,7 +1936,8 @@ SLIDER_FILL_JS = """
     ).forEach((el) => {
       el.style.setProperty('max-height', '100%', 'important');
       el.style.setProperty('max-width', '100%', 'important');
-      el.style.setProperty('min-height', '140px', 'important');
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('height', '100%', 'important');
       el.style.setProperty('object-fit', 'contain', 'important');
       el.style.setProperty('visibility', 'visible', 'important');
       el.style.setProperty('opacity', '1', 'important');
