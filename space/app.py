@@ -282,318 +282,119 @@ footer,
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* ---- Right plots pane: fixed host + CSS grid 2×2 ----
- * Do NOT reparent Gradio Image nodes (breaks image binding).
- * Kill transform/filter on ancestors so position:fixed works in-place.
+/*
+ * Four plot panels (#img-shell/path/radial/metrics) are position:fixed
+ * 2×2 boxes over the plots area. Self-contained HTML (title+img) inside.
+ * Escape ALL Gradio flex nesting — that was zeroing paint.
  */
-#workspace,
 #plots-col,
-#plots-top,
-#plots-bot,
-#plots-col .form,
-#plots-col .wrap,
-#plots-col > div,
-#plots-top .form,
-#plots-top .wrap,
-#plots-top > div,
-#plots-bot .form,
-#plots-bot .wrap,
-#plots-bot > div,
-#vp-shell, #vp-path, #vp-radial, #vp-score {
+#plots-placeholder-wrap {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+/* Fixed 2×2 — CSS fallback (JS refines with measured nav/ctrl widths) */
+#img-shell,
+#img-path,
+#img-radial,
+#img-metrics {
+  position: fixed !important;
+  z-index: 55 !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  background: transparent !important;
+  border: none !important;
   transform: none !important;
   filter: none !important;
-  perspective: none !important;
-  contain: none !important;
-  will-change: auto !important;
+  min-height: 200px !important;
 }
-#plots-col {
-  position: fixed !important;
+#img-shell {
   top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
   left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
-  right: var(--ft-gap) !important;
-  bottom: var(--ft-gap) !important;
-  z-index: 40 !important;
-  display: grid !important;
-  grid-template-columns: 2.2fr 1fr !important;
-  grid-template-rows: 1fr 1fr !important;
-  gap: var(--ft-gap) !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: none !important; /* cells re-enable */
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
-/* Flatten Gradio wrappers so the 4 #vp-* become grid items of #plots-col */
-#plots-col > .form,
-#plots-col > .wrap,
-#plots-col > div,
-#plots-top,
-#plots-bot,
-#plots-top > .form,
-#plots-top > .wrap,
-#plots-top > div,
-#plots-bot > .form,
-#plots-bot > .wrap,
-#plots-bot > div {
-  display: contents !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  overflow: visible !important;
-  min-height: 0 !important;
-  min-width: 0 !important;
+#img-path {
+  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
+  left: calc(var(--ft-ctrl-w) + 3 * var(--ft-gap) + (100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
-/* Four cells as grid items — stay inside Gradio tree (images keep working) */
-#vp-shell {
-  grid-column: 1 !important;
-  grid-row: 1 !important;
+#img-radial {
+  top: calc(var(--ft-nav-h) + 2 * var(--ft-gap) + (100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
-#vp-path {
-  grid-column: 2 !important;
-  grid-row: 1 !important;
+#img-metrics {
+  top: calc(var(--ft-nav-h) + 2 * var(--ft-gap) + (100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
+  left: calc(var(--ft-ctrl-w) + 3 * var(--ft-gap) + (100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.688) !important;
+  width: calc((100vw - var(--ft-ctrl-w) - 4 * var(--ft-gap)) * 0.312) !important;
+  height: calc((100vh - var(--ft-nav-h) - 3 * var(--ft-gap)) / 2) !important;
 }
-#vp-radial {
-  grid-column: 1 !important;
-  grid-row: 2 !important;
-}
-#vp-score {
-  grid-column: 2 !important;
-  grid-row: 2 !important;
-}
-#vp-shell,
-#vp-path,
-#vp-radial,
-#vp-score {
-  position: relative !important;
-  z-index: 41 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  padding: 0.3rem 0.4rem !important;
-  box-sizing: border-box !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  background: rgba(15, 23, 42, 0.96) !important;
-  border: 1px solid rgba(148, 163, 184, 0.22) !important;
-  border-radius: 10px !important;
-  min-width: 0 !important;
-  min-height: 200px !important;
+/* Gradio HTML chrome inside fixed panel */
+#img-shell .html-container,
+#img-path .html-container,
+#img-radial .html-container,
+#img-metrics .html-container,
+#img-shell .prose,
+#img-path .prose,
+#img-radial .prose,
+#img-metrics .prose,
+#img-shell .ft-vp-html,
+#img-path .ft-vp-html,
+#img-radial .ft-vp-html,
+#img-metrics .ft-vp-html,
+#img-shell .ft-vp-panel,
+#img-path .ft-vp-panel,
+#img-radial .ft-vp-panel,
+#img-metrics .ft-vp-panel {
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
-  align-self: stretch !important;
-}
-/* Gradio nests .form/.wrap inside columns — force flex fill so Image isn't height:0 */
-#vp-shell > .form,
-#vp-shell > .wrap,
-#vp-shell > div,
-#vp-path > .form,
-#vp-path > .wrap,
-#vp-path > div,
-#vp-radial > .form,
-#vp-radial > .wrap,
-#vp-radial > div,
-#vp-score > .form,
-#vp-score > .wrap,
-#vp-score > div {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  width: 100% !important;
-  gap: 0.15rem !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-  background: transparent !important;
-  border: none !important;
-}
-#vp-shell .viewport-title,
-#vp-radial .viewport-title,
-#vp-path .viewport-title,
-#vp-score .viewport-title {
-  flex: 0 0 auto !important;
-  margin: 0 0 0.15rem 0 !important;
-  color: #64748b !important;
-  font-size: 0.68rem !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
-}
-/* Title markdown blocks must not eat the plot height */
-#vp-shell [data-testid="markdown"],
-#vp-path [data-testid="markdown"],
-#vp-radial [data-testid="markdown"],
-#vp-score [data-testid="markdown"],
-#vp-shell .prose,
-#vp-path .prose,
-#vp-radial .prose,
-#vp-score .prose {
-  flex: 0 0 auto !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: 2rem !important;
-  overflow: hidden !important;
-}
-/*
- * Viewport plot layer stack (bring image to front):
- *   z0  cell background
- *   z1  Gradio empty/upload chrome (hidden)
- *   z5  .ft-vp-img-wrap  (plot host)
- *   z6  .ft-vp-img       (actual pixels)
- */
-#vp-shell .vp-plot,
-#vp-radial .vp-plot,
-#vp-path .vp-plot,
-#vp-score .vp-plot,
-#img-shell,
-#img-path,
-#img-radial,
-#img-metrics,
-#vp-shell [data-testid="html"],
-#vp-path [data-testid="html"],
-#vp-radial [data-testid="html"],
-#vp-score [data-testid="html"],
-#vp-shell .block:not([data-testid="markdown"]),
-#vp-path .block:not([data-testid="markdown"]),
-#vp-radial .block:not([data-testid="markdown"]),
-#vp-score .block:not([data-testid="markdown"]) {
-  position: relative !important;
-  z-index: 5 !important;
-  flex: 1 1 auto !important;
-  min-height: 200px !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-height: none !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  border-radius: 8px !important;
-  background: #0a0f18 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-/* Gradio HTML block must not collapse (flex min-height:0 was zeroing plots) */
-#img-shell,
-#img-path,
-#img-radial,
-#img-metrics,
-#vp-shell .html-container,
-#vp-path .html-container,
-#vp-radial .html-container,
-#vp-score .html-container,
-#vp-shell .prose,
-#vp-path .prose,
-#vp-radial .prose,
-#vp-score .prose,
-#vp-shell .ft-vp-html,
-#vp-path .ft-vp-html,
-#vp-radial .ft-vp-html,
-#vp-score .ft-vp-html {
-  position: relative !important;
-  z-index: 6 !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
   display: block !important;
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  min-height: 320px !important;
-  height: auto !important;
-  max-height: none !important;
-  overflow: visible !important;
   opacity: 1 !important;
   visibility: visible !important;
-  pointer-events: auto !important;
-  background: #0a0f18 !important;
+  overflow: hidden !important;
   padding: 0 !important;
   margin: 0 !important;
+  background: transparent !important;
+  box-sizing: border-box !important;
 }
-/* Kill pending fade on plot HTML */
-#vp-shell .pending,
-#vp-path .pending,
-#vp-radial .pending,
-#vp-score .pending {
+#img-shell .pending,
+#img-path .pending,
+#img-radial .pending,
+#img-metrics .pending {
   opacity: 1 !important;
 }
-/* HTML plot host — always on top of any Gradio chrome inside the cell */
-#vp-shell .ft-vp-img-wrap,
-#vp-path .ft-vp-img-wrap,
-#vp-radial .ft-vp-img-wrap,
-#vp-score .ft-vp-img-wrap,
-.ft-vp-img-wrap {
+#img-shell img,
+#img-path img,
+#img-radial img,
+#img-metrics img,
+#img-shell .ft-vp-img,
+#img-path .ft-vp-img,
+#img-radial .ft-vp-img,
+#img-metrics .ft-vp-img {
   position: relative !important;
-  z-index: 7 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 300px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  background: #0a0f18 !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-#vp-shell .ft-vp-img,
-#vp-path .ft-vp-img,
-#vp-radial .ft-vp-img,
-#vp-score .ft-vp-img,
-.ft-vp-img,
-#vp-shell img.ft-vp-img,
-#vp-path img.ft-vp-img,
-#vp-radial img.ft-vp-img,
-#vp-score img.ft-vp-img {
-  position: relative !important;
-  z-index: 7 !important;
+  z-index: 62 !important;
+  display: block !important;
   max-width: 100% !important;
   max-height: 100% !important;
   width: auto !important;
   height: auto !important;
-  min-width: 120px !important;
-  min-height: 120px !important;
   object-fit: contain !important;
-  object-position: center !important;
-  display: block !important;
-  visibility: visible !important;
   opacity: 1 !important;
-  pointer-events: auto !important;
-  background: transparent !important;
-}
-/* Hide Gradio Image empty/upload/overlay layers if any remain */
-#vp-shell .empty,
-#vp-path .empty,
-#vp-radial .empty,
-#vp-score .empty,
-#vp-shell .upload-container,
-#vp-path .upload-container,
-#vp-radial .upload-container,
-#vp-score .upload-container,
-#vp-shell .source-selection,
-#vp-path .source-selection,
-#vp-radial .source-selection,
-#vp-score .source-selection,
-#vp-shell button.icon-button,
-#vp-radial button.icon-button,
-#vp-path button.icon-button,
-#vp-score button.icon-button,
-#vp-shell .icon-button-wrapper,
-#vp-radial .icon-button-wrapper,
-#vp-path .icon-button-wrapper,
-#vp-score .icon-button-wrapper {
-  display: none !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  z-index: 0 !important;
+  visibility: visible !important;
 }
 
 /* Column 1: compact controls stack
@@ -1511,19 +1312,36 @@ def _to_html(arr_or_path, stem: str = "plot") -> str:
         rel = guess
 
     url = _file_url(rel)
-    # Inline styles only — cannot be defeated by flex collapse / sanitizer class rules
+    title = {
+        "shell": "3D shell · contact path · matrix slice",
+        "path": "Rolling path (Nature-style)",
+        "radial": "Radial trench / shave",
+        "metrics": "Scorecard",
+        "score": "Scorecard",
+    }.get(stem, stem)
+    # Fully self-contained panel: title + image. All sizing/z-index INLINE so
+    # Gradio flex / display:contents / empty overlays cannot zero the paint.
     return (
-        f'<div class="ft-vp-img-wrap" data-stem="{stem}" '
-        'style="position:relative;z-index:50;display:flex!important;'
-        "align-items:center;justify-content:center;width:100%;"
-        "min-height:280px;height:100%;max-height:100%;box-sizing:border-box;"
-        'background:#0a0f18;overflow:hidden;opacity:1;visibility:visible;">'
+        f'<div class="ft-vp-panel" data-stem="{stem}" '
+        'style="box-sizing:border-box;width:100%;height:100%;min-height:280px;'
+        "display:flex;flex-direction:column;padding:8px 10px;"
+        "background:rgba(15,23,42,0.98);border:1px solid rgba(148,163,184,0.28);"
+        'border-radius:10px;overflow:hidden;opacity:1;visibility:visible;'
+        'position:relative;z-index:60;">'
+        f'<div class="ft-vp-title" style="flex:0 0 auto;color:#94a3b8;font-size:11px;'
+        "font-family:IBM Plex Sans,Segoe UI,system-ui,sans-serif;"
+        "text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px 0;"
+        f'line-height:1.2;">{title}</div>'
+        f'<div class="ft-vp-img-wrap" style="flex:1 1 auto;min-height:220px;'
+        "display:flex;align-items:center;justify-content:center;"
+        'width:100%;background:#0a0f18;border-radius:6px;overflow:hidden;'
+        'position:relative;z-index:61;">'
         f'<img class="ft-vp-img" src="{url}" alt="{stem}" draggable="false" '
-        'style="position:relative;z-index:51;display:block!important;'
+        'style="position:relative;z-index:62;display:block!important;'
         "max-width:100%;max-height:100%;width:auto;height:auto;"
-        "min-width:100px;min-height:100px;object-fit:contain;"
+        "min-width:80px;min-height:80px;object-fit:contain;"
         'opacity:1;visibility:visible;border:0;"/>'
-        "</div>"
+        "</div></div>"
     )
 
 
@@ -1861,74 +1679,44 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
 """,
                                                             )
 
-            # Right — 2×2 plot stack (equal rows via #plots-top / #plots-bot)
+            # Right placeholder (layout occupied by fixed #img-* panels via CSS/JS)
             with gr.Column(
                 scale=7,
                 min_width=0,
                 elem_id="plots-col",
             ):
-                with gr.Row(elem_id="plots-top", equal_height=True):
-                    with gr.Column(
-                        scale=2,
-                        min_width=0,
-                        elem_classes=["vp-cell"],
-                        elem_id="vp-shell",
-                    ):
-                        gr.Markdown(
-                            '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
-                        )
-                        img_shell = _display_html(
-                            boot["img_shell"],
-                            stem="shell",
-                            elem_classes=["vp-plot"],
-                            elem_id="img-shell",
-                        )
-                    with gr.Column(
-                        scale=1,
-                        min_width=0,
-                        elem_classes=["vp-cell"],
-                        elem_id="vp-path",
-                    ):
-                        gr.Markdown(
-                            '<p class="viewport-title">Rolling path (Nature-style)</p>'
-                        )
-                        img_path = _display_html(
-                            boot["img_path"],
-                            stem="path",
-                            elem_classes=["vp-plot"],
-                            elem_id="img-path",
-                        )
-                with gr.Row(elem_id="plots-bot", equal_height=True):
-                    with gr.Column(
-                        scale=2,
-                        min_width=0,
-                        elem_classes=["vp-cell"],
-                        elem_id="vp-radial",
-                    ):
-                        gr.Markdown(
-                            '<p class="viewport-title">Radial trench / shave</p>'
-                        )
-                        img_radial = _display_html(
-                            boot["img_radial"],
-                            stem="radial",
-                            elem_classes=["vp-plot"],
-                            elem_id="img-radial",
-                        )
-                    with gr.Column(
-                        scale=1,
-                        min_width=0,
-                        elem_classes=["vp-cell"],
-                        elem_id="vp-score",
-                    ):
-                        gr.Markdown(
-                            '<p class="viewport-title">Scorecard</p>'
-                        )
-                        img_metrics = _display_html(
-                            boot["img_metrics"],
-                            stem="metrics",
-                            elem_classes=["vp-plot"],
-                            elem_id="img-metrics",
-                        )
+                gr.HTML(
+                    '<div id="plots-placeholder" style="min-height:4px;opacity:0;">'
+                    "plots</div>",
+                    elem_id="plots-placeholder-wrap",
+                )
+
+        # Four plot panels — NOT nested in Gradio flex rows (that collapsed paint).
+        # CSS/JS places them as position:fixed 2×2 over the plots area.
+        img_shell = _display_html(
+            boot["img_shell"],
+            stem="shell",
+            elem_classes=["vp-plot", "ft-panel"],
+            elem_id="img-shell",
+        )
+        img_path = _display_html(
+            boot["img_path"],
+            stem="path",
+            elem_classes=["vp-plot", "ft-panel"],
+            elem_id="img-path",
+        )
+        img_radial = _display_html(
+            boot["img_radial"],
+            stem="radial",
+            elem_classes=["vp-plot", "ft-panel"],
+            elem_id="img-radial",
+        )
+        img_metrics = _display_html(
+            boot["img_metrics"],
+            stem="metrics",
+            elem_classes=["vp-plot", "ft-panel"],
+            elem_id="img-metrics",
+        )
 
         # Outside #workspace grid so they never steal a column track
         img_field = gr.Image(
@@ -2325,129 +2113,80 @@ SLIDER_FILL_JS = """
       });
     }
 
+    // Hide leftover plots-col stub
     const pc = document.querySelector('#plots-col');
     if (pc) {
       setImp(pc, {
-        position: 'fixed',
-        top: top + 'px',
-        left: plotsLeft + 'px',
-        width: plotsW + 'px',
-        height: paneH + 'px',
-        right: 'auto',
-        bottom: 'auto',
-        zIndex: '40',
-        display: 'grid',
-        gridTemplateColumns: '2.2fr 1fr',
-        gridTemplateRows: '1fr 1fr',
-        gap: gap + 'px',
-        margin: '0px',
-        padding: '0px',
-        overflow: 'visible',
-        visibility: 'visible',
-        opacity: '1',
-        background: 'transparent',
-        border: 'none',
-        pointerEvents: 'none',
+        position: 'fixed', top: '0px', left: '0px',
+        width: '0px', height: '0px', opacity: '0',
+        pointerEvents: 'none', overflow: 'hidden',
       });
     }
 
-    // Flatten row wrappers so #vp-* are grid children of #plots-col
-    ['#plots-top', '#plots-bot'].forEach((sel) => {
-      const row = document.querySelector(sel);
-      if (!row) return;
-      setImp(row, {
-        display: 'contents',
-        margin: '0px',
-        padding: '0px',
-        border: 'none',
-        overflow: 'visible',
-      });
-      Array.from(row.children).forEach((w) => {
-        if (w.id && String(w.id).startsWith('vp-')) return;
-        setImp(w, { display: 'contents' });
-      });
-    });
-    // Also flatten direct plots-col wrappers (not the vp cells)
-    if (pc) {
-      Array.from(pc.children).forEach((ch) => {
-        if (ch.id && String(ch.id).startsWith('vp-')) return;
-        if (ch.id === 'plots-top' || ch.id === 'plots-bot') return;
-        setImp(ch, { display: 'contents' });
-      });
-    }
+    // 2×2 pixel boxes for the four HTML panels (title+img self-contained)
+    const rowGap = gap;
+    const colGap = gap;
+    const rowH = Math.max(160, Math.floor((paneH - rowGap) / 2));
+    const leftW = Math.max(180, Math.floor((plotsW - colGap) * 0.688));
+    const rightW = Math.max(140, plotsW - leftW - colGap);
+    const y0 = top;
+    const y1 = top + rowH + rowGap;
+    const x0 = plotsLeft;
+    const x1 = plotsLeft + leftW + colGap;
 
-    const placeCell = (sel, col, row) => {
+    const placePanel = (sel, x, y, w, h) => {
       const el = document.querySelector(sel);
       if (!el) return false;
+      // Reparent HTML panels to body → true viewport-fixed (safe for HTML)
+      if (el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
       setImp(el, {
-        position: 'relative',
-        gridColumn: String(col),
-        gridRow: String(row),
-        zIndex: '41',
-        display: 'flex',
-        flexDirection: 'column',
+        position: 'fixed',
+        top: y + 'px',
+        left: x + 'px',
+        width: w + 'px',
+        height: h + 'px',
+        right: 'auto',
+        bottom: 'auto',
+        zIndex: '55',
+        display: 'block',
         overflow: 'hidden',
         visibility: 'visible',
         opacity: '1',
-        minWidth: '0px',
-        minHeight: '0px',
-        width: 'auto',
-        height: 'auto',
         margin: '0px',
-        padding: '6px 8px',
+        padding: '0px',
         boxSizing: 'border-box',
         pointerEvents: 'auto',
-        background: 'rgba(15, 23, 42, 0.96)',
-        border: '1px solid rgba(148, 163, 184, 0.22)',
-        borderRadius: '10px',
+        background: 'transparent',
+        border: 'none',
+        transform: 'none',
+        minHeight: '160px',
       });
-      el.querySelectorAll('.vp-plot, .ft-vp-html, [data-testid="html"], .ft-vp-img-wrap').forEach((node) => {
+      el.querySelectorAll('.html-container, .prose, .ft-vp-panel, .ft-vp-html').forEach((node) => {
         setImp(node, {
-          position: 'relative',
-          zIndex: '6',
-          flex: '1 1 auto',
-          minHeight: '200px',
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-          visibility: 'visible',
-          opacity: '1',
-          pointerEvents: 'auto',
+          width: '100%', height: '100%', minHeight: '100%',
+          display: 'block', opacity: '1', visibility: 'visible',
+          overflow: 'hidden', padding: '0px', margin: '0px',
         });
       });
-      // Bring plot pixels to the front of any Gradio chrome layers
-      el.querySelectorAll('img.ft-vp-img, .ft-vp-img-wrap img, img').forEach((img) => {
+      el.querySelectorAll('img').forEach((img) => {
         setImp(img, {
-          position: 'relative',
-          zIndex: '7',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          width: 'auto',
-          height: 'auto',
-          minWidth: '120px',
-          minHeight: '120px',
-          objectFit: 'contain',
-          display: 'block',
-          visibility: 'visible',
-          opacity: '1',
-          pointerEvents: 'auto',
+          position: 'relative', zIndex: '62',
+          maxWidth: '100%', maxHeight: '100%',
+          width: 'auto', height: 'auto',
+          objectFit: 'contain', display: 'block',
+          opacity: '1', visibility: 'visible',
         });
-      });
-      // Hide leftover empty/upload overlays inside the cell
-      el.querySelectorAll('.empty, .upload-container, .source-selection, button.icon-button').forEach((n) => {
-        setImp(n, { display: 'none', opacity: '0', pointerEvents: 'none', zIndex: '0' });
       });
       return true;
     };
 
     const ok = [
-      placeCell('#vp-shell', 1, 1),
-      placeCell('#vp-path', 2, 1),
-      placeCell('#vp-radial', 1, 2),
-      placeCell('#vp-score', 2, 2),
+      placePanel('#img-shell', x0, y0, leftW, rowH),
+      placePanel('#img-path', x1, y0, rightW, rowH),
+      placePanel('#img-radial', x0, y1, leftW, rowH),
+      placePanel('#img-metrics', x1, y1, rightW, rowH),
     ];
     if (ok.some((v) => !v)) {
       setTimeout(layoutOnce, 250);
