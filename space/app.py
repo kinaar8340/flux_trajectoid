@@ -292,11 +292,68 @@ footer { display: none !important; }
   overflow: hidden !important;
   padding: 0.3rem 0.4rem !important;
   box-sizing: border-box !important;
+  /* kill header vertical scroll / chevron chrome */
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+#col-center .vp-cell::-webkit-scrollbar,
+#col-right .vp-cell::-webkit-scrollbar,
+#col-center .vp-cell *::-webkit-scrollbar,
+#col-right .vp-cell *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+/* Hide Gradio column/block header scroll & chevron controls on viewports */
+#col-center .vp-cell button,
+#col-right .vp-cell button,
+#col-center .vp-cell .icon-button,
+#col-right .vp-cell .icon-button,
+#col-center .vp-cell .icon-button-wrapper,
+#col-right .vp-cell .icon-button-wrapper,
+#col-center .vp-cell button.icon-button,
+#col-right .vp-cell button.icon-button,
+#col-center .vp-cell .padded,
+#col-right .vp-cell .padded,
+#col-center .vp-cell [class*="IconButton"],
+#col-right .vp-cell [class*="IconButton"],
+#col-center .vp-cell .block-header,
+#col-right .vp-cell .block-header,
+#col-center .vp-cell .show-api,
+#col-right .vp-cell .show-api,
+#col-center button[aria-label*="up" i],
+#col-right button[aria-label*="up" i],
+#col-center button[aria-label*="down" i],
+#col-right button[aria-label*="down" i],
+#col-center button[aria-label*="scroll" i],
+#col-right button[aria-label*="scroll" i],
+#col-center .vp-cell .toolbar,
+#col-right .vp-cell .toolbar {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+/* Markdown titles: no scroll chrome */
+#col-center .vp-cell .prose,
+#col-right .vp-cell .prose,
+#col-center .vp-cell .md,
+#col-right .vp-cell .md,
+#col-center .vp-cell [data-testid="markdown"],
+#col-right .vp-cell [data-testid="markdown"] {
+  overflow: hidden !important;
+  max-height: 1.4rem !important;
 }
 #col-center .vp-cell .viewport-title,
 #col-right .vp-cell .viewport-title {
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
+  overflow: hidden !important;
 }
 /* Plot component fills rest of cell — do NOT restyle Gradio internals */
 #col-center .vp-cell .vp-plot,
@@ -637,6 +694,7 @@ footer { display: none !important; }
   padding: 0.25rem 0.5rem !important;
   margin: 0.15rem 0 0 0 !important;
 }
+/* Play matrix scan — default idle styling */
 #scan-btn {
   background: rgba(0, 255, 0, 0.12) !important;
   color: #86efac !important;
@@ -644,6 +702,20 @@ footer { display: none !important; }
   font-size: 0.72rem !important;
   min-height: 1.6rem !important;
   margin-top: 0.15rem !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+}
+/* button_state=True while scan runs: #00FF00 border + glow */
+#scan-btn.scan-active,
+#scan-btn.play-active,
+#controls #scan-btn.scan-active {
+  border: 1.5px solid #00FF00 !important;
+  color: #00FF00 !important;
+  background: rgba(0, 255, 0, 0.14) !important;
+  box-shadow:
+    0 0 6px 1px rgba(0, 255, 0, 0.55),
+    0 0 14px 3px rgba(0, 255, 0, 0.28),
+    inset 0 0 8px 0 rgba(0, 255, 0, 0.12) !important;
 }
 
 /*
@@ -1190,10 +1262,33 @@ def build_app() -> gr.Blocks:
             )
 
         # Synced axial scan: shell + radial + path (same timeline)
+        # button_state True → green glowing border; False when finished
+        def _scan_btn_on():
+            return gr.update(
+                value="▶ Playing…",
+                interactive=False,
+                elem_classes=["scan-active"],
+            )
+
+        def _scan_btn_off():
+            return gr.update(
+                value="▶ Play matrix scan",
+                interactive=True,
+                elem_classes=[],
+            )
+
         scan_btn.click(
+            fn=_scan_btn_on,
+            inputs=None,
+            outputs=[scan_btn],
+        ).then(
             fn=play_scan_ui,
             inputs=[shell_state, slice_plane, scan_frames, scan_ping],
             outputs=[img_shell, img_radial, img_path, status],
+        ).then(
+            fn=_scan_btn_off,
+            inputs=None,
+            outputs=[scan_btn],
         )
 
         def show_ref(shell_img, radial_img, field_img, path_img, metrics_img, trace_img, st):
