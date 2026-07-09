@@ -236,51 +236,61 @@ footer { display: none !important; }
   margin-top: 0.15rem !important;
 }
 
-/* Selected checkboxes / radios → matrix green fill #00FF00 */
+/*
+ * Selected state: ONLY the oval/circle indicator fills #00FF00
+ * (not the full radio/checkbox button chrome or border)
+ */
 #controls input[type="checkbox"],
 #controls input[type="radio"] {
   accent-color: #00FF00 !important;
+  /* native oval/circle only — no box fill override on the control chrome */
+  width: 1em !important;
+  height: 1em !important;
+  flex-shrink: 0 !important;
 }
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked {
   accent-color: #00FF00 !important;
-  background-color: #00FF00 !important;
-  border-color: #00FF00 !important;
 }
-/* Gradio checkbox block when checked */
-#controls label:has(input[type="checkbox"]:checked),
-#controls .block:has(input[type="checkbox"]:checked) label {
-  color: #bbf7d0 !important;
-}
-#controls input[type="checkbox"]:checked {
-  background-color: #00FF00 !important;
-  background-image: none !important;
-  box-shadow: 0 0 0 1px #00FF00 !important;
-}
-/* Gradio radio pill / button selected state (x y z plane) */
+/* Do NOT paint whole Gradio radio pills / labels green */
 #controls .wrap button.selected,
 #controls button.selected,
 #controls [role="radio"][aria-checked="true"],
 #controls label:has(input[type="radio"]:checked),
-#controls .form-radio:has(input:checked),
-#controls fieldset label:has(input:checked) {
-  background: #00FF00 !important;
+#controls fieldset label:has(input:checked),
+#controls [data-testid="radio-group"] label:has(input:checked) {
+  background: rgba(15, 23, 42, 0.55) !important;
+  background-color: rgba(15, 23, 42, 0.55) !important;
+  border-color: rgba(100, 116, 139, 0.45) !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+/* Gradio custom radio circle (oval) when selected */
+#controls input[type="radio"]:checked {
   background-color: #00FF00 !important;
   border-color: #00FF00 !important;
-  color: #0a0a0a !important;
-  box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.5) !important;
+  box-shadow: inset 0 0 0 2px rgba(15, 23, 42, 0.9) !important;
 }
-#controls fieldset label:has(input:checked) span,
-#controls label:has(input[type="radio"]:checked) span {
-  color: #0a0a0a !important;
-}
-/* Gradio 5/6 Tab-style radio items */
-#controls .tab-nav button.selected,
-#controls .svelte-radio-group label.selected,
-#controls [data-testid="radio-group"] label:has(input:checked) {
-  background: #00FF00 !important;
+/* Gradio 5/6 may use a span circle next to label text */
+#controls label:has(input[type="radio"]:checked) > span:first-child,
+#controls label:has(input[type="radio"]:checked)::before,
+#controls [role="radio"][aria-checked="true"]::before,
+#controls .selected > span:first-child:not(:only-child) {
+  background-color: #00FF00 !important;
   border-color: #00FF00 !important;
-  color: #0a0a0a !important;
+  color: transparent !important;
+}
+/* Checkbox: only the box indicator, not surrounding label */
+#controls input[type="checkbox"]:checked {
+  accent-color: #00FF00 !important;
+  background-color: #00FF00 !important;
+  border-radius: 0.25em !important;
+}
+#controls label:has(input[type="checkbox"]:checked) {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #cbd5e1 !important;
+  box-shadow: none !important;
 }
 /* Seed status takes remaining column height */
 #status-md {
