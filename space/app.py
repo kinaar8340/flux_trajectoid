@@ -210,7 +210,15 @@ footer,
   background: transparent !important;
   border: none !important;
 }
-/* active main nav tab */
+/* Idle nav buttons — no border */
+#nav-bar button.nav-tab {
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  padding: 0.35rem 0.65rem 0.4rem 0.65rem !important;
+  margin-bottom: 0.2rem !important;
+  transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+/* active_tab: button_state=True → #00FF00 border + glowing effect */
 #nav-bar button.nav-active,
 #nav-bar button.nav-active span,
 #nav-bar button.primary,
@@ -218,35 +226,73 @@ footer,
 #nav-bar button.selected,
 #nav-bar button.selected span {
   color: var(--ft-tab-active) !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+  background: rgba(0, 255, 0, 0.06) !important;
+  border: 1px solid #00FF00 !important;
+  border-color: #00FF00 !important;
+  border-radius: 6px !important;
+  box-shadow:
+    0 0 6px 1px rgba(0, 255, 0, 0.55),
+    0 0 14px 2px rgba(0, 255, 0, 0.28),
+    inset 0 0 8px rgba(0, 255, 0, 0.08) !important;
 }
+/* Drop underline bar — active state is border+glow */
 #nav-bar button.nav-active::after,
 #nav-bar button.primary::after,
 #nav-bar button.selected::after {
-  content: "" !important;
-  position: absolute !important;
+  display: none !important;
+  content: none !important;
+}
+/* Full-page views (Figures / Docs) — not nested in CONTROLS */
+#page-figures,
+#page-docs {
+  display: none !important;
+  position: fixed !important;
+  top: var(--ft-nav-h) !important;
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  height: 2px !important;
-  background: var(--ft-tab-active) !important;
-  border-radius: 1px !important;
-  z-index: 1 !important;
+  z-index: 48 !important;
+  overflow: auto !important;
+  background: #070b14 !important;
+  padding: 1rem 1.35rem 1.5rem 1.35rem !important;
+  box-sizing: border-box !important;
+  color: #cbd5e1 !important;
 }
-#nav-meta {
-  margin-left: auto;
-  color: #64748b;
-  font-size: 0.72rem;
-  padding-bottom: 0.45rem;
+body.ft-view-figures #page-figures {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-#nav-meta a {
-  color: #64748b !important;
-  text-decoration: none !important;
+body.ft-view-docs #page-docs {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
-#nav-meta a:hover {
-  color: var(--ft-tab-hover) !important;
+/* Hide Home chrome when on Figures/Docs */
+body.ft-view-figures #controls,
+body.ft-view-docs #controls,
+body.ft-view-figures #plots-col,
+body.ft-view-docs #plots-col,
+body.ft-view-figures #img-shell,
+body.ft-view-figures #img-path,
+body.ft-view-figures #img-radial,
+body.ft-view-figures #img-metrics,
+body.ft-view-docs #img-shell,
+body.ft-view-docs #img-path,
+body.ft-view-docs #img-radial,
+body.ft-view-docs #img-metrics {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+body.ft-view-home #page-figures,
+body.ft-view-home #page-docs {
+  display: none !important;
+}
+#ft-view-marker-wrap {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
 }
 
 /* Controls + plots-col pinned; viewports placed as fixed 2×2 by CSS fallback + JS */
@@ -1082,12 +1128,12 @@ DOCS_MD = f"""
 
 ### How to use this Space
 
-1. **Demo** (nav) → CONTROLS · open **Matrix slice** · adjust plane / position  
+1. **Home** (nav) → CONTROLS · open **Matrix slice** · adjust plane / position  
 2. **Build · Propagate · Recover** — full pipeline, fills plots + seed status  
 3. **Play matrix scan** — synced GIFs; plane **xyz** runs **X → Y → Z**  
 4. **SLM export** — download phase package for hardware presets  
-5. **Figures** (nav) — Nature-style construction & path art  
-6. **Docs** (nav) — this guide  
+5. **Figures** (nav) — full-page Nature-style construction & path art  
+6. **Docs** (nav) — this guide (full page)  
 
 ### Links
 
@@ -1155,56 +1201,145 @@ def _figure_panel_html(rel_path: str, title: str, caption: str = "") -> str:
     )
 
 
-def _figures_view_panels() -> tuple[str, str, str, str]:
-    """Four educational figures for the Figures nav view."""
-    return (
-        _figure_panel_html(
+def _figures_page_html() -> str:
+    """Full-page Figures gallery (top nav · Figures)."""
+    cells = [
+        (
             "assets/shell_construction.png",
             "Shell construction",
             "Inclined path T · potential surface · shell / core / remnant (Nature-style SO(3))",
         ),
-        _figure_panel_html(
+        (
             "assets/trajectoid_paths.png",
             "Trajectoid rolling paths",
-            "Prescribed rolling paths — geometric language of trajectoids (theory / experiment style)",
+            "Prescribed rolling paths — geometric language of trajectoids (theory / experiment)",
         ),
-        _figure_panel_html(
+        (
             "assets/boot/img_radial.png",
             "Radial trench / shave",
-            "Contact trench heat on a cylindrical map — where the shell modulates the inner field",
+            "Contact trench heat — where the shell modulates the inner field",
         ),
-        _figure_panel_html(
+        (
             "assets/boot/img_metrics.png",
             "Turbulence scorecard",
-            "P · Strehl · OAMf · Icorr · F — packet integrity after the optical channel",
+            "P · Strehl · OAMf · Icorr · F — packet integrity after the channel",
         ),
-    )
-
-
-def _docs_view_panels() -> tuple[str, str, str, str]:
-    """Annotated stills for Docs nav (same assets, teaching captions)."""
+    ]
+    cards = []
+    for rel, title, cap in cells:
+        full = Path(__file__).resolve().parent / rel
+        if not full.is_file():
+            continue
+        url = _file_url(rel)
+        cards.append(
+            f'<figure style="margin:0;padding:0.75rem;background:rgba(15,23,42,0.96);'
+            f'border:1px solid rgba(148,163,184,0.25);border-radius:12px;'
+            f'display:flex;flex-direction:column;min-height:0;overflow:hidden;">'
+            f'<figcaption style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
+            f'letter-spacing:0.06em;margin:0 0 0.5rem 0;">{title}</figcaption>'
+            f'<div style="flex:1;display:flex;align-items:center;justify-content:center;'
+            f'background:#0a0f18;border-radius:8px;min-height:220px;overflow:hidden;">'
+            f'<img src="{url}" alt="{title}" style="max-width:100%;max-height:360px;'
+            f'width:auto;height:auto;object-fit:contain;display:block;"/></div>'
+            f'<p style="color:#64748b;font-size:0.78rem;line-height:1.4;margin:0.55rem 0 0 0;">'
+            f"{cap}</p></figure>"
+        )
+    grid = "".join(cards)
     return (
-        _figure_panel_html(
-            "assets/boot/img_shell.png",
-            "1 · 3D shell",
-            "Protective trajectoid body + green matrix slice (plane ∩ shell). Geometry = ID fingerprint.",
-        ),
-        _figure_panel_html(
-            "assets/boot/img_path.png",
-            "2 · Rolling path",
-            "Prescribed path the shell is built to follow (X/Y/Z scans in Demo).",
-        ),
-        _figure_panel_html(
-            "assets/boot/img_radial.png",
-            "3 · Radial map",
-            "Structural / intensity-like distributions on the shell (trench / shave).",
-        ),
-        _figure_panel_html(
-            "assets/boot/img_metrics.png",
-            "4 · Scorecard",
-            "OAMf often stays high while F drops with turbulence — structured light resilience.",
-        ),
+        f'<div class="ft-page-figures" style="max-width:1200px;margin:0 auto;">'
+        f'<h2 style="color:#e2e8f0;font-size:1.15rem;font-weight:600;margin:0 0 0.35rem 0;">'
+        f"Figures</h2>"
+        f'<p style="color:#94a3b8;font-size:0.85rem;line-height:1.45;margin:0 0 1rem 0;">'
+        f"Geometric language of Photon Seed Asteroids — construction, rolling paths, "
+        f"trenches, and the turbulence scorecard. Return to <b style=\"color:#00FF00\">Home</b> "
+        f"for the live Build · Play · SLM workflow.</p>"
+        f'<div style="display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:auto auto;'
+        f'gap:0.85rem;">{grid}</div>'
+        f'<p style="color:#64748b;font-size:0.78rem;margin:1.1rem 0 0 0;">'
+        f'<a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> · '
+        f'<a href="https://www.nature.com/articles/s41586-023-06306-y" style="color:#38bdf8;">'
+        f"Sobolev et al. Nature 2023</a></p></div>"
     )
+
+
+def _docs_page_html() -> str:
+    """Full-page Docs (top nav · Docs) — HTML for non-specialist accessibility."""
+    # Keep in sync with DOCS_MD; HTML so the full-page panel renders without Gradio MD chrome
+    return f"""
+<div class="ft-page-docs" style="max-width:820px;margin:0 auto;color:#cbd5e1;font-size:0.9rem;line-height:1.55;">
+  <h2 style="color:#e2e8f0;font-size:1.2rem;margin:0 0 0.75rem 0;">How it works</h2>
+  <p><b style="color:#e2e8f0;">Photon Seed Asteroid</b> = a layered photonic data carrier:</p>
+  <ol style="padding-left:1.2rem;margin:0.4rem 0 1rem 0;">
+    <li><b>Outer shell (trajectoid)</b> — 3D body built for a prescribed rolling path (geometry as fingerprint + protection).</li>
+    <li><b>Inner nut (VQC + OAM)</b> — payload in quaternion shards + scale on LG modes, coupled into an <code>oam_flux</code> Hopf lattice.</li>
+    <li><b>Channel</b> — simulated turbulence; metrics report how much structure survives.</li>
+    <li><b>Recovery</b> — hybrid digital CRC + photonic BER scorecard.</li>
+    <li><b>SLM export</b> — phase holograms for lab spatial light modulators.</li>
+  </ol>
+
+  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">Trajectoids (background)</h3>
+  <p><b>Trajectoids</b> are convex 3D shapes engineered to roll along <i>arbitrary prescribed paths</i>
+  (Sobolev et al., <i>Nature</i> 2023). This demo uses that geometric language — rolling paths,
+  contact trenches, shaved shells — as the outer layer of a photonic packet.</p>
+  <ul style="padding-left:1.2rem;">
+    <li><a href="https://en.wikipedia.org/wiki/Trajectoid" style="color:#38bdf8;">Wikipedia: Trajectoid</a></li>
+    <li><a href="https://www.nature.com/articles/s41586-023-06306-y" style="color:#38bdf8;">Sobolev et al. 2023 (Nature)</a></li>
+    <li><a href="{GITHUB}/blob/main/docs/architecture.md" style="color:#38bdf8;">Project architecture</a></li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">What each Home 2×2 panel means</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.25);">
+      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Panel</th>
+      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">What you see</th>
+      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Why it matters</th>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
+      <td style="padding:0.35rem 0.4rem;"><b>3D shell</b></td>
+      <td style="padding:0.35rem 0.4rem;">Asteroid mesh + green matrix slice</td>
+      <td style="padding:0.35rem 0.4rem;">Geometry ID + scan of the protective body</td>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
+      <td style="padding:0.35rem 0.4rem;"><b>Rolling path</b></td>
+      <td style="padding:0.35rem 0.4rem;">Nature-style path with X/Y/Z scan head</td>
+      <td style="padding:0.35rem 0.4rem;">Prescribed SO(3) rolling curve</td>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
+      <td style="padding:0.35rem 0.4rem;"><b>Radial trench</b></td>
+      <td style="padding:0.35rem 0.4rem;">Heat map of contact / shave structure</td>
+      <td style="padding:0.35rem 0.4rem;">Where the shell modulates the field</td>
+    </tr>
+    <tr>
+      <td style="padding:0.35rem 0.4rem;"><b>Scorecard</b></td>
+      <td style="padding:0.35rem 0.4rem;">P · Strehl · OAMf · Icorr · F</td>
+      <td style="padding:0.35rem 0.4rem;">Packet integrity after the channel</td>
+    </tr>
+  </table>
+
+  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">Scorecard keys</h3>
+  <p style="margin:0.3rem 0;"><b>P</b> power · <b>Strehl</b> peak coherence · <b>OAMf</b> OAM spectral fidelity ·
+  <b>Icorr</b> intensity correlation · <b>F</b> field overlap fidelity.</p>
+  <p style="color:#94a3b8;font-size:0.85rem;">As turbulence rises, <b>F</b> often drops faster than <b>OAMf</b> —
+  structured angular-momentum content is harder to scramble than raw hologram overlap.</p>
+
+  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">How to use this Space</h3>
+  <ol style="padding-left:1.2rem;">
+    <li><b style="color:#00FF00;">Home</b> — CONTROLS · Matrix slice · Build · Play · SLM export</li>
+    <li><b>Build · Propagate · Recover</b> — full pipeline fills the 2×2 plots</li>
+    <li><b>Play matrix scan</b> — plane <b>xyz</b> runs <b>X → Y → Z</b></li>
+    <li><b>SLM export</b> — download phase package for hardware presets</li>
+    <li><b style="color:#00FF00;">Figures</b> — Nature-style construction &amp; path art</li>
+    <li><b style="color:#00FF00;">Docs</b> — this guide</li>
+  </ol>
+
+  <p style="margin-top:1.25rem;font-size:0.85rem;">
+    <a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> ·
+    <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a> ·
+    <a href="https://x.com/kinaar111/status/2075134240703029650" style="color:#38bdf8;">Demo video</a> ·
+    <a href="{GITHUB}#readme" style="color:#38bdf8;">README</a>
+  </p>
+</div>
+"""
 
 
 def _display_image(value, *, height=360, elem_classes=None, **extra):
@@ -1787,37 +1922,34 @@ def build_app() -> gr.Blocks:
     boot = _startup_plots()
 
     with gr.Blocks(**blocks_kwargs) as demo:
-        # ---- Top navigation ----
+        # ---- Top navigation: Home | Figures | Docs (no GitHub/Space links) ----
         with gr.Row(elem_id="nav-bar"):
             gr.HTML(
                 '<span class="nav-title">✦ flux_trajectoid</span>'
             )
-            btn_demo = gr.Button(
-                "Demo", size="sm", elem_classes=["nav-tab", "nav-active"]
+            btn_home = gr.Button(
+                "Home", size="sm", elem_classes=["nav-tab", "nav-active"]
             )
             btn_figures = gr.Button("Figures", size="sm", elem_classes=["nav-tab"])
             btn_docs = gr.Button("Docs", size="sm", elem_classes=["nav-tab"])
-            gr.HTML(
-                f'<span id="nav-meta">'
-                f'<a href="{GITHUB}" style="color:#64748b;text-decoration:none;">GitHub</a>'
-                f' · <a href="{HF_SPACE}" style="color:#64748b;text-decoration:none;">HF Space</a>'
-                f"</span>"
-            )
 
-        view_state = gr.State("demo")
+        view_state = gr.State("home")
         shell_state = gr.State(boot.get("shell"))
+        # Hidden marker drives body.ft-view-* classes (full-page Figures/Docs)
+        view_marker = gr.HTML(
+            '<div id="ft-view-marker" data-view="home"></div>',
+            elem_id="ft-view-marker-wrap",
+        )
 
-        # ---- Workspace: controls | (2×2 plots) ----
+        # ---- Workspace: controls only on Home (2×2 plots are fixed panels) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Left — CONTROLS | FIGURES | DOCS
+            # Left — CONTROLS only (Figures/Docs are full pages via top nav)
             with gr.Column(
                 scale=3,
                 min_width=280,
-                                elem_id="controls",
+                elem_id="controls",
             ):
-                with gr.Tabs(elem_id="col1-tabs", selected="controls") as col1_tabs:
-                    with gr.Tab("CONTROLS", id="controls"):
-                        with gr.Column(elem_id="controls-top"):
+                with gr.Column(elem_id="controls-top"):
                             # Startup: Matrix slice open · others collapsed
                             with gr.Accordion(
                                 "Payload & identity",
@@ -1944,19 +2076,13 @@ def build_app() -> gr.Blocks:
                                 elem_id="run-btn",
                                 size="sm",
                             )
-                        status = gr.Markdown(
-                            boot.get(
-                                "status_md",
-                                "### Seed status\n_Run **Build** to fill this panel._",
-                            ),
-                            elem_id="status-md",
-                                                    )
-                    with gr.Tab("FIGURES", id="figures"):
-                        with gr.Column(elem_id="panel-figures"):
-                            gr.Markdown(FIGURES_MD)
-                    with gr.Tab("DOCS", id="docs"):
-                        with gr.Column(elem_id="panel-docs"):
-                            gr.Markdown(DOCS_MD)
+                status = gr.Markdown(
+                    boot.get(
+                        "status_md",
+                        "### Seed status\n_Run **Build** to fill this panel._",
+                    ),
+                    elem_id="status-md",
+                )
 
             # Right placeholder (layout occupied by fixed #img-* panels via CSS/JS)
             with gr.Column(
@@ -1969,6 +2095,16 @@ def build_app() -> gr.Blocks:
                     "plots</div>",
                     elem_id="plots-placeholder-wrap",
                 )
+
+        # Full-page Figures & Docs (top nav only — not in left CONTROLS column)
+        page_figures = gr.HTML(
+            value=_figures_page_html(),
+            elem_id="page-figures",
+        )
+        page_docs = gr.HTML(
+            value=_docs_page_html(),
+            elem_id="page-docs",
+        )
 
         # Four plot panels — NOT nested in Gradio flex rows (that collapsed paint).
         # CSS/JS places them as position:fixed 2×2 over the plots area.
@@ -2155,34 +2291,19 @@ def build_app() -> gr.Blocks:
                 _to_html(_seed[3], "metrics"),
             )
 
+        def _view_marker_html(view: str) -> str:
+            return f'<div id="ft-view-marker" data-view="{view}"></div>'
+
         def show_figures():
-            """Nav · Figures — Nature-style art in the 2×2 + FIGURES side panel."""
-            s, p, r, m = _figures_view_panels()
-            return (
-                s,
-                p,
-                r,
-                m,
-                FIGURES_MD,
-                gr.update(selected="figures"),
-                "figures",
-            )
+            """Nav · Figures — full-page gallery (hide Home controls + 2×2)."""
+            return _view_marker_html("figures"), "figures"
 
         def show_docs():
-            """Nav · Docs — how-it-works + annotated stills (accessibility)."""
-            s, p, r, m = _docs_view_panels()
-            return (
-                s,
-                p,
-                r,
-                m,
-                DOCS_MD,
-                gr.update(selected="docs"),
-                "docs",
-            )
+            """Nav · Docs — full-page how-it-works."""
+            return _view_marker_html("docs"), "docs"
 
-        def show_demo():
-            """Nav · Demo — restore live pipeline panels + CONTROLS."""
+        def show_home():
+            """Nav · Home — live pipeline panels + CONTROLS."""
             s, p, r, m = _seed_plots()
             st = boot.get(
                 "status_md",
@@ -2194,15 +2315,33 @@ def build_app() -> gr.Blocks:
                 r,
                 m,
                 st,
-                gr.update(selected="controls"),
-                "demo",
+                _view_marker_html("home"),
+                "home",
             )
 
-        nav_outs = [img_shell, img_path, img_radial, img_metrics, status, col1_tabs, view_state]
-
-        btn_figures.click(fn=show_figures, inputs=None, outputs=nav_outs)
-        btn_docs.click(fn=show_docs, inputs=None, outputs=nav_outs)
-        btn_demo.click(fn=show_demo, inputs=None, outputs=nav_outs)
+        btn_figures.click(
+            fn=show_figures,
+            inputs=None,
+            outputs=[view_marker, view_state],
+        )
+        btn_docs.click(
+            fn=show_docs,
+            inputs=None,
+            outputs=[view_marker, view_state],
+        )
+        btn_home.click(
+            fn=show_home,
+            inputs=None,
+            outputs=[
+                img_shell,
+                img_path,
+                img_radial,
+                img_metrics,
+                status,
+                view_marker,
+                view_state,
+            ],
+        )
 
         try:
             demo.load(
@@ -2323,6 +2462,31 @@ SLIDER_FILL_JS = """
     });
   }
 
+  function setAppView(view) {
+    const v = (view || 'home').toLowerCase();
+    document.body.classList.remove('ft-view-home', 'ft-view-figures', 'ft-view-docs');
+    document.body.classList.add('ft-view-' + (['home', 'figures', 'docs'].includes(v) ? v : 'home'));
+    // Active tab: green border + glow (CSS .nav-active)
+    const bar = document.querySelector('#nav-bar');
+    if (!bar) return;
+    const map = { home: 0, figures: 1, docs: 2 };
+    const idx = map[v] != null ? map[v] : 0;
+    const buttons = Array.from(bar.querySelectorAll('button.nav-tab, button'));
+    // Skip non-nav if any; prefer .nav-tab
+    const tabs = bar.querySelectorAll('button.nav-tab');
+    const list = tabs.length ? tabs : buttons;
+    list.forEach((btn, i) => {
+      btn.classList.remove('nav-active', 'primary', 'selected');
+      if (i === idx) btn.classList.add('nav-active', 'selected');
+    });
+  }
+
+  function syncViewFromMarker() {
+    const m = document.querySelector('#ft-view-marker');
+    const v = (m && m.getAttribute('data-view')) || 'home';
+    setAppView(v);
+  }
+
   function bindNavTabs() {
     const bar = document.querySelector('#nav-bar');
     if (!bar) return;
@@ -2330,12 +2494,14 @@ SLIDER_FILL_JS = """
       if (btn.dataset.ftNavBound === '1') return;
       btn.dataset.ftNavBound = '1';
       btn.addEventListener('click', () => {
+        // Class set immediately for glow; Gradio handler updates marker/view
         bar.querySelectorAll('button').forEach((b) => {
           b.classList.remove('nav-active', 'primary', 'selected');
         });
-        btn.classList.add('nav-active');
+        btn.classList.add('nav-active', 'selected');
       });
     });
+    syncViewFromMarker();
   }
 
   function setImp(el, props) {
@@ -2353,6 +2519,7 @@ SLIDER_FILL_JS = """
   function layoutOnce() {
     // Keep Gradio Image nodes in-tree (reparenting wiped image values).
     // Pin #controls + #plots-col; CSS grid places the 2×2 cells.
+    syncViewFromMarker();
     const nav = document.querySelector('#nav-bar');
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
@@ -2516,25 +2683,42 @@ SLIDER_FILL_JS = """
     bindSliders();
   }, { passive: true });
   window.addEventListener('load', layoutOnce, { passive: true });
-  // Only watch for new range inputs (childList), never attributes (avoids loops)
+  // childList only (no attribute observer loops). Sync view marker + sliders.
   try {
     const mo = new MutationObserver((muts) => {
+      let needSliders = false;
+      let needView = false;
       for (const m of muts) {
         if (m.addedNodes && m.addedNodes.length) {
-          bindSliders();
-          // Re-layout once if plot cells just appeared
+          needSliders = true;
           for (const n of m.addedNodes) {
-            if (n.nodeType === 1 && (
-              (n.id && (n.id === 'plots-col' || n.id.startsWith('vp-'))) ||
-              (n.querySelector && n.querySelector('#plots-col, #vp-shell'))
-            )) {
+            if (n.nodeType !== 1) continue;
+            if (
+              n.id === 'ft-view-marker' ||
+              (n.querySelector && n.querySelector('#ft-view-marker'))
+            ) {
+              needView = true;
+            }
+            if (
+              (n.id && (n.id === 'plots-col' || String(n.id).startsWith('vp-') || String(n.id).startsWith('img-'))) ||
+              (n.querySelector && n.querySelector('#plots-col, #img-shell'))
+            ) {
               layoutOnce();
-              break;
             }
           }
-          break;
+        }
+        // Gradio may rewrite marker HTML in place
+        if (m.type === 'childList' || m.type === 'characterData') {
+          if (
+            (m.target && (m.target.id === 'ft-view-marker' || m.target.id === 'ft-view-marker-wrap')) ||
+            (m.target && m.target.querySelector && m.target.querySelector('#ft-view-marker'))
+          ) {
+            needView = true;
+          }
         }
       }
+      if (needSliders) bindSliders();
+      if (needView) syncViewFromMarker();
     });
     mo.observe(document.body || document.documentElement, {
       childList: true,
