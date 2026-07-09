@@ -25,6 +25,7 @@ from demo_core import (
     animate_matrix_scan,
     asset_path,
     blank_rgb,
+    export_slm_zip,
     replot_scan_suite,
     replot_shell_only,
     run_pipeline,
@@ -1022,15 +1023,19 @@ footer,
 ABOUT_HTML = f"""
 <div class="ft-about" style="color:#cbd5e1;font-size:0.78rem;line-height:1.45;height:100%;overflow:auto;">
   <b style="color:#e2e8f0;">Photon Seed Asteroids</b> — trajectoid shells + VQC quaternion/OAM
-  + live <code>oam_flux</code> Hopf lattice.<br/><br/>
-  <b>Shell</b>: 3D shaved sphere from rolling SO(3) + contact trench (Nature-style trajectoids).<br/>
-  <b>Nut</b>: hybrid q×scale packing → LG imprint → flywheel flux deposition.<br/>
-  <b>Channel</b>: Kolmogorov turbulence scorecard (F, OAM fidelity, Strehl…).<br/>
-  <b>Recover</b>: digital / photonic / hybrid with CRC-8.<br/><br/>
-  Geometry lineage: trajectoid bodies + theory/experiment rolling paths
-  (Sobolev et al.).<br/><br/>
+  + live <code>oam_flux</code> Hopf lattice for robust photonic data carriers.<br/><br/>
+  <b>1 · Shell</b> — 3D shaved sphere from rolling SO(3) + contact trench
+  (trajectoids / Sobolev et al. 2023).<br/>
+  <b>2 · Nut</b> — hybrid q×scale packing → LG OAM imprint → flywheel flux deposition.<br/>
+  <b>3 · Channel</b> — Kolmogorov turbulence; scorecard
+  <b>P</b> power · <b>Strehl</b> · <b>OAMf</b> OAM fidelity · <b>Icorr</b> · <b>F</b> field overlap.<br/>
+  <b>4 · Recover</b> — hybrid (digital CRC + photonic BER) · unit-quaternion scale fix.<br/>
+  <b>5 · SLM</b> — phase-only hologram package for hardware presets.<br/><br/>
+  <b>UI</b> — <b>Build</b> full pipeline · <b>Play</b> X→Y→Z matrix scan ·
+  <b>SLM export</b> download zip · <b>REFERENCES</b> panel legend.<br/><br/>
   <a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> ·
-  <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a>
+  <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a> ·
+  <a href="https://x.com/kinaar111/status/2075134240703029650" style="color:#38bdf8;">Demo video</a>
 </div>
 """
 
@@ -1704,6 +1709,31 @@ def build_app() -> gr.Blocks:
                                     elem_classes=["oval-toggle"],
                                 )
                             with gr.Accordion(
+                                "SLM export",
+                                open=False,
+                            ):
+                                slm_preset = gr.Dropdown(
+                                    choices=[
+                                        "generic_256",
+                                        "generic_512",
+                                        "holoeye_pluto_2",
+                                        "meadowlark_512",
+                                        "thorlabs_1080p",
+                                    ],
+                                    value="generic_256",
+                                    label="Device preset",
+                                )
+                                slm_btn = gr.Button(
+                                    "Export SLM package",
+                                    size="sm",
+                                    elem_id="slm-btn",
+                                )
+                                slm_file = gr.File(
+                                    label="Download zip",
+                                    interactive=False,
+                                    elem_id="slm-file",
+                                )
+                            with gr.Accordion(
                                 "Matrix slice",
                                 open=True,
                                                             ):
@@ -1765,14 +1795,23 @@ def build_app() -> gr.Blocks:
                                 """
 <p class="viewport-title">References</p>
 
-**Trajectoid language** — polyhedra + rolling paths (theory black / experiment blue),
-used as the geometric visual language of Photon Seed Asteroids.
+**What you are looking at (2×2)**  
+| Panel | Meaning |
+|---|---|
+| **3D shell** | Trajectoid body + green matrix slice (plane ∩ shell) |
+| **Rolling path** | Prescribed SO(3) rolling curve (X/Y/Z scans) |
+| **Radial trench** | Contact / shave heat on a cylindrical map |
+| **Scorecard** | Channel metrics after propagation |
 
-**Construction** — inclined path *T*, potential surface, shell / core / remnant
-with shaved region (Nature-style SO(3) rolling).
+**Scorecard keys** · **P** power · **Strehl** peak coherence · **OAMf** OAM spectrum fidelity · **Icorr** intensity correlation · **F** field overlap  
+
+**Science stack** · Trajectoids (Sobolev et al., Nature 2023) · VQC quaternion/OAM packing · live `oam_flux` Hopf lattice · hybrid digital+photonic recovery · SLM phase export  
+
+**How to use** · **Build** = shell→encode→propagate→recover · **Play** = synced X/Y/Z matrix scan · **SLM export** = download hologram zip  
 
 Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
-[HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid)
+[HF Space](https://huggingface.co/spaces/kinaar111/flux_trajectoid) ·
+[Demo video](https://x.com/kinaar111/status/2075134240703029650)
 """,
                                                             )
 
@@ -1851,6 +1890,23 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
             fn=run_ui,
             inputs=ctrl_inputs,
             outputs=outs + [shell_state],
+        )
+
+        def slm_export_ui(payload, seed, use_tpt, build_3d, force_stub, preset):
+            path, md = export_slm_zip(
+                payload=payload,
+                seed=int(seed) if seed is not None else 42,
+                use_tpt=_as_on(use_tpt),
+                build_3d=_as_on(build_3d),
+                force_stub=_as_on(force_stub),
+                preset=str(preset or "generic_256"),
+            )
+            return path, md
+
+        slm_btn.click(
+            fn=slm_export_ui,
+            inputs=[payload, seed, use_tpt, build_3d, force_stub, slm_preset],
+            outputs=[slm_file, status],
         )
 
         # Live matrix slice: replot shell + radial + path stills (synced)

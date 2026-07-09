@@ -824,7 +824,89 @@ def _format_status_md(s: dict, payload: str, turb: float, steps: int) -> str:
 | **Photonic BER** | {s['photonic_ber']} · chordal={s['chordal']} |
 
 `{s['metrics_line']}`
+
+**Scorecard legend** · **P** power retention · **Strehl** peak coherence proxy · **OAMf** OAM spectral fidelity · **Icorr** intensity correlation · **F** field overlap fidelity
 """
+
+
+def export_slm_zip(
+    payload: str,
+    seed: int,
+    use_tpt: bool,
+    build_3d: bool,
+    force_stub: bool,
+    preset: str = "generic_256",
+) -> tuple[str | None, str]:
+    """Build a fast seed and export a zip of the SLM hologram package.
+
+    Returns (zip_path or None, status markdown).
+    """
+    import tempfile
+    import zipfile
+
+    from flux_trajectoid import PhotonSeedAsteroid
+    from flux_trajectoid.export.slm import SLM_PRESETS
+
+    payload = (payload or "Photon Seed Asteroid").strip()[:80]
+    seed = int(seed)
+    preset = str(preset or "generic_256")
+    if preset not in SLM_PRESETS:
+        preset = "generic_256"
+
+    try:
+        ast = PhotonSeedAsteroid(payload, seed=seed).build(
+            use_tpt=bool(use_tpt),
+            build_3d=bool(build_3d),
+            force_stub_flux=bool(force_stub),
+            lattice_nx=10,
+            n_coupling_steps=4,
+            n_shards=4,
+            n_points=96,
+            scale_grid=3,
+            scale_max_iter=4,
+            n_lat=28 if build_3d else 16,
+            n_lon=56 if build_3d else 32,
+        )
+        # Propagate once so protected field exists for phase export
+        ast.propagate(
+            turbulence_level=0.15,
+            n_steps=8,
+            seed=seed,
+            apply_bmgl=True,
+        )
+        tmp = Path(tempfile.mkdtemp(prefix="ft_slm_"))
+        out_dir = tmp / "slm_package"
+        result = ast.export_slm(
+            out_dir,
+            preset=preset,
+            source="protected",
+            stack_shards=True,
+            include_shell_bias=True,
+            use_gs=False,
+        )
+        zip_path = tmp / f"slm_package_{preset}.zip"
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for name in result.files:
+                fp = Path(result.out_dir) / name
+                if fp.is_file():
+                    zf.write(fp, arcname=name)
+            # always include manifest if present
+            man = Path(result.out_dir) / "manifest.json"
+            if man.is_file() and "manifest.json" not in result.files:
+                zf.write(man, arcname="manifest.json")
+        shape = list(result.phase_rad.shape) if result.phase_rad is not None else []
+        md = (
+            f"### SLM export\n"
+            f"| | |\n|---|---|\n"
+            f"| **Preset** | `{preset}` |\n"
+            f"| **Phase shape** | `{shape}` |\n"
+            f"| **Files** | {len(result.files)} |\n"
+            f"| **Device** | `{result.manifest.get('device', preset)}` |\n\n"
+            f"_Download the zip — phase levels + manifest for hardware._"
+        )
+        return str(zip_path.resolve()), md
+    except Exception as exc:
+        return None, f"### SLM export failed\n```\n{exc!r}\n```"
 
 
 def blank_rgb(h: int = 240, w: int = 320) -> np.ndarray:

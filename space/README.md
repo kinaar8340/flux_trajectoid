@@ -20,10 +20,15 @@ Single-page visual demo of **trajectoid shells + VQC/OAM + oam_flux lattice**.
 
 ## Features
 
-- 25/50/25 layout · CONTROLS | REFERENCES · 2×2 viewports  
+- Full-viewport layout · CONTROLS | REFERENCES · **2×2 viewports**
+  (shell · rolling path · radial trench · turbulence scorecard)
 - Matrix slice planes **x / y / z / xyz** with synced shell · radial · path  
 - Green scan frame + intersection arc · plane-specific trench heatmaps  
 - Play matrix scan GIFs (XYZ sequences X→Y→Z)  
+- **SLM export** — download phase hologram zip (device presets)  
+- Scorecard legend: **P / Strehl / OAMf / Icorr / F**  
+
+**Demo video:** https://x.com/kinaar111/status/2075134240703029650
 
 ## Local run
 
