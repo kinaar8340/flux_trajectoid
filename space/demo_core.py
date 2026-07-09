@@ -397,7 +397,11 @@ def plot_radial_map(
                 j = f * max(n_lon - 1, 1)
                 ax.axvline(j, color="#00FF00", lw=2.0, alpha=0.95, zorder=5)
                 ax.axvspan(j - 0.85, j + 0.85, color="#00FF00", alpha=0.12, zorder=4)
-        ax.set_title("Radial map · trench / shave", color="#e2e8f0", fontsize=10)
+        ax.set_title(
+            f"Radial map · {plane.upper()} trench / shave",
+            color="#e2e8f0",
+            fontsize=10,
+        )
     else:
         cax.set_visible(False)
         curv = shell.curvature_signal
@@ -413,7 +417,11 @@ def plot_radial_map(
                 ax.axvline(i, color="#00FF00", lw=2.0, alpha=0.95)
                 ii = int(round(i))
                 ax.scatter([ii], [curv[ii]], c="#00FF00", s=36, zorder=5)
-            ax.set_title("Curvature signal", color="#e2e8f0", fontsize=10)
+            ax.set_title(
+                f"Curvature · {plane.upper()} scan",
+                color="#e2e8f0",
+                fontsize=10,
+            )
         else:
             ax.text(0.5, 0.5, "no radial map", ha="center", color="#64748b")
             ax.set_axis_off()
@@ -446,23 +454,51 @@ def plot_path_panel(
     style: str = "theory",
     *,
     progress: float | None = None,
+    slice_plane: str = "z",
 ) -> np.ndarray:
     """Path viewport inspired by Nature trajectoid path columns.
 
-    If ``progress`` ∈ [0, 1] is set, draw a scan-head trail synced to matrix scan.
+    Plane-specific projection (X / Y / Z) so XYZ sequences show distinct
+    X_path → Y_path → Z_path columns. ``progress`` ∈ [0, 1] draws scan head.
     """
     fig = plt.figure(figsize=(3.2, 5.5), facecolor="#0b1220", dpi=100)
     ax = fig.add_axes([0.08, 0.04, 0.84, 0.90])
     ax.set_facecolor("#0b1220")
-    path = shell.vertices[:, :2]
-    # Normalize and stretch vertically like the figure columns
-    p = path - path.mean(axis=0)
+
+    pl = str(slice_plane or "z").lower().strip()
+    if pl not in ("x", "y", "z"):
+        pl = "z"
+    verts = np.asarray(shell.vertices, dtype=float)
+    # Project contact path into a plane-labeled 2D column
+    if verts.ndim == 2 and verts.shape[1] >= 3:
+        if pl == "x":
+            # YZ face: lateral = y, depth cue = z
+            lat, dep = verts[:, 1], verts[:, 2]
+            axis_tag = "X"
+        elif pl == "y":
+            lat, dep = verts[:, 0], verts[:, 2]
+            axis_tag = "Y"
+        else:
+            lat, dep = verts[:, 0], verts[:, 1]
+            axis_tag = "Z"
+    else:
+        lat = verts[:, 0]
+        dep = verts[:, 1] if verts.shape[1] > 1 else np.zeros(len(verts))
+        axis_tag = pl.upper()
+
+    pair = np.column_stack([lat, dep])
+    p = pair - pair.mean(axis=0)
     p = p / (np.max(np.abs(p)) + 1e-12)
-    # Unroll as vertical wand: x small, y = arc progress + lateral
+    # Unroll as vertical wand: lateral × arc progress
     s = np.linspace(0, 1, len(p))
-    x = p[:, 0] * 0.35
-    y = s * 4.0 + p[:, 1] * 0.25
-    color = "#38bdf8" if style == "theory" else "#f472b6"
+    # Slight plane-dependent lateral scale so X/Y/Z read as different columns
+    lat_scale = {"x": 0.42, "y": 0.32, "z": 0.35}[pl]
+    dep_scale = {"x": 0.20, "y": 0.28, "z": 0.25}[pl]
+    x = p[:, 0] * lat_scale
+    y = s * 4.0 + p[:, 1] * dep_scale
+    color = {"x": "#4ade80", "y": "#38bdf8", "z": "#a78bfa"}[pl]
+    if style != "theory":
+        color = "#f472b6"
 
     # Ghost full path (always full length — stable composition)
     ax.plot(x, y, color="#64748b", lw=1.2, alpha=0.35, zorder=1)
@@ -494,7 +530,7 @@ def plot_path_panel(
         )
         ax.axhline(hy, color="#00FF00", lw=0.8, alpha=0.35, zorder=1)
 
-    ax.set_title("Rolling path · matrix scan", color="#e2e8f0", fontsize=10)
+    ax.set_title(f"Rolling path · {axis_tag} scan", color="#e2e8f0", fontsize=10)
     ax.set_xlim(-0.7, 0.7)
     ax.set_ylim(-0.15, 4.2)
     ax.set_aspect("equal")
@@ -744,7 +780,11 @@ def replot_scan_suite(
         img_radial = blank_r
 
     try:
-        img_path = plot_path_panel(shell, progress=ff if show else None)
+        img_path = plot_path_panel(
+            shell,
+            progress=ff if show else None,
+            slice_plane=plane,
+        )
     except Exception:
         img_path = blank_p
 
@@ -796,7 +836,9 @@ def animate_matrix_scan(
     Returns (gif_shell, gif_radial, gif_path, status_md).
     Default one-way 14-frame scan (no ping-pong bounce).
 
-    plane=\"xyz\" concatenates X then Y then Z scans into one synced suite.
+    plane=\"xyz\" runs two tours (synced GIFs):
+      1) PATH tour:  X_path → Y_path → Z_path  (with matching shell)
+      2) RADIAL tour: X_radial → Y_radial → Z_radial  (with matching shell)
     """
     if shell is None:
         empty = "### Scan\n_No shell yet — run **Build** first._"
@@ -805,11 +847,14 @@ def animate_matrix_scan(
     plane = str(slice_plane or "z").lower().strip()
     if plane == "xyz":
         planes = ["x", "y", "z"]
+        xyz_mode = True
     elif plane in ("x", "y", "z"):
         planes = [plane]
+        xyz_mode = False
     else:
         planes = ["z"]
         plane = "z"
+        xyz_mode = False
 
     # Balanced demo defaults: 8–24, preferred 14 (per axis)
     n_frames = int(np.clip(n_frames, 8, 24))
@@ -824,28 +869,71 @@ def animate_matrix_scan(
     shells: list[np.ndarray] = []
     radials: list[np.ndarray] = []
     paths: list[np.ndarray] = []
-    hold = 2  # brief hold between axes in XYZ sequence
-    for pl in planes:
+    hold = 2  # brief hold between axes
+
+    def _append_frame(pl: str, ff: float, *, path_on: bool, radial_on: bool) -> None:
+        """One synced triple. Featured panel is fully animated; other holds mid."""
+        shells.append(
+            plot_shell_3d(
+                shell,
+                slice_frac=ff,
+                slice_plane=pl,
+                show_slice=True,
+            )
+        )
+        if radial_on:
+            radials.append(
+                plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
+            )
+        else:
+            # Dim/static radial while PATH tour runs (still plane-labeled)
+            radials.append(
+                plot_radial_map(shell, slice_frac=0.5, slice_plane=pl)
+            )
+        if path_on:
+            paths.append(
+                plot_path_panel(shell, progress=ff, slice_plane=pl)
+            )
+        else:
+            # Full path still for this plane while RADIAL tour runs
+            paths.append(
+                plot_path_panel(shell, progress=1.0, slice_plane=pl)
+            )
+
+    def _hold_last(n: int = hold) -> None:
+        if not shells:
+            return
+        for _ in range(n):
+            shells.append(shells[-1].copy())
+            radials.append(radials[-1].copy())
+            paths.append(paths[-1].copy())
+
+    if xyz_mode:
+        # --- Phase 1: Rolling path tour X → Y → Z ---
+        for pl in planes:
+            for f in fracs:
+                _append_frame(pl, float(f), path_on=True, radial_on=False)
+            _hold_last()
+        # --- Phase 2: Radial trench tour X → Y → Z ---
+        for pl in planes:
+            for f in fracs:
+                _append_frame(pl, float(f), path_on=False, radial_on=True)
+            _hold_last()
+    else:
+        pl = planes[0]
         for f in fracs:
             ff = float(f)
             shells.append(
                 plot_shell_3d(
-                    shell,
-                    slice_frac=ff,
-                    slice_plane=pl,
-                    show_slice=True,
+                    shell, slice_frac=ff, slice_plane=pl, show_slice=True
                 )
             )
             radials.append(
                 plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
             )
-            paths.append(plot_path_panel(shell, progress=ff))
-        # Hold last frame of this axis before switching (XYZ only)
-        if len(planes) > 1 and shells:
-            for _ in range(hold):
-                shells.append(shells[-1].copy())
-                radials.append(radials[-1].copy())
-                paths.append(paths[-1].copy())
+            paths.append(
+                plot_path_panel(shell, progress=ff, slice_plane=pl)
+            )
 
     try:
         from PIL import Image  # noqa: F401
@@ -861,7 +949,7 @@ def animate_matrix_scan(
     out_dir.mkdir(parents=True, exist_ok=True)
     # Unique names avoid browser/Gradio caching old glitchy GIFs
     stamp = int(np.random.randint(0, 1_000_000))
-    tag = "xyz" if len(planes) > 1 else planes[0]
+    tag = "xyz" if xyz_mode else planes[0]
     p_shell = out_dir / f"matrix_scan_{tag}_shell_{stamp}.gif"
     p_radial = out_dir / f"matrix_scan_{tag}_radial_{stamp}.gif"
     p_path = out_dir / f"matrix_scan_{tag}_path_{stamp}.gif"
@@ -871,12 +959,13 @@ def animate_matrix_scan(
     _write_gif(paths, p_path, duration_ms)
 
     mode = "ping-pong" if ping_pong else "one-way (smooth loop)"
-    if len(planes) > 1:
-        seq = " → ".join(p.upper() for p in planes)
+    if xyz_mode:
         msg = (
-            f"### Matrix scan (synced · XYZ sequence)\n"
-            f"Planes **{seq}** · {n_frames} frames/axis · "
-            f"{len(shells)} total · {duration_ms} ms/frame · {mode}\n\n"
+            f"### Matrix scan (synced · XYZ dual tour)\n"
+            f"**Phase 1 — Rolling path:** X → Y → Z  \n"
+            f"**Phase 2 — Radial trench:** X → Y → Z  \n"
+            f"{n_frames} frames/axis · {len(shells)} total · "
+            f"{duration_ms} ms/frame · {mode}\n\n"
             f"| Viewport | File |\n|---|---|\n"
             f"| 3D shell | `{p_shell.name}` |\n"
             f"| Radial map | `{p_radial.name}` |\n"
@@ -885,7 +974,7 @@ def animate_matrix_scan(
     else:
         msg = (
             f"### Matrix scan (synced)\n"
-            f"Plane **{planes[0]}** · {len(fracs)} frames · "
+            f"Plane **{planes[0].upper()}** · {len(fracs)} frames · "
             f"{duration_ms} ms/frame · {mode}\n\n"
             f"| Viewport | File |\n|---|---|\n"
             f"| 3D shell | `{p_shell.name}` |\n"
