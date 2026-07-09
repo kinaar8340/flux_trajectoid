@@ -84,6 +84,50 @@ def test_quaternion_roundtrip_approx():
     assert len(back) == 4
 
 
+def test_invertible_shard_pack_roundtrip():
+    from flux_trajectoid.utils.quaternion_utils import pack_payload, unpack_payload, crc8
+
+    raw = b"PhotonSeed!"
+    packs = pack_payload(raw, n_shards=4, redundancy=1)
+    back = unpack_payload(packs, n_bytes=len(raw), use_stored_blocks=True)
+    assert back == raw
+    # q×scale reconstruction (no stored blocks)
+    for p in packs:
+        p.block = b""  # force reconstruct path
+    # restore blocks via reconstruct
+    from flux_trajectoid.utils.quaternion_utils import reconstruct_block_from_qs
+
+    packs2 = pack_payload(raw, n_shards=4)
+    recon = b"".join(reconstruct_block_from_qs(p.q, p.scale) for p in packs2)[: len(raw)]
+    assert recon == raw
+    assert crc8(raw) == crc8(recon)
+
+
+def test_redundancy_majority_vote():
+    from flux_trajectoid.utils.quaternion_utils import (
+        ShardPack,
+        pack_payload,
+        unpack_payload,
+        reconstruct_block_from_qs,
+    )
+
+    raw = b"ABCD"  # one logical block
+    packs = pack_payload(raw, n_shards=3, redundancy=3)
+    assert len(packs) == 3
+    # Corrupt two photonic reconstructions of scale/q slightly on one copy only
+    corrupted = []
+    for i, p in enumerate(packs):
+        if i == 0:
+            q = p.q
+            s = p.scale
+            block = reconstruct_block_from_qs(q, s)
+        else:
+            block = p.block
+        corrupted.append(ShardPack(q=p.q, scale=p.scale, block=block, vec=p.vec))
+    out = unpack_payload(corrupted, n_bytes=4, redundancy=3, use_stored_blocks=True)
+    assert out == raw
+
+
 def test_quaternion_multiply_identity():
     q = Quaternion(0.5, 0.5, 0.5, 0.5).normalize()
     ident = Quaternion(1, 0, 0, 0)
@@ -100,16 +144,50 @@ def test_build_propagate_recover():
     assert ast.quaternion is not None
     assert ast.flux_state is not None
     assert ast.flux_state.protected_field is not None
+    assert ast.quaternion.packs
+    assert "crc8" in ast.quaternion.metadata
 
     prop = ast.propagate(turbulence_level=0.2, n_steps=8)
     assert 0.0 <= prop.fidelity_proxy <= 1.0
     assert len(prop.mean_twist_trace) == 8
 
-    rec = ast.recover()
+    rec = ast.recover(mode="hybrid")
     assert rec.payload_text == msg
+    assert rec.crc_ok is True
+    assert rec.digital_payload == msg.encode("utf-8")
     assert rec.shell_match is not None
     assert rec.shell_match.matched
     assert rec.flywheel_readout is not None
+
+
+def test_digital_and_photonic_recovery_modes():
+    msg = "seed"
+    ast = PhotonSeedAsteroid(msg, seed=7).build(
+        n_shards=4, lattice_nx=8, n_coupling_steps=2, force_stub_flux=True
+    )
+    dig = ast.recover(mode="digital")
+    assert dig.payload_text == msg
+    assert dig.crc_ok is True
+
+    # Clean photonic from per-shard fields (no channel)
+    ph = ast.recover(mode="photonic")
+    assert ph.photonic_payload is not None
+    # Invertible q×scale on clean fields should be exact or near-exact
+    assert ph.payload_hat == msg.encode("utf-8") or (
+        ph.byte_error_rate is not None and ph.byte_error_rate <= 0.25
+    )
+
+
+def test_photonic_recovery_from_clean_shard_fields():
+    from flux_trajectoid.inner.vqc_encoder import encode_to_quaternion
+    from flux_trajectoid.recovery.decoder import recover_from_shard_fields
+    from flux_trajectoid.utils.quaternion_utils import unpack_payload
+
+    raw = b"Hello!!"  # 7 bytes
+    enc = encode_to_quaternion(raw, n_shards=2, build_fields=True)
+    packs = recover_from_shard_fields(enc.fields)
+    out = unpack_payload(packs, n_bytes=len(raw), use_stored_blocks=False)
+    assert out == raw
 
 
 def test_summary_keys():

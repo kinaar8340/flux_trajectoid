@@ -45,7 +45,12 @@ Applied at couple-time and re-applied each propagation step so the trench contin
 ### 6. Recovery (`recovery/`)
 
 - **Shell ID**: cosine similarity of Fourier fingerprints.
-- **Decoder**: PCA/SVD demix stub → OAM projection → quaternion probe; stored shards yield byte recovery in the software stack; flywheel excess-twist → emergence score.
+- **Invertible packing**: each 4-byte block → `vec ∈ R⁴`, `q = vec/||vec||`, `s = ||vec||`. Unit `q` imprints OAM; `s` rides on carrier amplitude (+ stored digitally). Avoids pure-S³ lossiness.
+- **Decoder modes**:
+  - `digital` — lossless `ShardPack` blocks + optional repetition majority vote
+  - `photonic` — demix → dewarped OAM → `(q, s)` → bytes (differential vs clean refs when available)
+  - `hybrid` (default) — digital payload_hat + photonic BER / chordal S³ metrics + CRC-8
+- Flywheel excess-twist → emergence score.
 
 ## Data flow
 

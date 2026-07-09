@@ -1,7 +1,8 @@
 """VQC quaternion + OAM shard encoding (adapted from vqc_proto orbital_braille).
 
-Maps payload → quaternion shards → Laguerre–Gaussian OAM mode weights
-(Orbital Braille imprint on {0, 1, −1, 2, 3}).
+Maps payload → ShardPack (unit q + scale) → Laguerre–Gaussian OAM weights.
+Scale is imprinted on the carrier amplitude so photonic recovery can invert
+the 4-byte blocks with far less loss than unit-only quaternions.
 """
 
 from __future__ import annotations
@@ -15,8 +16,11 @@ from scipy.special import genlaguerre
 
 from ..utils.quaternion_utils import (
     Quaternion,
-    bytes_to_quaternion_shards,
-    quaternion_shards_to_bytes,
+    ShardPack,
+    crc8,
+    pack_payload,
+    scale_to_carrier_amp,
+    unpack_payload,
 )
 
 # Match vqc_proto quaternion_oam conventions
@@ -24,6 +28,7 @@ PHI_SCALE = 0.3
 IMPRINT_SCALE = 0.12
 CARRIER_ELL = 1
 OAM_QUAT_ELLS = (0, 1, -1, 2)  # x, w-carrier, y, z
+SCALE_MAX = 2.0
 
 
 @dataclass
@@ -32,6 +37,7 @@ class QuaternionEncoding:
 
     payload_bytes: bytes
     shards: list[Quaternion]
+    packs: list[ShardPack]
     oam_weights: list[dict[int, complex]]  # per shard
     composite_weights: dict[int, complex]
     fields: list[np.ndarray] = field(default_factory=list)
@@ -39,8 +45,11 @@ class QuaternionEncoding:
 
     @property
     def primary_quaternion(self) -> Quaternion:
-        """First shard as representative quaternion."""
         return self.shards[0] if self.shards else Quaternion()
+
+    @property
+    def scales(self) -> list[float]:
+        return [p.scale for p in self.packs]
 
 
 def _lg_mode(ell: int, rho: np.ndarray, phi: np.ndarray, w0: float = 1.0) -> np.ndarray:
@@ -57,17 +66,26 @@ def _lg_mode(ell: int, rho: np.ndarray, phi: np.ndarray, w0: float = 1.0) -> np.
     return radial * np.exp(1j * ell * phi)
 
 
-def quaternion_to_oam_weights(q: Quaternion, *, imprint_scale: float = IMPRINT_SCALE) -> dict[int, complex]:
+def quaternion_to_oam_weights(
+    q: Quaternion,
+    *,
+    scale: float = 1.0,
+    imprint_scale: float = IMPRINT_SCALE,
+    scale_max: float = SCALE_MAX,
+) -> dict[int, complex]:
     """
-    Imprint quaternion on low-order OAM modes (vqc_proto style).
+    Imprint quaternion + scale on low-order OAM modes.
 
-    ΔE ⊃ imprint · (q.x·LG₀ + i·q.y·LG₋₁ + q.z·LG₂) + carrier LG₁ with
-    Rodrigues phase from q.w.
+    - Carrier LG₁: amplitude encodes ``scale``, phase encodes q.w (Rodrigues)
+    - LG₀ / LG₋₁ / LG₂: imprint q.x, q.y, q.z
     """
-    phi_q = PHI_SCALE * np.cos(q.w * np.pi / 2.0)
+    # Odd map in w (sin) so sign(w) is recoverable — cos(w·π/2) is even and
+    # loses the hemisphere, which breaks invertible byte packing on S³.
+    phi_q = PHI_SCALE * np.sin(q.w * np.pi / 2.0)
+    amp = scale_to_carrier_amp(scale, scale_max=scale_max)
     weights: dict[int, complex] = {
         0: imprint_scale * q.x,
-        CARRIER_ELL: np.exp(1j * phi_q),
+        CARRIER_ELL: amp * np.exp(1j * phi_q),
         -1: 1j * imprint_scale * q.y,
         2: imprint_scale * q.z,
     }
@@ -98,26 +116,29 @@ def encode_to_quaternion(
     n_shards: int = 8,
     grid_size: int = 64,
     build_fields: bool = True,
+    redundancy: int = 1,
 ) -> QuaternionEncoding:
     """
-    Encode payload into quaternion shards + OAM weights (and optional fields).
+    Encode payload into ShardPacks + OAM weights (and optional fields).
 
     Parameters
     ----------
-    payload
-        Text or raw bytes to pack into the nut / inner carrier.
-    n_shards
-        Number of quaternion shards (DNA-like packing density).
+    redundancy
+        If >1, each logical 4-byte chunk is repeated across that many shards
+        (majority-vote friendly).
     """
     if isinstance(payload, str):
         raw = payload.encode("utf-8")
     else:
         raw = bytes(payload)
 
-    shards = bytes_to_quaternion_shards(raw, n_shards=n_shards)
-    oam_weights = [quaternion_to_oam_weights(q) for q in shards]
+    packs = pack_payload(raw, n_shards=n_shards, redundancy=redundancy)
+    shards = [p.q for p in packs]
+    oam_weights = [
+        quaternion_to_oam_weights(p.q, scale=p.scale) for p in packs
+    ]
 
-    # Composite: coherent sum of shard weights (normalized)
+    # Composite: coherent sum of shard weights (normalized for lattice coupling)
     composite: dict[int, complex] = {}
     for w in oam_weights:
         for ell, amp in w.items():
@@ -132,6 +153,7 @@ def encode_to_quaternion(
     return QuaternionEncoding(
         payload_bytes=raw,
         shards=shards,
+        packs=packs,
         oam_weights=oam_weights,
         composite_weights=composite,
         fields=fields,
@@ -141,14 +163,30 @@ def encode_to_quaternion(
             "ells": list(composite.keys()),
             "phi_scale": PHI_SCALE,
             "imprint_scale": IMPRINT_SCALE,
+            "scale_max": SCALE_MAX,
+            "redundancy": redundancy,
+            "crc8": crc8(raw),
+            "scales": [p.scale for p in packs],
+            "invertible": True,
         },
     )
+
+
+def decode_quaternion_digital(
+    encoding: QuaternionEncoding,
+    n_bytes: int | None = None,
+) -> bytes:
+    """Lossless digital recovery from stored ShardPack blocks."""
+    n = n_bytes if n_bytes is not None else encoding.metadata.get("n_bytes")
+    red = int(encoding.metadata.get("redundancy", 1))
+    return unpack_payload(encoding.packs, n_bytes=n, redundancy=red, use_stored_blocks=True)
 
 
 def decode_quaternion_approx(
     encoding: QuaternionEncoding,
     n_bytes: int | None = None,
 ) -> bytes:
-    """Approximate byte recovery from stored quaternion shards."""
+    """Recover via q×scale (uses stored scales; still near-lossless digitally)."""
     n = n_bytes if n_bytes is not None else encoding.metadata.get("n_bytes")
-    return quaternion_shards_to_bytes(encoding.shards, n_bytes=n)
+    red = int(encoding.metadata.get("redundancy", 1))
+    return unpack_payload(encoding.packs, n_bytes=n, redundancy=red, use_stored_blocks=False)

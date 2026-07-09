@@ -46,6 +46,7 @@ class PhotonSeedAsteroid:
         use_tpt: bool = True,
         force_stub_flux: bool = False,
         n_coupling_steps: int = 16,
+        redundancy: int = 1,
         **shell_kwargs,
     ) -> PhotonSeedAsteroid:
         """Assemble outer shell + inner VQC encoding + oam_flux coupling.
@@ -63,7 +64,9 @@ class PhotonSeedAsteroid:
             use_tpt=use_tpt,
             **shell_kwargs,
         )
-        self.quaternion = encode_to_quaternion(self.payload, n_shards=n_shards)
+        self.quaternion = encode_to_quaternion(
+            self.payload, n_shards=n_shards, redundancy=redundancy
+        )
         self.flux_state = couple_to_flux_lattice(
             self.quaternion,
             self.shell,
@@ -79,9 +82,15 @@ class PhotonSeedAsteroid:
         """Transmit through turbulent channel + Hopf lattice medium."""
         return propagate_asteroid(self, turbulence_level, **kwargs)
 
-    def recover(self) -> RecoveryResult:
-        """Identify shell and decode inner payload."""
-        return recover_asteroid(self)
+    def recover(self, mode: str = "hybrid", **kwargs) -> RecoveryResult:
+        """Identify shell and decode inner payload.
+
+        mode: ``hybrid`` | ``digital`` | ``photonic``
+          - digital: lossless ShardPack blocks
+          - photonic: field-only OAM inversion (q × scale)
+          - hybrid: digital payload + photonic BER/chordal metrics
+        """
+        return recover_asteroid(self, mode=mode, **kwargs)  # type: ignore[arg-type]
 
     def summary(self) -> dict[str, Any]:
         """Compact status dict for logging / demos."""

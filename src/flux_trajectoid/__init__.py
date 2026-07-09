@@ -11,7 +11,7 @@ from .inner.oam_flux_coupling import (
 from .propagation.simulator import propagate_asteroid
 from .recovery.decoder import recover_asteroid
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "PhotonSeedAsteroid",

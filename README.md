@@ -75,9 +75,11 @@ seed = PhotonSeedAsteroid("hello photon seed", seed=42).build()
 print(seed.summary())
 
 prop = seed.propagate(turbulence_level=0.3)
-rec = seed.recover()
-print(rec.payload_text, rec.fidelity_proxy, rec.emergence_score)
+rec = seed.recover(mode="hybrid")  # digital | photonic | hybrid
+print(rec.payload_text, rec.crc_ok, rec.byte_error_rate, rec.chordal_error_mean)
 ```
+
+Recovery handles quaternion lossiness by packing **unit q + scale** (carrier amplitude side-channel), with CRC-8 and optional shard redundancy.
 
 Examples:
 

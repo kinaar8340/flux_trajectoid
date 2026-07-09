@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flux-trajectoid"
-version = "0.1.1"
+version = "0.1.2"
 description = "Photon Seed Asteroids — Trajectoid shells + VQC quaternion + oam_flux helical lattice for robust photonic data carriers"
 readme = "README.md"
 requires-python = ">=3.10"
