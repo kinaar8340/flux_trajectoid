@@ -377,15 +377,17 @@ footer,
 #col-center .vp-cell,
 #col-right .vp-cell {
   flex: 1 1 0 !important;
-  min-height: 0 !important;
+  min-height: 180px !important;
   height: 50% !important;
-  max-height: 50% !important;
+  max-height: none !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
   padding: 0.3rem 0.4rem !important;
   box-sizing: border-box !important;
   scrollbar-width: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #col-center .vp-cell::-webkit-scrollbar,
 #col-right .vp-cell::-webkit-scrollbar {
@@ -410,15 +412,15 @@ footer,
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
 }
-/* Plot fills remaining cell; image flex-fits frame */
+/* Plot fills remaining cell; keep images visible (never collapse to 0) */
 #col-center .vp-cell .vp-plot,
 #col-right .vp-cell .vp-plot,
 #col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell [data-testid="image"] {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 160px !important;
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
   max-height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -426,36 +428,38 @@ footer,
   background: rgba(7, 11, 20, 0.35) !important;
   display: flex !important;
   flex-direction: column !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #col-center .vp-cell .image-container,
 #col-right .vp-cell .image-container,
 #col-center .vp-cell .vp-plot > div,
 #col-right .vp-cell .vp-plot > div {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 160px !important;
   width: 100% !important;
-  height: 100% !important;
+  height: auto !important;
+  max-height: 100% !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #col-center .vp-cell img,
 #col-right .vp-cell img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: 100% !important;
-  height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 140px !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
   margin: 0 auto !important;
-}
-/* Gradio fixed height="42vh" can fight flex-fit — override to fill cell */
-#col-center .vp-cell .vp-plot,
-#col-right .vp-cell .vp-plot {
-  height: 100% !important;
-  max-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Column 1: compact controls stack
@@ -646,24 +650,21 @@ footer,
 /*
  * theme_default_slider
  *   analog_fill_color     = #00FF00  (0 → knob only)
- *   analog_bar_height     = 2px thin line
- *   analog_effect_glowing = True (fill + knob)
+ *   analog_bar_height     = ~1.5px thin line (was fat full-input paint; −90%)
+ *   analog_effect_glowing = True mild (fill + knob)
  *
- * --ft-fill-pct is set by JS on the shell/input. Dual paint path:
- *   1) .ft-slider-fill DOM layer (preferred)
- *   2) track linear-gradient fallback using the same CSS var
+ * ONLY the .ft-slider-fill layer paints green — never the full input height.
  */
 :root {
   --ft-slider-fill: #00FF00;
-  --ft-slider-rail: rgba(100, 116, 139, 0.5);
-  --ft-slider-h: 2px;
+  --ft-slider-rail: rgba(100, 116, 139, 0.45);
+  --ft-slider-h: 1.5px;          /* thin analog line */
   --ft-slider-thumb: 12px;
   --ft-fill-pct: 0%;
+  /* very mild glow — not a thick bloom */
   --ft-slider-glow:
-    0 0 3px 0.5px rgba(0, 255, 0, 1),
-    0 0 6px 1px rgba(0, 255, 0, 0.75),
-    0 0 12px 2px rgba(0, 255, 0, 0.45),
-    0 0 20px 4px rgba(0, 255, 0, 0.25);
+    0 0 2px 0.4px rgba(0, 255, 0, 0.7),
+    0 0 4px 0.8px rgba(0, 255, 0, 0.35);
 }
 /* Shell: rail + fill under transparent range */
 .ft-slider-shell {
@@ -708,14 +709,14 @@ footer,
   z-index: 1 !important;
   transition: none !important;
 }
-/* Range on top — track uses gradient fallback from --ft-fill-pct */
+/* Range on top — fully transparent track (green line is .ft-slider-fill only) */
 .ft-slider-shell > input[type="range"],
 #controls .ft-slider-shell input[type="range"],
 #controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
   width: 100% !important;
   height: var(--ft-slider-thumb) !important;
   min-height: var(--ft-slider-thumb) !important;
@@ -724,27 +725,22 @@ footer,
   border: none !important;
   outline: none !important;
   cursor: pointer !important;
+  /* NEVER paint full-height green on the input — that made a fat bar */
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
-  accent-color: #00FF00 !important;
-  --slider-color: #00FF00 !important;
-  --color-accent: #00FF00 !important;
+  accent-color: transparent !important;
+  --slider-color: transparent !important;
+  --color-accent: transparent !important;
 }
 .ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
   border: none !important;
-  /* fallback: green 0→knob + dim remainder (JS sets --ft-fill-pct) */
-  background: linear-gradient(
-    to right,
-    #00FF00 0%,
-    #00FF00 var(--ft-fill-pct, 0%),
-    var(--ft-slider-rail) var(--ft-fill-pct, 0%),
-    var(--ft-slider-rail) 100%
-  ) !important;
+  background: transparent !important;
+  background-image: none !important;
   box-shadow: none !important;
 }
 .ft-slider-shell > input[type="range"]::-webkit-slider-thumb,
@@ -760,17 +756,17 @@ footer,
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
   position: relative !important;
-  z-index: 3 !important;
+  z-index: 4 !important;
 }
 .ft-slider-shell > input[type="range"]::-moz-range-track,
 #controls input[type="range"]::-moz-range-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: var(--ft-slider-rail) !important;
+  background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
-/* Firefox native progress = analog fill 0→knob */
+/* Firefox progress kept thin + mild glow */
 .ft-slider-shell > input[type="range"]::-moz-range-progress,
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
@@ -1439,7 +1435,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     )
                     img_shell = _display_image(
                         blank_rgb(640, 480),
-                        height="100%",
+                        height=300,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1452,7 +1448,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     )
                     img_radial = _display_image(
                         blank_rgb(640, 480),
-                        height="100%",
+                        height=300,
                         elem_classes=["vp-plot"],
                     )
 
@@ -1475,7 +1471,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     )
                     img_path = _display_image(
                         blank_rgb(480, 400),
-                        height="100%",
+                        height=300,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1486,7 +1482,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                     gr.Markdown('<p class="viewport-title">Scorecard</p>')
                     img_metrics = _display_image(
                         blank_rgb(480, 400),
-                        height="100%",
+                        height=300,
                         elem_classes=["vp-plot"],
                     )
 
@@ -1862,15 +1858,17 @@ SLIDER_FILL_JS = """
       first.style.setProperty('overflow', 'auto', 'important');
     }
 
-    // Plot cells: equal halves of the column
-    const cellH = Math.max(100, Math.floor((wh - 8) / 2));
+    // Plot cells: equal halves — keep min height so images never collapse
+    const cellH = Math.max(200, Math.floor((wh - 8) / 2));
     document.querySelectorAll('#col-center .vp-cell, #col-right .vp-cell').forEach((cell) => {
       cell.style.setProperty('flex', '1 1 0', 'important');
       cell.style.setProperty('height', cellH + 'px', 'important');
-      cell.style.setProperty('min-height', '0', 'important');
+      cell.style.setProperty('min-height', '180px', 'important');
       cell.style.setProperty('overflow', 'hidden', 'important');
       cell.style.setProperty('display', 'flex', 'important');
       cell.style.setProperty('flex-direction', 'column', 'important');
+      cell.style.setProperty('visibility', 'visible', 'important');
+      cell.style.setProperty('opacity', '1', 'important');
     });
 
     document.querySelectorAll(
@@ -1878,7 +1876,11 @@ SLIDER_FILL_JS = """
     ).forEach((el) => {
       el.style.setProperty('max-height', '100%', 'important');
       el.style.setProperty('max-width', '100%', 'important');
+      el.style.setProperty('min-height', '140px', 'important');
       el.style.setProperty('object-fit', 'contain', 'important');
+      el.style.setProperty('visibility', 'visible', 'important');
+      el.style.setProperty('opacity', '1', 'important');
+      el.style.setProperty('display', el.tagName === 'IMG' ? 'block' : 'flex', 'important');
     });
 
     requestIframeHeight(h);
@@ -1915,21 +1917,21 @@ SLIDER_FILL_JS = """
     return Math.max(0, Math.min(100, ((val - min) / den) * 100));
   }
 
-  /* Inline styles for the analog line — beats Gradio CSS specificity wars */
+  /* Thin analog line (~1.5px) + mild glow — never full input height */
   const FILL_STYLE = [
     'position:absolute',
     'left:0',
     'top:50%',
     'transform:translateY(-50%)',
-    'height:2px',
-    'min-height:2px',
-    'max-height:2px',
+    'height:1.5px',
+    'min-height:1.5px',
+    'max-height:1.5px',
     'border-radius:999px',
     'background:#00FF00',
     'background-color:#00FF00',
-    'box-shadow:0 0 2px 0.5px rgba(0,255,0,0.9),0 0 5px 1px rgba(0,255,0,0.45),0 0 10px 2px rgba(0,255,0,0.22)',
+    'box-shadow:0 0 2px 0.4px rgba(0,255,0,0.7),0 0 4px 0.8px rgba(0,255,0,0.35)',
     'pointer-events:none',
-    'z-index:5',
+    'z-index:2',
     'display:block',
     'opacity:1',
     'visibility:visible',
@@ -1944,9 +1946,9 @@ SLIDER_FILL_JS = """
     'right:0',
     'top:50%',
     'transform:translateY(-50%)',
-    'height:2px',
+    'height:1.5px',
     'border-radius:999px',
-    'background:rgba(100,116,139,0.5)',
+    'background:rgba(100,116,139,0.45)',
     'pointer-events:none',
     'z-index:1',
   ].join(';');
@@ -2013,18 +2015,13 @@ SLIDER_FILL_JS = """
       wPx != null ? (wPx.toFixed(2) + 'px') : (pct.toFixed(3) + '%')
     );
 
-    // CSS var fallback for track gradient
     const pctStr = pct.toFixed(3) + '%';
     shell.style.setProperty('--ft-fill-pct', pctStr);
     el.style.setProperty('--ft-fill-pct', pctStr);
-
-    // Inline track gradient on the input (Chrome sees this better than vars alone)
-    const rail = 'rgba(100,116,139,0.5)';
-    el.style.setProperty(
-      'background',
-      'linear-gradient(to right,#00FF00 0%,#00FF00 ' + pctStr + ',' + rail + ' ' + pctStr + ',' + rail + ' 100%)',
-      'important'
-    );
+    // Keep input body fully transparent — fat green bar was from full-height bg
+    el.style.setProperty('background', 'transparent', 'important');
+    el.style.setProperty('background-image', 'none', 'important');
+    el.style.setProperty('background-color', 'transparent', 'important');
   }
 
   function bindAll() {
