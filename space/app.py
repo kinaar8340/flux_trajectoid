@@ -294,16 +294,7 @@ footer,
     radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
     #070b14 !important;
 }
-/* Gradio often wraps Row children — make wrappers transparent to grid */
-#workspace > .form,
-#workspace > .wrap,
-#workspace > .gap,
-#workspace > div:not([id]) {
-  display: contents !important;
-}
-#workspace > *,
-#workspace .column,
-#workspace [class*="column"],
+/* Kill Gradio chrome min-widths; grid items size from tracks */
 #controls,
 #vp-shell,
 #vp-radial,
@@ -314,12 +305,12 @@ footer,
   max-width: none !important;
   box-sizing: border-box !important;
 }
+/* Explicit placement — JS also re-parents these under #workspace */
 #controls {
-  grid-column: 1 !important;
-  grid-row: 1 / span 2 !important;
-  min-width: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
+  grid-column: 1 / 2 !important;
+  grid-row: 1 / 3 !important; /* span both rows */
+  height: auto !important;
+  max-height: none !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   scrollbar-width: thin;
@@ -330,10 +321,10 @@ footer,
   background: rgba(56, 189, 248, 0.4);
   border-radius: 4px;
 }
-#vp-shell  { grid-column: 2 !important; grid-row: 1 !important; }
-#vp-radial { grid-column: 2 !important; grid-row: 2 !important; }
-#vp-path   { grid-column: 3 !important; grid-row: 1 !important; }
-#vp-score  { grid-column: 3 !important; grid-row: 2 !important; }
+#vp-shell  { grid-column: 2 / 3 !important; grid-row: 1 / 2 !important; }
+#vp-radial { grid-column: 2 / 3 !important; grid-row: 2 / 3 !important; }
+#vp-path   { grid-column: 3 / 4 !important; grid-row: 1 / 2 !important; }
+#vp-score  { grid-column: 3 / 4 !important; grid-row: 2 / 3 !important; }
 
 /* Each viewport cell fills its grid area */
 #vp-shell,
@@ -1194,28 +1185,41 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
     )
 
 
+def _boot_dir() -> Path:
+    d = Path(__file__).resolve().parent / "assets" / "boot"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def _save_rgb_png(arr: np.ndarray, name: str) -> str:
-    """Write RGB ndarray to a PNG path Gradio can load reliably on HF."""
+    """Write RGB ndarray to assets/boot/<name>.png; return absolute path."""
     from PIL import Image as PILImage
 
-    out_dir = Path(__file__).resolve().parent / "assets" / "boot"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{name}.png"
+    path = _boot_dir() / f"{name}.png"
     img = np.asarray(arr)
     if img.dtype != np.uint8:
         img = np.clip(img, 0, 255).astype(np.uint8)
     if img.ndim == 2:
         img = np.stack([img, img, img], axis=-1)
-    PILImage.fromarray(img[..., :3], mode="RGB").save(path, format="PNG")
-    return str(path)
+    # Pillow 10+: fromarray infers mode; avoid deprecated mode= kw
+    PILImage.fromarray(img[..., :3]).save(path, format="PNG")
+    return str(path.resolve())
 
 
 def _startup_plots() -> dict:
     """Precompute stub plots so the four viewports are never empty on first paint.
 
-    Saves PNGs under assets/boot/ — Gradio Image value=path is more reliable
-    on HF than bare numpy arrays for initial render.
+    Saves PNGs under assets/boot/. Gradio Image gets an absolute path that
+    exists at process start (more reliable on HF than numpy-only values).
     """
+    keys = (
+        "img_shell",
+        "img_radial",
+        "img_field",
+        "img_path",
+        "img_metrics",
+        "img_trace",
+    )
     try:
         out = run_pipeline(
             payload="Hello from the shell",
@@ -1229,32 +1233,34 @@ def _startup_plots() -> dict:
             slice_plane="z",
             show_slice=True,
         )
-        # Prefer file paths for initial Image values
-        for key in (
-            "img_shell",
-            "img_radial",
-            "img_field",
-            "img_path",
-            "img_metrics",
-            "img_trace",
-        ):
+        for key in keys:
             if key in out and isinstance(out[key], np.ndarray):
                 out[key] = _save_rgb_png(out[key], key)
-        logger.info("startup plots ready: %s", out.get("status_md", "")[:60])
+        # Keep ndarray copy for State shell; paths for Images
+        logger.info(
+            "startup plots ready paths=%s",
+            {k: out.get(k) for k in keys if k in out},
+        )
         return out
     except Exception:
         logger.exception("startup plots failed")
         b = blank_rgb(420, 360)
-        return {
-            "shell": None,
-            "img_shell": _save_rgb_png(b, "img_shell"),
-            "img_radial": _save_rgb_png(b, "img_radial"),
-            "img_field": _save_rgb_png(b, "img_field"),
-            "img_path": _save_rgb_png(blank_rgb(320, 400), "img_path"),
-            "img_metrics": _save_rgb_png(blank_rgb(300, 400), "img_metrics"),
-            "img_trace": _save_rgb_png(b, "img_trace"),
-            "status_md": "### Seed status\n_Startup failed — click **Build**._",
-        }
+        # Prefer pre-shipped boot PNGs if present
+        shipped = {}
+        for key in keys:
+            p = _boot_dir() / f"{key}.png"
+            if p.is_file() and p.stat().st_size > 100:
+                shipped[key] = str(p.resolve())
+            else:
+                shipped[key] = _save_rgb_png(
+                    b if key != "img_path" else blank_rgb(320, 400),
+                    key,
+                )
+        shipped["shell"] = None
+        shipped["status_md"] = (
+            "### Seed status\n_Startup failed — click **Build**._"
+        )
+        return shipped
 
 
 def build_app() -> gr.Blocks:
@@ -1814,7 +1820,9 @@ SLIDER_FILL_JS = """
       nav.style.setProperty('z-index', '1000', 'important');
     }
 
-    // Fixed workspace fills the iframe viewport under the nav
+    // Fixed workspace: 3×2 grid. Re-parent controls + 4 viewports as DIRECT
+    // children so grid-column/row placement actually applies (Gradio wrappers
+    // otherwise leave radial/scorecard as thin title strips).
     const ws = document.querySelector('#workspace');
     if (ws) {
       ws.style.setProperty('position', 'fixed', 'important');
@@ -1825,28 +1833,47 @@ SLIDER_FILL_JS = """
       ws.style.setProperty('height', 'auto', 'important');
       ws.style.setProperty('width', '100%', 'important');
       ws.style.setProperty('display', 'grid', 'important');
+      ws.style.setProperty('grid-template-columns', 'minmax(260px,1.05fr) minmax(0,2.2fr) minmax(0,1fr)', 'important');
+      ws.style.setProperty('grid-template-rows', 'minmax(0,1fr) minmax(0,1fr)', 'important');
+      ws.style.setProperty('gap', '0.35rem', 'important');
       ws.style.setProperty('overflow', 'hidden', 'important');
       ws.style.setProperty('z-index', '900', 'important');
+      ws.style.setProperty('align-items', 'stretch', 'important');
+
+      const place = [
+        ['#controls', '1 / 2', '1 / 3'],
+        ['#vp-shell', '2 / 3', '1 / 2'],
+        ['#vp-radial', '2 / 3', '2 / 3'],
+        ['#vp-path', '3 / 4', '1 / 2'],
+        ['#vp-score', '3 / 4', '2 / 3'],
+      ];
+      place.forEach(([sel, col, row]) => {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        if (el.parentElement !== ws) {
+          try { ws.appendChild(el); } catch (_) { /* ignore */ }
+        }
+        el.style.setProperty('grid-column', col, 'important');
+        el.style.setProperty('grid-row', row, 'important');
+        el.style.setProperty('min-width', '0', 'important');
+        el.style.setProperty('min-height', '0', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+      });
     }
 
-    // Controls + 4 plot cells (flat CSS grid on #workspace)
-    const wh = Math.max(200, (window.innerHeight || h) - navH);
     const ctrl = document.querySelector('#controls');
     if (ctrl) {
       ctrl.style.setProperty('display', 'flex', 'important');
       ctrl.style.setProperty('flex-direction', 'column', 'important');
       ctrl.style.setProperty('overflow', 'auto', 'important');
-      ctrl.style.setProperty('visibility', 'visible', 'important');
-      ctrl.style.setProperty('opacity', '1', 'important');
     }
     const top = document.querySelector('#controls-top');
     if (top) {
       top.style.setProperty('display', 'flex', 'important');
       top.style.setProperty('flex-direction', 'column', 'important');
       top.style.setProperty('visibility', 'visible', 'important');
-      top.style.setProperty('opacity', '1', 'important');
     }
-    // If every tabitem is display:none (bad CSS residue), show the first
     const panels = Array.from(
       document.querySelectorAll('#col1-tabs .tabitem, #col1-tabs [role="tabpanel"]')
     );
@@ -1857,20 +1884,17 @@ SLIDER_FILL_JS = """
       const first = panels[0];
       first.style.setProperty('display', 'block', 'important');
       first.style.setProperty('visibility', 'visible', 'important');
-      first.style.setProperty('height', 'auto', 'important');
-      first.style.setProperty('overflow', 'auto', 'important');
     }
 
-    // Four viewports: fill their grid cells, show images
+    // Viewport cells + images fill their grid tracks equally
     ['#vp-shell', '#vp-radial', '#vp-path', '#vp-score'].forEach((sel) => {
       const cell = document.querySelector(sel);
       if (!cell) return;
       cell.style.setProperty('display', 'flex', 'important');
       cell.style.setProperty('flex-direction', 'column', 'important');
-      cell.style.setProperty('min-height', '0', 'important');
       cell.style.setProperty('overflow', 'hidden', 'important');
-      cell.style.setProperty('visibility', 'visible', 'important');
-      cell.style.setProperty('opacity', '1', 'important');
+      cell.style.setProperty('height', '100%', 'important');
+      cell.style.setProperty('max-height', '100%', 'important');
     });
     document.querySelectorAll(
       '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img, #vp-shell .vp-plot, #vp-radial .vp-plot, #vp-path .vp-plot, #vp-score .vp-plot'
@@ -1879,6 +1903,7 @@ SLIDER_FILL_JS = """
       el.style.setProperty('max-width', '100%', 'important');
       el.style.setProperty('width', '100%', 'important');
       el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('min-height', '120px', 'important');
       el.style.setProperty('object-fit', 'contain', 'important');
       el.style.setProperty('visibility', 'visible', 'important');
       el.style.setProperty('opacity', '1', 'important');
