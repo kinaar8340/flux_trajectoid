@@ -243,125 +243,112 @@ footer,
   color: var(--ft-tab-hover) !important;
 }
 
-/* Solid panel chrome — no glass/blur layers (those caused visual flicker) */
-#controls,
-#vp-shell,
-#vp-path,
-#vp-radial,
-#vp-score {
-  background: rgba(15, 23, 42, 0.92) !important;
-  border: 1px solid rgba(148, 163, 184, 0.18) !important;
-  border-radius: 10px !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
 /*
- * Workspace:
- *   [ controls | plots-col ]
- *                plots-top:  shell | path
- *                plots-bot:  radial | score
- * IMPORTANT: never set #workspace > div { flex-direction:row } — that
- * overrides #plots-col's column direction and hides the entire plot stack.
+ * FIXED viewport panels — independent of Gradio flex nesting.
+ * Parent chain has repeatedly zeroed #plots-col width/height; pin both
+ * panes to the browser viewport so the 2×2 startup page always paints.
+ *
+ *   [ #controls fixed left ] [ #plots-col fixed right ]
+ *                            [ top: shell | path      ]
+ *                            [ bot: radial | score    ]
  */
-#workspace {
-  position: fixed !important;
-  top: var(--ft-nav-h, 48px) !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: stretch !important;
-  gap: 0.4rem !important;
-  padding: 0.35rem 0.45rem !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-  z-index: 900 !important;
-  background: #070b14 !important;
+:root {
+  --ft-nav-h: 48px;
+  --ft-ctrl-w: 320px;
+  --ft-gap: 0.4rem;
 }
-/* Only anonymous Gradio wrappers become row hosts — NOT #controls / #plots-col */
-#workspace > .form,
-#workspace > .wrap {
-  display: flex !important;
-  flex-direction: row !important;
-  flex: 1 1 auto !important;
+#workspace {
+  /* marker only — children are position:fixed to the viewport */
+  position: relative !important;
   width: 100% !important;
-  height: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  gap: 0.4rem !important;
-  overflow: hidden !important;
+  min-height: calc(100vh - var(--ft-nav-h)) !important;
   margin: 0 !important;
   padding: 0 !important;
-  background: transparent !important;
   border: none !important;
+  background: #070b14 !important;
+  overflow: visible !important;
 }
 #controls {
-  flex: 0 0 clamp(260px, 28vw, 360px) !important;
-  width: clamp(260px, 28vw, 360px) !important;
-  max-width: 360px !important;
-  min-width: 260px !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  min-height: 0 !important;
+  position: fixed !important;
+  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
+  left: var(--ft-gap) !important;
+  width: var(--ft-ctrl-w) !important;
+  max-width: var(--ft-ctrl-w) !important;
+  min-width: var(--ft-ctrl-w) !important;
+  bottom: var(--ft-gap) !important;
+  height: auto !important;
+  max-height: none !important;
+  z-index: 40 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
   display: flex !important;
   flex-direction: column !important;
   box-sizing: border-box !important;
+  padding: 0.35rem 0.45rem !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 10px !important;
   scrollbar-width: thin;
-}
-#plots-col {
-  flex: 1 1 auto !important;
-  width: auto !important;
-  min-width: 200px !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important; /* critical: stack top/bot rows */
-  gap: 0.4rem !important;
-  overflow: hidden !important;
   visibility: visible !important;
   opacity: 1 !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
 }
-/* Gradio Column body inside #plots-col */
-#plots-col > .form,
-#plots-col > .wrap,
-#plots-col > div {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  gap: 0.4rem !important;
+#plots-col {
+  position: fixed !important;
+  top: calc(var(--ft-nav-h) + var(--ft-gap)) !important;
+  left: calc(var(--ft-ctrl-w) + 2 * var(--ft-gap)) !important;
+  right: var(--ft-gap) !important;
+  bottom: var(--ft-gap) !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 240px !important;
+  min-height: 240px !important;
+  z-index: 40 !important;
+  display: grid !important;
+  grid-template-rows: 1fr 1fr !important;
+  grid-template-columns: 1fr !important;
+  gap: var(--ft-gap) !important;
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;
   border: none !important;
-}
-#plots-top,
-#plots-bot {
-  flex: 1 1 50% !important;
-  min-height: 140px !important;
-  height: auto !important;
-  max-height: none !important;
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 0.4rem !important;
-  overflow: hidden !important;
-  align-items: stretch !important;
+  box-shadow: none !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+/* Gradio Column body: become a transparent grid host */
+#plots-col > .form,
+#plots-col > .wrap,
+#plots-col > div {
+  display: contents !important; /* children participate in #plots-col grid */
+}
+#plots-top {
+  grid-row: 1 / 2 !important;
+  display: grid !important;
+  grid-template-columns: 2.2fr 1fr !important;
+  gap: var(--ft-gap) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+#plots-bot {
+  grid-row: 2 / 3 !important;
+  display: grid !important;
+  grid-template-columns: 2.2fr 1fr !important;
+  gap: var(--ft-gap) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
 }
 #plots-top > .form,
 #plots-top > .wrap,
@@ -369,27 +356,14 @@ footer,
 #plots-bot > .form,
 #plots-bot > .wrap,
 #plots-bot > div {
-  display: flex !important;
-  flex-direction: row !important;
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  gap: 0.4rem !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  border: none !important;
+  display: contents !important;
 }
 #vp-shell,
 #vp-path,
 #vp-radial,
 #vp-score {
-  flex: 1 1 0 !important;
   min-width: 0 !important;
-  min-height: 120px !important;
+  min-height: 0 !important;
   height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
@@ -398,12 +372,10 @@ footer,
   box-sizing: border-box !important;
   visibility: visible !important;
   opacity: 1 !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 10px !important;
 }
-#vp-shell,
-#vp-radial { flex: 2.2 1 0 !important; }
-#vp-path,
-#vp-score { flex: 1 1 0 !important; }
-
 #vp-shell .viewport-title,
 #vp-radial .viewport-title,
 #vp-path .viewport-title,
@@ -411,6 +383,9 @@ footer,
   flex: 0 0 auto !important;
   margin: 0 0 0.2rem 0 !important;
   color: #64748b !important;
+  font-size: 0.7rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
 }
 #vp-shell .vp-plot,
 #vp-radial .vp-plot,
@@ -421,14 +396,15 @@ footer,
 #vp-path [data-testid="image"],
 #vp-score [data-testid="image"] {
   flex: 1 1 auto !important;
-  min-height: 100px !important;
+  min-height: 80px !important;
   width: 100% !important;
   height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
   background: rgba(7, 11, 20, 0.55) !important;
-  display: block !important;
+  display: flex !important;
+  flex-direction: column !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
@@ -439,10 +415,15 @@ footer,
 #vp-shell .vp-plot > div,
 #vp-radial .vp-plot > div,
 #vp-path .vp-plot > div,
-#vp-score .vp-plot > div {
+#vp-score .vp-plot > div,
+#vp-shell .vp-plot > .wrap,
+#vp-radial .vp-plot > .wrap,
+#vp-path .vp-plot > .wrap,
+#vp-score .vp-plot > .wrap {
+  flex: 1 1 auto !important;
   width: 100% !important;
   height: 100% !important;
-  min-height: 100px !important;
+  min-height: 80px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -456,7 +437,6 @@ footer,
   max-height: 100% !important;
   width: auto !important;
   height: auto !important;
-  min-height: 80px !important;
   object-fit: contain !important;
   display: block !important;
   visibility: visible !important;
@@ -1871,15 +1851,28 @@ SLIDER_FILL_JS = """
     const navH = (nav && nav.offsetHeight) || 48;
     document.documentElement.style.setProperty('--ft-nav-h', navH + 'px');
     const ws = document.querySelector('#workspace');
-    if (ws && !ws.dataset.ftLaidOut) {
-      ws.dataset.ftLaidOut = '1';
-      // rely on CSS; only set fixed shell once
+    if (ws) {
       ws.style.position = 'fixed';
       ws.style.top = navH + 'px';
       ws.style.left = '0';
       ws.style.right = '0';
       ws.style.bottom = '0';
       ws.style.zIndex = '900';
+      ws.style.display = 'flex';
+      ws.style.flexDirection = 'row';
+      ws.style.overflow = 'hidden';
+    }
+    // Ensure plots column is visible (do not touch img styles every tick)
+    const pc = document.querySelector('#plots-col');
+    if (pc) {
+      pc.style.display = 'flex';
+      pc.style.flexDirection = 'column';
+      pc.style.flex = '1 1 auto';
+      pc.style.minWidth = '200px';
+      pc.style.minHeight = '0';
+      pc.style.height = '100%';
+      pc.style.visibility = 'visible';
+      pc.style.opacity = '1';
     }
   }
 
