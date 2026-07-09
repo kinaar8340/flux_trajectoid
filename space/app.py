@@ -383,11 +383,38 @@ footer,
   border: 1px solid rgba(148, 163, 184, 0.22) !important;
   border-radius: 10px !important;
   min-width: 0 !important;
-  min-height: 0 !important;
-  width: auto !important;
-  height: auto !important;
+  min-height: 200px !important;
+  width: 100% !important;
+  height: 100% !important;
   max-width: none !important;
   max-height: none !important;
+  align-self: stretch !important;
+}
+/* Gradio nests .form/.wrap inside columns — force flex fill so Image isn't height:0 */
+#vp-shell > .form,
+#vp-shell > .wrap,
+#vp-shell > div,
+#vp-path > .form,
+#vp-path > .wrap,
+#vp-path > div,
+#vp-radial > .form,
+#vp-radial > .wrap,
+#vp-radial > div,
+#vp-score > .form,
+#vp-score > .wrap,
+#vp-score > div {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  width: 100% !important;
+  gap: 0.15rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: none !important;
 }
 #vp-shell .viewport-title,
 #vp-radial .viewport-title,
@@ -400,7 +427,22 @@ footer,
   text-transform: uppercase !important;
   letter-spacing: 0.06em !important;
 }
-/* Plots fill the cell (not tiny centered stamps) */
+/* Title markdown blocks must not eat the plot height */
+#vp-shell [data-testid="markdown"],
+#vp-path [data-testid="markdown"],
+#vp-radial [data-testid="markdown"],
+#vp-score [data-testid="markdown"],
+#vp-shell .prose,
+#vp-path .prose,
+#vp-radial .prose,
+#vp-score .prose {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 2rem !important;
+  overflow: hidden !important;
+}
+/* Plots MUST claim remaining cell height (min-height prevents flex collapse) */
 #vp-shell .vp-plot,
 #vp-radial .vp-plot,
 #vp-path .vp-plot,
@@ -408,11 +450,16 @@ footer,
 #vp-shell [data-testid="image"],
 #vp-radial [data-testid="image"],
 #vp-path [data-testid="image"],
-#vp-score [data-testid="image"] {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
+#vp-score [data-testid="image"],
+#vp-shell .block:not([data-testid="markdown"]),
+#vp-path .block:not([data-testid="markdown"]),
+#vp-radial .block:not([data-testid="markdown"]),
+#vp-score .block:not([data-testid="markdown"]) {
+  flex: 1 1 auto !important;
+  min-height: 180px !important;
   width: 100% !important;
   height: 100% !important;
+  max-height: none !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
@@ -433,15 +480,21 @@ footer,
 #vp-shell .vp-plot > .wrap,
 #vp-radial .vp-plot > .wrap,
 #vp-path .vp-plot > .wrap,
-#vp-score .vp-plot > .wrap {
-  flex: 1 1 0 !important;
+#vp-score .vp-plot > .wrap,
+#vp-shell .empty,
+#vp-path .empty,
+#vp-radial .empty,
+#vp-score .empty {
+  flex: 1 1 auto !important;
   width: 100% !important;
   height: 100% !important;
-  min-height: 0 !important;
+  min-height: 160px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   overflow: hidden !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 #vp-shell img,
 #vp-radial img,
@@ -449,8 +502,10 @@ footer,
 #vp-score img {
   max-width: 100% !important;
   max-height: 100% !important;
-  width: 100% !important;
-  height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 80px !important;
+  min-height: 80px !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
@@ -1111,11 +1166,11 @@ def _empty_imgs():
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
 
 
-def _display_image(value, *, height="100%", elem_classes=None, **extra):
+def _display_image(value, *, height=360, elem_classes=None, **extra):
     """gr.Image for display-only plots — Gradio 4/5/6 keyword-compatible.
 
-    Default height 100% so CSS flex-fit can size plots to the cell
-    (fixed 42vh overflowed HF iframe chrome).
+    Prefer a concrete pixel height so Gradio allocates real image space
+    (height 100% / flex-only often collapses the img to 0 on HF).
     """
     import inspect
 
@@ -1126,7 +1181,7 @@ def _display_image(value, *, height="100%", elem_classes=None, **extra):
         "show_label": False,
         "interactive": False,
     }
-    if height is not None:
+    if height is not None and "height" in params:
         kwargs["height"] = height
     if elem_classes is not None:
         kwargs["elem_classes"] = elem_classes
@@ -1142,12 +1197,20 @@ def _display_image(value, *, height="100%", elem_classes=None, **extra):
             kwargs["show_fullscreen_button"] = False
     if "sources" in params:
         kwargs["sources"] = []
-    kwargs.update({k: v for k, v in extra.items() if k in params or k in ("visible",)})
-    # Drop keys Image does not accept
-    kwargs = {k: v for k, v in kwargs.items() if k in params or k == "elem_classes"}
-    # elem_classes might be elem_classes in all versions
-    if "elem_classes" not in params and "elem_classes" in kwargs:
-        kwargs.pop("elem_classes")
+    if "container" in params:
+        kwargs["container"] = False
+    # type=pil is most reliable for initial paint on Gradio 5 Spaces
+    if "type" in params and "type" not in extra:
+        kwargs["type"] = "pil"
+    kwargs.update(
+        {
+            k: v
+            for k, v in extra.items()
+            if k in params or k in ("visible", "elem_id", "elem_classes")
+        }
+    )
+    keep = set(params) | {"elem_classes", "elem_id", "visible"}
+    kwargs = {k: v for k, v in kwargs.items() if k in keep}
     return gr.Image(**kwargs)
 
 
@@ -1186,18 +1249,18 @@ def run_ui(
             show_slice=_as_on(show_slice),
         )
         return (
-            out["img_shell"],
-            out["img_radial"],
-            out["img_field"],
-            out["img_path"],
-            out["img_metrics"],
-            out["img_trace"],
+            _to_pil(out["img_shell"]),
+            _to_pil(out["img_radial"]),
+            _to_pil(out["img_field"]),
+            _to_pil(out["img_path"]),
+            _to_pil(out["img_metrics"]),
+            _to_pil(out["img_trace"]),
             out["status_md"],
             out.get("shell"),
         )
     except Exception as exc:
         logger.exception("pipeline failed")
-        err = blank_rgb()
+        err = _to_pil(blank_rgb())
         md = f"### Error\n```\n{exc!r}\n```"
         return err, err, err, err, err, err, md, None
 
@@ -1209,12 +1272,13 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
     Always returns RGB stills at the same (frac, plane) so a plane change
     cancels any playing GIFs and keeps the suite synchronized.
     """
-    return replot_scan_suite(
+    s, r, p = replot_scan_suite(
         shell,
         slice_frac=float(slice_frac) if slice_frac is not None else 0.5,
         slice_plane=str(slice_plane or "z"),
         show_slice=_as_on(show_slice),
     )
+    return _to_pil(s), _to_pil(r), _to_pil(p)
 
 
 def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
@@ -1253,32 +1317,47 @@ def _as_uint8_rgb(arr: np.ndarray) -> np.ndarray:
     return img[..., :3]
 
 
-def _save_rgb_png(arr: np.ndarray, name: str) -> np.ndarray:
-    """Write RGB ndarray to assets/boot/<name>.png; return ndarray for gr.Image.
+def _to_pil(arr_or_path):
+    """Convert ndarray / path / PIL → RGB PIL Image (best gr.Image seed)."""
+    from PIL import Image as PILImage
 
-    Gradio Image binds most reliably to numpy/PIL values (filesystem paths
-    can 404 after layout changes / cold start).
-    """
+    if arr_or_path is None:
+        return PILImage.fromarray(blank_rgb(360, 420))
+    if isinstance(arr_or_path, PILImage.Image):
+        return arr_or_path.convert("RGB")
+    if isinstance(arr_or_path, (str, Path)):
+        p = Path(arr_or_path)
+        if not p.is_file():
+            # try relative to app root
+            p2 = Path(__file__).resolve().parent / str(arr_or_path)
+            p = p2 if p2.is_file() else p
+        if p.is_file():
+            return PILImage.open(p).convert("RGB")
+        return PILImage.fromarray(blank_rgb(360, 420))
+    return PILImage.fromarray(_as_uint8_rgb(np.asarray(arr_or_path)))
+
+
+def _save_rgb_png(arr: np.ndarray, name: str):
+    """Write RGB ndarray to assets/boot/<name>.png; return PIL for gr.Image."""
     from PIL import Image as PILImage
 
     img = _as_uint8_rgb(arr)
     path = _boot_dir() / f"{name}.png"
+    pil = PILImage.fromarray(img)
     try:
-        PILImage.fromarray(img).save(path, format="PNG")
+        pil.save(path, format="PNG")
     except Exception:
         logger.exception("failed to persist boot png %s", name)
-    return img
+    return pil
 
 
-def _load_boot_rgb(key: str) -> np.ndarray | None:
-    """Load shipped assets/boot/<key>.png as RGB uint8 ndarray."""
-    from PIL import Image as PILImage
-
+def _load_boot_value(key: str):
+    """PIL Image from shipped assets/boot/<key>.png (or None)."""
     p = _boot_dir() / f"{key}.png"
     if not (p.is_file() and p.stat().st_size > 100):
         return None
     try:
-        return np.asarray(PILImage.open(p).convert("RGB"))
+        return _to_pil(p)
     except Exception:
         logger.exception("failed to load boot png %s", key)
         return None
@@ -1297,14 +1376,16 @@ def _startup_plots() -> dict:
     # Instant seed from shipped PNGs so viewports never paint empty
     shipped: dict = {}
     for key in keys:
-        arr = _load_boot_rgb(key)
-        if arr is not None:
-            shipped[key] = arr
+        val = _load_boot_value(key)
+        if val is not None:
+            shipped[key] = val
 
-    def _with_ndarrays(out: dict) -> dict:
+    def _with_display_values(out: dict) -> dict:
         for key in keys:
             if key in out and isinstance(out[key], np.ndarray):
                 out[key] = _save_rgb_png(out[key], key)
+            elif key in out and out[key] is not None:
+                out[key] = _to_pil(out[key])
             elif key in shipped:
                 out[key] = shipped[key]
         return out
@@ -1323,10 +1404,10 @@ def _startup_plots() -> dict:
                 slice_plane="z",
                 show_slice=True,
             )
-            out = _with_ndarrays(out)
+            out = _with_display_values(out)
             logger.info(
-                "startup plots ready shapes=%s",
-                {k: getattr(out.get(k), "shape", type(out.get(k))) for k in keys},
+                "startup plots ready values=%s",
+                {k: (getattr(out.get(k), "shape", None) or out.get(k)) for k in keys},
             )
             return out
         except Exception:
@@ -1350,10 +1431,10 @@ def _startup_plots() -> dict:
             slice_plane="z",
             show_slice=True,
         )
-        out = _with_ndarrays(out)
+        out = _with_display_values(out)
         logger.info(
-            "startup plots ready shapes=%s",
-            {k: getattr(out.get(k), "shape", type(out.get(k))) for k in keys},
+            "startup plots ready values=%s",
+            {k: (getattr(out.get(k), "shape", None) or out.get(k)) for k in keys},
         )
         return out
     except Exception:
@@ -1361,9 +1442,9 @@ def _startup_plots() -> dict:
         b = blank_rgb(420, 360)
         fallback: dict = {}
         for key in keys:
-            arr = _load_boot_rgb(key)
-            if arr is not None:
-                fallback[key] = arr
+            val = _load_boot_value(key)
+            if val is not None:
+                fallback[key] = val
             else:
                 fallback[key] = _save_rgb_png(
                     b if key != "img_path" else blank_rgb(320, 400),
@@ -1577,8 +1658,9 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_shell = _display_image(
                             boot["img_shell"],
-                            height=480,  # ~half of 1080; CSS/JS fill the fixed cell
+                            height=360,
                             elem_classes=["vp-plot"],
+                            elem_id="img-shell",
                         )
                     with gr.Column(
                         scale=1,
@@ -1591,8 +1673,9 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_path = _display_image(
                             boot["img_path"],
-                            height=480,
+                            height=360,
                             elem_classes=["vp-plot"],
+                            elem_id="img-path",
                         )
                 with gr.Row(elem_id="plots-bot", equal_height=True):
                     with gr.Column(
@@ -1606,8 +1689,9 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_radial = _display_image(
                             boot["img_radial"],
-                            height=480,
+                            height=360,
                             elem_classes=["vp-plot"],
+                            elem_id="img-radial",
                         )
                     with gr.Column(
                         scale=1,
@@ -1620,8 +1704,9 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         )
                         img_metrics = _display_image(
                             boot["img_metrics"],
-                            height=480,
+                            height=360,
                             elem_classes=["vp-plot"],
+                            elem_id="img-metrics",
                         )
 
         # Outside #workspace grid so they never steal a column track
@@ -1792,9 +1877,32 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
             outputs=[status, col1_tabs],
         )
 
-        # Boot PNGs + shell_state already seed the UI. Do NOT demo.load(run_ui):
-        # Gradio clears Image outputs during load → empty-panel flicker (screencast).
-        # User clicks Build to recompute; slice controls use boot shell_state.
+        # Re-push boot PIL images once after mount (fixes empty frames when the
+        # initial value is dropped during Gradio's first client hydrate).
+        # Do NOT load full run_ui — that wiped panels / caused flicker.
+        _seed = (
+            boot.get("img_shell"),
+            boot.get("img_path"),
+            boot.get("img_radial"),
+            boot.get("img_metrics"),
+        )
+
+        def _seed_plots():
+            return (
+                _to_pil(_seed[0]),
+                _to_pil(_seed[1]),
+                _to_pil(_seed[2]),
+                _to_pil(_seed[3]),
+            )
+
+        try:
+            demo.load(
+                fn=_seed_plots,
+                inputs=None,
+                outputs=[img_shell, img_path, img_radial, img_metrics],
+            )
+        except Exception:
+            logger.exception("demo.load seed_plots failed")
 
     return demo
 
@@ -2186,6 +2294,7 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
         "share": False,
         "show_error": True,
     }
+    space_root = str(Path(__file__).resolve().parent)
     optional = {
         "theme": theme,
         "css": css,
@@ -2193,6 +2302,7 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
         "ssr": False,
         "ssr_mode": False,
         "show_api": False,
+        "allowed_paths": [space_root, str(Path(space_root) / "assets")],
     }
     try:
         params = inspect.signature(queued.launch).parameters
