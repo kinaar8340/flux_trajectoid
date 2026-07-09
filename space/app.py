@@ -1147,31 +1147,128 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
     Always returns HTML stills at the same (frac, plane) so a plane change
     cancels any playing GIFs and keeps the suite synchronized.
     """
+    pl = _normalize_plane(slice_plane)
+    # xyz stills use X as representative (play generates full X→Y→Z GIFs)
+    if pl == "xyz":
+        pl = "x"
     s, r, p = replot_scan_suite(
         shell,
         slice_frac=float(slice_frac) if slice_frac is not None else 0.5,
-        slice_plane=str(slice_plane or "z"),
+        slice_plane=pl,
         show_slice=_as_on(show_slice),
     )
     return _to_html(s, "shell"), _to_html(r, "radial"), _to_html(p, "path")
 
 
+def _normalize_plane(slice_plane) -> str:
+    """Coerce Gradio Radio value → x|y|z|xyz."""
+    if isinstance(slice_plane, (list, tuple)):
+        slice_plane = slice_plane[0] if slice_plane else "z"
+    pl = str(slice_plane or "z").strip().lower()
+    if pl in ("x", "y", "z", "xyz"):
+        return pl
+    return "z"
+
+
+def _gif_to_html(gif_path, stem: str) -> str:
+    """Serve an animated GIF in the fixed HTML panel (never flatten to PNG)."""
+    import shutil
+    import time
+
+    if not gif_path:
+        return _to_html(blank_rgb(300, 360), stem)
+    src = Path(gif_path)
+    if not src.is_file():
+        logger.warning("gif missing for %s: %s", stem, gif_path)
+        return _to_html(blank_rgb(300, 360), stem)
+
+    # Unique name each play so the browser restarts the animation (X→Y→Z)
+    stamp = int(time.time() * 1000) % 1_000_000_000
+    dest = _boot_dir() / f"anim_{stem}_{stamp}.gif"
+    try:
+        if src.resolve() != dest.resolve():
+            shutil.copy2(src, dest)
+        else:
+            dest = src
+    except Exception:
+        logger.exception("gif copy failed %s", src)
+        dest = src
+
+    # Verify multi-frame (truncated X-only GIFs were the XYZ symptom)
+    n_frames = 1
+    try:
+        from PIL import Image as PILImage
+
+        with PILImage.open(dest) as im:
+            n_frames = int(getattr(im, "n_frames", 1) or 1)
+        logger.info("scan gif %s frames=%s size=%s", dest.name, n_frames, dest.stat().st_size)
+    except Exception:
+        logger.exception("gif inspect failed %s", dest)
+
+    try:
+        rel = str(dest.resolve().relative_to(Path(__file__).resolve().parent)).replace(
+            "\\", "/"
+        )
+    except ValueError:
+        rel = f"assets/boot/{dest.name}"
+
+    url = _file_url(rel)
+    # Title stays generic; per-frame titles live inside the GIF raster
+    title = {
+        "shell": "3D shell · matrix scan",
+        "path": "Rolling path · matrix scan",
+        "radial": "Radial trench · matrix scan",
+    }.get(stem, stem)
+    return (
+        f'<div class="ft-vp-panel" data-stem="{stem}" data-frames="{n_frames}" '
+        'style="box-sizing:border-box;width:100%;height:100%;min-height:280px;'
+        "display:flex;flex-direction:column;padding:8px 10px;"
+        "background:rgba(15,23,42,0.98);border:1px solid rgba(148,163,184,0.28);"
+        "border-radius:10px;overflow:hidden;opacity:1;visibility:visible;"
+        'position:relative;z-index:60;">'
+        f'<div class="ft-vp-title" style="flex:0 0 auto;color:#94a3b8;font-size:11px;'
+        "font-family:IBM Plex Sans,Segoe UI,system-ui,sans-serif;"
+        "text-transform:uppercase;letter-spacing:0.06em;margin:0 0 6px 0;"
+        f'line-height:1.2;">{title} · {n_frames}f</div>'
+        f'<div class="ft-vp-img-wrap" style="flex:1 1 auto;min-height:220px;'
+        "display:flex;align-items:center;justify-content:center;"
+        'width:100%;background:#0a0f18;border-radius:6px;overflow:hidden;'
+        'position:relative;z-index:61;">'
+        f'<img class="ft-vp-img" src="{url}" alt="{stem} scan" draggable="false" '
+        'style="position:relative;z-index:62;display:block!important;'
+        "max-width:100%;max-height:100%;width:auto;height:auto;"
+        "min-width:80px;min-height:80px;object-fit:contain;"
+        'opacity:1;visibility:visible;border:0;"/>'
+        "</div></div>"
+    )
+
+
 def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
     """Synced axial scan: shell + radial + path GIFs at the same pace."""
+    if shell is None:
+        empty = _to_html(blank_rgb(300, 360), "shell")
+        return (
+            empty,
+            _to_html(blank_rgb(300, 360), "radial"),
+            _to_html(blank_rgb(400, 220), "path"),
+            "### Scan\n_No shell yet — click **Build** first, then Play._",
+        )
     n = int(n_frames) if n_frames is not None else 14
     n = max(8, min(24, n))
+    pl = _normalize_plane(slice_plane)
     g_shell, g_radial, g_path, msg = animate_matrix_scan(
         shell,
-        slice_plane=str(slice_plane or "z"),
+        slice_plane=pl,
         n_frames=n,
         # Default off in UI too — ping-pong reads as bounce/glitch
         ping_pong=_as_on(ping_pong),
         duration_ms=90,
+        out_dir=_boot_dir(),
     )
     return (
-        _to_html(g_shell if g_shell else blank_rgb(300, 360), "shell"),
-        _to_html(g_radial if g_radial else blank_rgb(300, 360), "radial"),
-        _to_html(g_path if g_path else blank_rgb(400, 220), "path"),
+        _gif_to_html(g_shell, "shell"),
+        _gif_to_html(g_radial, "radial"),
+        _gif_to_html(g_path, "path"),
         msg,
     )
 
@@ -1785,21 +1882,27 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
         def on_slice_plane_change(
             shell, slice_frac, plane, show_slice, n_frames, ping_pong
         ):
-            """X/Y/Z → synced stills; XYZ → play X then Y then Z sequence."""
-            pl = str(plane or "z").lower().strip()
+            """X/Y/Z → synced stills; XYZ → play full X→Y→Z GIF sequence."""
+            pl = _normalize_plane(plane)
             if pl == "xyz":
                 return play_scan_ui(shell, "xyz", n_frames, ping_pong)
-            s, r, p = update_slice_ui(shell, slice_frac, plane, show_slice)
-            return s, r, p, gr.update()  # keep status
+            s, r, p = update_slice_ui(shell, slice_frac, pl, show_slice)
+            return (
+                s,
+                r,
+                p,
+                f"### Plane **{pl.upper()}**\n"
+                f"_Synced stills — click **Play** to animate this axis._",
+            )
 
         def _plane_btn_prelude(plane):
             # Glow Play only while XYZ sequence is generating
-            if str(plane or "").lower().strip() == "xyz":
+            if _normalize_plane(plane) == "xyz":
                 return _scan_btn_on()
             return gr.update()
 
         def _plane_btn_epilogue(plane):
-            if str(plane or "").lower().strip() == "xyz":
+            if _normalize_plane(plane) == "xyz":
                 return _scan_btn_off()
             return gr.update()
 

@@ -963,6 +963,9 @@ def animate_matrix_scan(
         return None, None, None, empty
 
     plane = str(slice_plane or "z").lower().strip()
+    # Gradio Radio can occasionally yield list/tuple
+    if isinstance(slice_plane, (list, tuple)) and slice_plane:
+        plane = str(slice_plane[0] or "z").lower().strip()
     if plane == "xyz":
         planes = ["x", "y", "z"]
         xyz_mode = True
@@ -974,9 +977,15 @@ def animate_matrix_scan(
         plane = "z"
         xyz_mode = False
 
-    # Balanced demo defaults: 8–24, preferred 14 (per axis)
+    # Balanced demo defaults: 8–24. XYZ does 3× frames — cap so full
+    # X→Y→Z finishes on HF cpu-basic (otherwise GIF often dies after X only).
     n_frames = int(np.clip(n_frames, 8, 24))
+    if xyz_mode:
+        n_frames = min(n_frames, 10)
     duration_ms = int(np.clip(duration_ms, 50, 150))
+    if xyz_mode:
+        # Slightly snappier so the three axes fit a reasonable loop
+        duration_ms = min(duration_ms, 80)
 
     # One-way scan by default (ping-pong causes visible bounce/glitch)
     fracs = np.linspace(0.0, 1.0, n_frames)
@@ -987,7 +996,7 @@ def animate_matrix_scan(
     shells: list[np.ndarray] = []
     radials: list[np.ndarray] = []
     paths: list[np.ndarray] = []
-    hold = 2  # brief hold between axes in XYZ sequence
+    hold = 3  # hold between axes so X/Y/Z labels are readable
 
     def _append_synced(pl: str, ff: float) -> None:
         """All three viewports share the same plane + scan fraction."""
@@ -1031,10 +1040,12 @@ def animate_matrix_scan(
             "### Scan\n_Pillow required for GIF export (`pip install pillow`)._",
         )
 
-    out_dir = out_dir or (ROOT / "outputs" / "space_anim")
+    # Prefer Space assets/boot (Gradio file endpoint) so HTML <img> can play GIFs
+    boot_dir = Path(__file__).resolve().parent / "assets" / "boot"
+    out_dir = out_dir or boot_dir
     out_dir.mkdir(parents=True, exist_ok=True)
-    # Unique names avoid browser/Gradio caching old glitchy GIFs
-    stamp = int(np.random.randint(0, 1_000_000))
+    # Unique names avoid browser/Gradio caching a truncated X-only GIF
+    stamp = int(np.random.randint(0, 1_000_000_000))
     tag = "xyz" if xyz_mode else planes[0]
     p_shell = out_dir / f"matrix_scan_{tag}_shell_{stamp}.gif"
     p_radial = out_dir / f"matrix_scan_{tag}_radial_{stamp}.gif"
@@ -1044,18 +1055,27 @@ def animate_matrix_scan(
     _write_gif(radials, p_radial, duration_ms)
     _write_gif(paths, p_path, duration_ms)
 
+    # Sanity: multi-plane sequences must have more than one axis worth of frames
+    n_total = len(shells)
+    n_expect = len(planes) * len(fracs) + (hold * max(0, len(planes) - 0) if xyz_mode else 0)
+    # hold is applied after each plane including last
+    if xyz_mode:
+        n_expect = len(planes) * (len(fracs) + hold)
+
     mode = "ping-pong" if ping_pong else "one-way (smooth loop)"
+    axes = " → ".join(p.upper() for p in planes)
     if xyz_mode:
         msg = (
             f"### Matrix scan (synced · XYZ)\n"
-            f"Sequence **X → Y → Z** · all bars scan every frame  \n"
+            f"Sequence **{axes}** · all bars scan every frame  \n"
             f"(3D plane · radial trench bar · path head)  \n"
-            f"{n_frames} frames/axis · {len(shells)} total · "
+            f"{n_frames} frames/axis · **{n_total} total frames** · "
             f"{duration_ms} ms/frame · {mode}\n\n"
-            f"| Viewport | File |\n|---|---|\n"
-            f"| 3D shell | `{p_shell.name}` |\n"
-            f"| Radial map | `{p_radial.name}` |\n"
-            f"| Rolling path | `{p_path.name}` |\n"
+            f"_Watch titles cycle **X → Y → Z** on path/radial panels._\n\n"
+            f"| Viewport | File | frames |\n|---|---|---|\n"
+            f"| 3D shell | `{p_shell.name}` | {n_total} |\n"
+            f"| Radial map | `{p_radial.name}` | {n_total} |\n"
+            f"| Rolling path | `{p_path.name}` | {n_total} |\n"
         )
     else:
         msg = (
@@ -1067,4 +1087,4 @@ def animate_matrix_scan(
             f"| Radial map | `{p_radial.name}` |\n"
             f"| Rolling path | `{p_path.name}` |\n"
         )
-    return str(p_shell), str(p_radial), str(p_path), msg
+    return str(p_shell.resolve()), str(p_radial.resolve()), str(p_path.resolve()), msg
