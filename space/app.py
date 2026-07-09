@@ -254,7 +254,7 @@ footer { display: none !important; }
   border-radius: 4px;
 }
 
-/* Column 2 & 3: layout shells only (glass is on .vp-cell) */
+/* Column 2 & 3: half-height viewport cells; plots sized by Gradio height + fit */
 #col-center,
 #col-right {
   height: 100% !important;
@@ -270,7 +270,6 @@ footer { display: none !important; }
   flex-direction: column !important;
   gap: 0.35rem !important;
 }
-/* Gradio nest: make wrappers fill + stack half-panels */
 #col-center > .wrap,
 #col-center > .form,
 #col-center > div,
@@ -284,16 +283,14 @@ footer { display: none !important; }
   gap: 0.35rem !important;
   flex: 1 1 auto !important;
 }
-/* Each viewport cell = half the column height (equal upper/lower) */
 #col-center .vp-cell,
 #col-right .vp-cell {
   flex: 1 1 0 !important;
   min-height: 0 !important;
-  height: auto !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
-  padding: 0.25rem 0.35rem 0.3rem 0.35rem !important;
+  padding: 0.3rem 0.4rem !important;
   box-sizing: border-box !important;
 }
 #col-center .vp-cell .viewport-title,
@@ -301,117 +298,40 @@ footer { display: none !important; }
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
 }
-/*
- * Fit plot into allotted viewport: every Gradio Image ancestor
- * stretches, img object-fit:contain fills the plot frame.
- */
-#col-center .vp-cell > .block,
-#col-center .vp-cell > div,
-#col-right .vp-cell > .block,
-#col-right .vp-cell > div,
-#col-center .vp-cell .block,
-#col-right .vp-cell .block,
-#col-center .vp-plot,
-#col-right .vp-plot,
+/* Plot component fills rest of cell — do NOT restyle Gradio internals */
+#col-center .vp-cell .vp-plot,
+#col-right .vp-cell .vp-plot,
 #col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell [data-testid="image"] {
   flex: 1 1 auto !important;
   min-height: 0 !important;
+  width: 100% !important;
   height: 100% !important;
   max-height: 100% !important;
-  width: 100% !important;
   overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-  position: relative !important;
-  background: rgba(7, 11, 20, 0.45) !important;
+  margin: 0 !important;
   border-radius: 8px !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
+  background: rgba(7, 11, 20, 0.35) !important;
 }
-/* Stretch all intermediate wraps between cell and <img> */
-#col-center .vp-cell .block > *,
-#col-right .vp-cell .block > *,
-#col-center .vp-plot > *,
-#col-right .vp-plot > *,
-#col-center .vp-cell [data-testid="image"] > *,
-#col-right .vp-cell [data-testid="image"] > * {
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  width: 100% !important;
-  max-height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-#col-center .vp-cell .image-container,
-#col-right .vp-cell .image-container,
-#col-center .vp-cell .wrap,
-#col-right .vp-cell .wrap,
-#col-center .vp-cell .image-frame,
-#col-right .vp-cell .image-frame {
-  flex: 1 1 auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  background: transparent !important;
-}
-/* Actual raster: scale to cell, keep aspect */
+/* Scale the raster to the image frame only */
 #col-center .vp-cell img,
-#col-right .vp-cell img,
-#col-center .vp-cell .image-container img,
-#col-right .vp-cell .image-container img {
+#col-right .vp-cell img {
   width: 100% !important;
   height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
   object-fit: contain !important;
-  object-position: center center !important;
+  object-position: center !important;
   display: block !important;
-  opacity: 1 !important;
-  margin: 0 auto !important;
-  padding: 0 !important;
-  flex: 1 1 auto !important;
 }
-/* Icon chrome: overlay so it doesn't steal plot height */
-#col-center .vp-cell .icon-button,
-#col-right .vp-cell .icon-button,
-#col-center .vp-cell button.icon-button,
-#col-right .vp-cell button.icon-button {
-  opacity: 0.55 !important;
-}
-#col-center .vp-cell .icon-buttons,
-#col-right .vp-cell .icon-buttons,
-#col-center .vp-cell [class*="icon-button-wrapper"],
-#col-right .vp-cell [class*="icon-button-wrapper"],
-#col-center .vp-cell .download-button,
-#col-right .vp-cell .download-button {
-  position: absolute !important;
-  bottom: 4px !important;
-  right: 4px !important;
-  z-index: 5 !important;
-  background: transparent !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  height: auto !important;
-  flex: 0 0 auto !important;
-  max-height: none !important;
-}
-/* Hide empty upload / source UI in display-only viewports */
-#col-center .vp-cell .upload-container,
-#col-right .vp-cell .upload-container,
-#col-center .vp-cell [data-testid="upload"],
-#col-right .vp-cell [data-testid="upload"] {
-  display: none !important;
+#col-center .vp-cell .image-container,
+#col-right .vp-cell .image-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
@@ -1150,10 +1070,13 @@ def build_app() -> gr.Blocks:
                         '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
                     )
                     img_shell = gr.Image(
-                        value=blank_rgb(400, 320),
+                        value=blank_rgb(640, 480),
                         label=None,
                         show_label=False,
-                        height="100%",
+                        height="42vh",
+                        sources=[],
+                        buttons=[],
+                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1165,10 +1088,13 @@ def build_app() -> gr.Blocks:
                         '<p class="viewport-title">Radial trench / shave</p>'
                     )
                     img_radial = gr.Image(
-                        value=blank_rgb(400, 320),
+                        value=blank_rgb(640, 480),
                         label=None,
                         show_label=False,
-                        height="100%",
+                        height="42vh",
+                        sources=[],
+                        buttons=[],
+                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
 
@@ -1190,10 +1116,13 @@ def build_app() -> gr.Blocks:
                         '<p class="viewport-title">Rolling path (Nature-style)</p>'
                     )
                     img_path = gr.Image(
-                        value=blank_rgb(320, 280),
+                        value=blank_rgb(480, 400),
                         label=None,
                         show_label=False,
-                        height="100%",
+                        height="42vh",
+                        sources=[],
+                        buttons=[],
+                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1203,10 +1132,13 @@ def build_app() -> gr.Blocks:
                 ):
                     gr.Markdown('<p class="viewport-title">Scorecard</p>')
                     img_metrics = gr.Image(
-                        value=blank_rgb(320, 280),
+                        value=blank_rgb(480, 400),
                         label=None,
                         show_label=False,
-                        height="100%",
+                        height="42vh",
+                        sources=[],
+                        buttons=[],
+                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
 
