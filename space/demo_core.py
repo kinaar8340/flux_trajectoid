@@ -836,9 +836,9 @@ def animate_matrix_scan(
     Returns (gif_shell, gif_radial, gif_path, status_md).
     Default one-way 14-frame scan (no ping-pong bounce).
 
-    plane=\"xyz\" runs two tours (synced GIFs):
-      1) PATH tour:  X_path → Y_path → Z_path  (with matching shell)
-      2) RADIAL tour: X_radial → Y_radial → Z_radial  (with matching shell)
+    plane=\"xyz\" runs X → Y → Z with **all scan bars moving** on every
+    frame: shell plane, radial trench bar, and rolling-path head together
+    (plane-specific path / radial labels).
     """
     if shell is None:
         empty = "### Scan\n_No shell yet — run **Build** first._"
@@ -869,10 +869,10 @@ def animate_matrix_scan(
     shells: list[np.ndarray] = []
     radials: list[np.ndarray] = []
     paths: list[np.ndarray] = []
-    hold = 2  # brief hold between axes
+    hold = 2  # brief hold between axes in XYZ sequence
 
-    def _append_frame(pl: str, ff: float, *, path_on: bool, radial_on: bool) -> None:
-        """One synced triple. Featured panel is fully animated; other holds mid."""
+    def _append_synced(pl: str, ff: float) -> None:
+        """All three viewports share the same plane + scan fraction."""
         shells.append(
             plot_shell_3d(
                 shell,
@@ -881,24 +881,12 @@ def animate_matrix_scan(
                 show_slice=True,
             )
         )
-        if radial_on:
-            radials.append(
-                plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
-            )
-        else:
-            # Dim/static radial while PATH tour runs (still plane-labeled)
-            radials.append(
-                plot_radial_map(shell, slice_frac=0.5, slice_plane=pl)
-            )
-        if path_on:
-            paths.append(
-                plot_path_panel(shell, progress=ff, slice_plane=pl)
-            )
-        else:
-            # Full path still for this plane while RADIAL tour runs
-            paths.append(
-                plot_path_panel(shell, progress=1.0, slice_plane=pl)
-            )
+        radials.append(
+            plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
+        )
+        paths.append(
+            plot_path_panel(shell, progress=ff, slice_plane=pl)
+        )
 
     def _hold_last(n: int = hold) -> None:
         if not shells:
@@ -908,32 +896,12 @@ def animate_matrix_scan(
             radials.append(radials[-1].copy())
             paths.append(paths[-1].copy())
 
-    if xyz_mode:
-        # --- Phase 1: Rolling path tour X → Y → Z ---
-        for pl in planes:
-            for f in fracs:
-                _append_frame(pl, float(f), path_on=True, radial_on=False)
-            _hold_last()
-        # --- Phase 2: Radial trench tour X → Y → Z ---
-        for pl in planes:
-            for f in fracs:
-                _append_frame(pl, float(f), path_on=False, radial_on=True)
-            _hold_last()
-    else:
-        pl = planes[0]
+    # Single tour: X → Y → Z (or one axis). Every frame scans all bars.
+    for pl in planes:
         for f in fracs:
-            ff = float(f)
-            shells.append(
-                plot_shell_3d(
-                    shell, slice_frac=ff, slice_plane=pl, show_slice=True
-                )
-            )
-            radials.append(
-                plot_radial_map(shell, slice_frac=ff, slice_plane=pl)
-            )
-            paths.append(
-                plot_path_panel(shell, progress=ff, slice_plane=pl)
-            )
+            _append_synced(pl, float(f))
+        if xyz_mode:
+            _hold_last()
 
     try:
         from PIL import Image  # noqa: F401
@@ -961,9 +929,9 @@ def animate_matrix_scan(
     mode = "ping-pong" if ping_pong else "one-way (smooth loop)"
     if xyz_mode:
         msg = (
-            f"### Matrix scan (synced · XYZ dual tour)\n"
-            f"**Phase 1 — Rolling path:** X → Y → Z  \n"
-            f"**Phase 2 — Radial trench:** X → Y → Z  \n"
+            f"### Matrix scan (synced · XYZ)\n"
+            f"Sequence **X → Y → Z** · all bars scan every frame  \n"
+            f"(3D plane · radial trench bar · path head)  \n"
             f"{n_frames} frames/axis · {len(shells)} total · "
             f"{duration_ms} ms/frame · {mode}\n\n"
             f"| Viewport | File |\n|---|---|\n"
