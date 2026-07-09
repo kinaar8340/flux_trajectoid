@@ -843,6 +843,42 @@ def _empty_imgs():
     return b, b, b, blank_rgb(400, 220), b, blank_rgb(200, 360), ABOUT_HTML
 
 
+def _display_image(value, *, height="42vh", elem_classes=None, **extra):
+    """gr.Image for display-only plots — Gradio 4/5/6 keyword-compatible."""
+    import inspect
+
+    params = inspect.signature(gr.Image.__init__).parameters
+    kwargs: dict = {
+        "value": value,
+        "label": None,
+        "show_label": False,
+        "interactive": False,
+    }
+    if height is not None:
+        kwargs["height"] = height
+    if elem_classes is not None:
+        kwargs["elem_classes"] = elem_classes
+    # Prefer Gradio 6 `buttons` / `sources`; fall back to Gradio 4/5 flags
+    if "buttons" in params:
+        kwargs["buttons"] = []
+    else:
+        if "show_download_button" in params:
+            kwargs["show_download_button"] = False
+        if "show_share_button" in params:
+            kwargs["show_share_button"] = False
+        if "show_fullscreen_button" in params:
+            kwargs["show_fullscreen_button"] = False
+    if "sources" in params:
+        kwargs["sources"] = []
+    kwargs.update({k: v for k, v in extra.items() if k in params or k in ("visible",)})
+    # Drop keys Image does not accept
+    kwargs = {k: v for k, v in kwargs.items() if k in params or k == "elem_classes"}
+    # elem_classes might be elem_classes in all versions
+    if "elem_classes" not in params and "elem_classes" in kwargs:
+        kwargs.pop("elem_classes")
+    return gr.Image(**kwargs)
+
+
 def _as_on(value) -> bool:
     """Map oval On/Off radios (or legacy bool) → bool latched state."""
     if isinstance(value, bool):
@@ -1108,14 +1144,9 @@ def build_app() -> gr.Blocks:
                     gr.Markdown(
                         '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
                     )
-                    img_shell = gr.Image(
-                        value=blank_rgb(640, 480),
-                        label=None,
-                        show_label=False,
+                    img_shell = _display_image(
+                        blank_rgb(640, 480),
                         height="42vh",
-                        sources=[],
-                        buttons=[],
-                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1126,14 +1157,9 @@ def build_app() -> gr.Blocks:
                     gr.Markdown(
                         '<p class="viewport-title">Radial trench / shave</p>'
                     )
-                    img_radial = gr.Image(
-                        value=blank_rgb(640, 480),
-                        label=None,
-                        show_label=False,
+                    img_radial = _display_image(
+                        blank_rgb(640, 480),
                         height="42vh",
-                        sources=[],
-                        buttons=[],
-                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
 
@@ -1154,14 +1180,9 @@ def build_app() -> gr.Blocks:
                     gr.Markdown(
                         '<p class="viewport-title">Rolling path (Nature-style)</p>'
                     )
-                    img_path = gr.Image(
-                        value=blank_rgb(480, 400),
-                        label=None,
-                        show_label=False,
+                    img_path = _display_image(
+                        blank_rgb(480, 400),
                         height="42vh",
-                        sources=[],
-                        buttons=[],
-                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1170,14 +1191,9 @@ def build_app() -> gr.Blocks:
                     elem_id="vp-score",
                 ):
                     gr.Markdown('<p class="viewport-title">Scorecard</p>')
-                    img_metrics = gr.Image(
-                        value=blank_rgb(480, 400),
-                        label=None,
-                        show_label=False,
+                    img_metrics = _display_image(
+                        blank_rgb(480, 400),
                         height="42vh",
-                        sources=[],
-                        buttons=[],
-                        interactive=False,
                         elem_classes=["vp-plot"],
                     )
 
