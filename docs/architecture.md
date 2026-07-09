@@ -36,11 +36,13 @@ Optical free-space and fiber channels suffer from turbulence, mode crosstalk, an
 
 Applied at couple-time and re-applied each propagation step so the trench continues to gate energy near the shell boundary.
 
-### 5. Transmission (`propagation/simulator.py`)
+### 5. Transmission (`propagation/`)
 
 - Kolmogorov-like phase screens + tip/tilt jitter.
 - Soft BMGL-style Fourier gate (VQC turbulence mitigation stub).
 - Hopf-lattice PDE step with memory recovery toward the initial helical IC.
+- **Fidelity metrics** (`metrics.py`): overlap fidelity, intensity correlation, power retention, Strehl proxy, phase RMSE, OAM spectral fidelity, tip/tilt RMS; `sweep_turbulence()` scorecard.
+- **SLM export** (`export/slm.py`): phase-only holograms from protected/composite/shard fields, optional GS, shell phase bias, device presets, package (`manifest.json` + `.npy` / `.png` / `.raw`).
 
 ### 6. Recovery (`recovery/`)
 

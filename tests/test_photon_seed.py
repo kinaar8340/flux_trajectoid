@@ -241,3 +241,55 @@ def test_force_stub_flux():
     flux = couple_to_flux_lattice(enc, None, lattice_nx=8, force_stub=True, n_steps=2)
     assert flux.backend == "stub"
     assert flux.lattice is None
+
+
+def test_fidelity_metrics_and_sweep():
+    from flux_trajectoid.propagation.metrics import compute_fidelity_metrics
+
+    ast = PhotonSeedAsteroid(b"metrics", seed=3).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=2,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    prop = ast.propagate(turbulence_level=0.2, n_steps=6, seed=3)
+    assert prop.metrics is not None
+    m = prop.metrics
+    assert 0.0 <= m.overlap_fidelity <= 1.0
+    assert m.phase_rmse_rad >= 0.0
+    assert 0.0 <= m.oam_fidelity <= 1.0
+    assert len(prop.fidelity_trace) == 6
+    # identity metrics
+    ref = prop.field_reference
+    assert ref is not None
+    idm = compute_fidelity_metrics(ref, ref)
+    assert idm.overlap_fidelity > 0.99
+    assert idm.phase_rmse_rad < 1e-6
+
+    rows = ast.sweep_turbulence(levels=[0.0, 0.3], n_steps=4, recover_photonic=False)
+    assert len(rows) == 2
+    assert rows[0]["overlap_fidelity"] >= rows[1]["overlap_fidelity"] - 0.05
+
+
+def test_slm_export(tmp_path):
+    ast = PhotonSeedAsteroid("slm-test", seed=1).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=1,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    out = tmp_path / "slm"
+    result = ast.export_slm(out, preset="generic_256", stack_shards=True)
+    assert (out / "manifest.json").is_file()
+    assert (out / "phase_rad.npy").is_file()
+    assert (out / "phase_levels.png").is_file()
+    assert (out / "phase_stack.npy").is_file()
+    assert result.phase_rad.shape == (256, 256)
+    assert result.phase_levels.dtype == np.uint8
+    assert "phase_rad.npy" in result.files

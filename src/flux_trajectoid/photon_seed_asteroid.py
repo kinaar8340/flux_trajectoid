@@ -11,6 +11,8 @@ from typing import Any
 
 from .inner.oam_flux_coupling import FluxState, couple_to_flux_lattice
 from .inner.vqc_encoder import QuaternionEncoding, encode_to_quaternion
+from .export.slm import SLMExportResult, export_slm_package
+from .propagation.metrics import FidelityMetrics, sweep_turbulence
 from .propagation.simulator import PropagationResult, propagate_asteroid
 from .recovery.decoder import RecoveryResult, recover_asteroid
 from .shell.generator import ShellGeometry, generate_shell
@@ -79,7 +81,10 @@ class PhotonSeedAsteroid:
         return self
 
     def propagate(self, turbulence_level: float = 0.3, **kwargs) -> PropagationResult:
-        """Transmit through turbulent channel + Hopf lattice medium."""
+        """Transmit through turbulent channel + Hopf lattice medium.
+
+        Result includes ``metrics`` (:class:`FidelityMetrics`) scorecard.
+        """
         return propagate_asteroid(self, turbulence_level, **kwargs)
 
     def recover(self, mode: str = "hybrid", **kwargs) -> RecoveryResult:
@@ -91,6 +96,54 @@ class PhotonSeedAsteroid:
           - hybrid: digital payload + photonic BER/chordal metrics
         """
         return recover_asteroid(self, mode=mode, **kwargs)  # type: ignore[arg-type]
+
+    def export_slm(self, out_dir: str, **kwargs) -> SLMExportResult:
+        """Export phase-only SLM hologram package (manifest + phase arrays)."""
+        return export_slm_package(self, out_dir, **kwargs)
+
+    def sweep_turbulence(
+        self,
+        levels: list[float] | None = None,
+        *,
+        n_steps: int = 12,
+        channel_seed: int | None = None,
+        apply_bmgl: bool = True,
+        recover_photonic: bool = True,
+        force_stub_flux: bool = True,
+        **build_kwargs,
+    ) -> list[dict[str, Any]]:
+        """Propagate copies of this seed across turbulence levels; collect metrics."""
+        levels = levels if levels is not None else [0.0, 0.1, 0.2, 0.3, 0.5]
+        payload = self.payload
+        seed = self.seed
+        n_shards = (
+            int(self.quaternion.metadata.get("n_shards", 8)) if self.quaternion else 8
+        )
+        lattice_nx = (
+            int(self.flux_state.metadata.get("lattice_nx", 12)) if self.flux_state else 12
+        )
+
+        def _factory() -> PhotonSeedAsteroid:
+            kw = {
+                "n_shards": n_shards,
+                "lattice_nx": lattice_nx,
+                "n_coupling_steps": 4,
+                "force_stub_flux": force_stub_flux,
+                "n_points": 96,
+                "scale_grid": 3,
+                "scale_max_iter": 2,
+            }
+            kw.update(build_kwargs)
+            return PhotonSeedAsteroid(payload, seed=seed).build(**kw)
+
+        return sweep_turbulence(
+            _factory,
+            levels,
+            n_steps=n_steps,
+            seed=channel_seed if channel_seed is not None else seed,
+            apply_bmgl=apply_bmgl,
+            recover_photonic=recover_photonic,
+        )
 
     def summary(self) -> dict[str, Any]:
         """Compact status dict for logging / demos."""
@@ -126,6 +179,12 @@ class PhotonSeedAsteroid:
         if self._propagation is not None:
             out["fidelity_proxy"] = self._propagation.fidelity_proxy
             out["turbulence_level"] = self._propagation.turbulence_level
+            if self._propagation.metrics is not None:
+                m = self._propagation.metrics
+                out["oam_fidelity"] = m.oam_fidelity
+                out["phase_rmse_rad"] = m.phase_rmse_rad
+                out["strehl_proxy"] = m.strehl_proxy
+                out["power_retention"] = m.power_retention
         return out
 
 

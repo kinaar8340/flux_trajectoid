@@ -2,6 +2,9 @@
 
 Combines Kolmogorov-like phase screens / jitter with oam_flux lattice
 relaxation. Optional BMGL-style gating stub for turbulence mitigation.
+
+Emits a full :class:`~flux_trajectoid.propagation.metrics.FidelityMetrics`
+scorecard on each run.
 """
 
 from __future__ import annotations
@@ -10,6 +13,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+
+from .metrics import FidelityMetrics, compute_fidelity_metrics
 
 if TYPE_CHECKING:
     from ..photon_seed_asteroid import PhotonSeedAsteroid
@@ -22,12 +27,20 @@ class PropagationResult:
     turbulence_level: float
     n_steps: int
     field_final: np.ndarray | None
+    field_reference: np.ndarray | None
     lattice_theta_final: np.ndarray | None
     fidelity_proxy: float
+    metrics: FidelityMetrics | None = None
     mean_twist_trace: list[float] = field(default_factory=list)
     intensity_trace: list[float] = field(default_factory=list)
     phase_screen_rms: list[float] = field(default_factory=list)
+    fidelity_trace: list[float] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def metrics_dict(self) -> dict[str, Any]:
+        if self.metrics is None:
+            return {"fidelity_proxy": self.fidelity_proxy}
+        return self.metrics.as_dict()
 
 
 def _kolmogorov_phase_screen(
@@ -41,8 +54,7 @@ def _kolmogorov_phase_screen(
     fy = np.fft.fftfreq(size)
     kx, ky = np.meshgrid(fx, fy, indexing="ij")
     k2 = kx**2 + ky**2
-    k2[0, 0] = 1.0  # avoid div0
-    # Power spectrum ~ k^{-(alpha+2)} rough proxy for phase
+    k2[0, 0] = 1.0
     psd = k2 ** (-(alpha + 2) / 2.0)
     psd[0, 0] = 0.0
     noise = rng.normal(size=(size, size)) + 1j * rng.normal(size=(size, size))
@@ -52,49 +64,13 @@ def _kolmogorov_phase_screen(
     return (level * screen / rms).astype(float)
 
 
-def _lattice_relax_step(
-    theta: np.ndarray,
-    *,
-    dt: float = 0.001,
-    D: float = 0.05,
-    kappa: float = 0.85,
-    delta_omega: float = 0.002,
-    recovery_alpha: float = 0.0,
-    theta0: np.ndarray | None = None,
-) -> np.ndarray:
-    """Single Hopf-lattice PDE step (oam_flux TwistLattice.relax_step simplified)."""
-    t = theta
-    lap = (
-        np.roll(t, 1, 0)
-        + np.roll(t, -1, 0)
-        + np.roll(t, 1, 1)
-        + np.roll(t, -1, 1)
-        + np.roll(t, 1, 2)
-        + np.roll(t, -1, 2)
-        - 6 * t
-    ) * (theta.shape[0] ** 2)
-    mean_twist = float(t.mean())
-    gauge = -kappa * mean_twist
-    rhs = D * lap + delta_omega + gauge
-    t = np.clip(t + dt * rhs, 0.01, 2 * np.pi - 0.01)
-    if recovery_alpha > 0.0 and theta0 is not None:
-        t = np.clip(t + recovery_alpha * (theta0 - t), 0.01, 2 * np.pi - 0.01)
-    return t
-
-
 def _bmgl_gate(field: np.ndarray, turbulence_level: float) -> np.ndarray:
-    """
-    Lightweight BMGL-style gating stub (VQC turbulence mitigation).
-
-    Soft-thresholds high-spatial-frequency noise while preserving
-    low-order OAM structure.
-    """
+    """Lightweight BMGL-style Fourier gate (VQC turbulence mitigation stub)."""
     F = np.fft.fft2(field)
     h, w = field.shape
     cy, cx = h // 2, w // 2
     yy, xx = np.ogrid[:h, :w]
     r = np.sqrt((yy - cy) ** 2 + (xx - cx) ** 2)
-    # Keep core modes; gate more aggressively as turbulence rises
     cutoff = max(2.0, 0.35 * min(h, w) * (1.0 - 0.5 * turbulence_level))
     gate = np.exp(-(r**2) / (2.0 * cutoff**2))
     gate = np.fft.ifftshift(gate)
@@ -110,9 +86,13 @@ def propagate_asteroid(
     lattice_memory: float = 0.15,
     seed: int | None = None,
     apply_bmgl: bool = True,
+    track_fidelity: bool = True,
 ) -> PropagationResult:
     """
     Propagate a built PhotonSeedAsteroid through a turbulent + lattice medium.
+
+    Computes a multi-metric fidelity scorecard against the pre-channel
+    protected field (or first shard field).
     """
     if asteroid.flux_state is None:
         raise RuntimeError("Asteroid must be built before propagate() — call build() first")
@@ -120,26 +100,28 @@ def propagate_asteroid(
     rng = np.random.default_rng(seed if seed is not None else asteroid.seed)
     flux = asteroid.flux_state
 
-    # Start field: protected field or synthesize from encoding
     if flux.protected_field is not None:
-        field = flux.protected_field.astype(complex).copy()
+        field0 = flux.protected_field.astype(complex).copy()
     elif asteroid.quaternion is not None and asteroid.quaternion.fields:
-        field = asteroid.quaternion.fields[0].astype(complex).copy()
+        field0 = asteroid.quaternion.fields[0].astype(complex).copy()
     else:
-        field = np.ones((64, 64), dtype=complex)
+        field0 = np.ones((64, 64), dtype=complex)
 
+    field = field0.copy()
+    ref = field0.copy()
     I0 = float(np.sum(np.abs(field) ** 2)) + 1e-12
 
     mean_twist_trace: list[float] = []
     intensity_trace: list[float] = []
     phase_rms: list[float] = []
+    fidelity_trace: list[float] = []
 
     from ..inner.oam_flux_coupling import relax_lattice_steps
+    from .metrics import field_overlap_fidelity
 
     use_live_lattice = flux.lattice is not None and hasattr(flux.lattice, "relax_step")
 
     for step in range(n_steps):
-        # Turbulent phase screen + tip/tilt jitter
         screen = _kolmogorov_phase_screen(field.shape[0], turbulence_level, rng)
         jitter = rng.normal(0.0, jitter_std * turbulence_level, size=2)
         yy, xx = np.mgrid[0 : field.shape[0], 0 : field.shape[1]]
@@ -149,8 +131,6 @@ def propagate_asteroid(
         if apply_bmgl:
             field = _bmgl_gate(field, turbulence_level)
 
-        # Shell protection each step: phase bias + soft trench (do NOT
-        # re-multiply the full amplitude envelope — that would decay as env^n).
         if flux.shell_modulation is not None:
             mod = flux.shell_modulation
             phase = mod.phase_mask
@@ -165,7 +145,6 @@ def propagate_asteroid(
             suppress = np.exp(-0.05 * trench)
             field = field * suppress * np.exp(1j * 0.15 * phase)
 
-        # Lattice medium evolution (live TwistLattice when available)
         step_means = relax_lattice_steps(
             flux,
             1,
@@ -177,40 +156,45 @@ def propagate_asteroid(
         mean_twist_trace.extend(step_means)
         intensity_trace.append(float(np.sum(np.abs(field) ** 2)))
         phase_rms.append(float(screen.std()))
+        if track_fidelity:
+            fidelity_trace.append(field_overlap_fidelity(ref, field))
 
     theta_final = flux.lattice_theta
-    If = float(np.sum(np.abs(field) ** 2))
-    # Fidelity proxy: intensity retention × phase coherence with initial
-    if flux.protected_field is not None:
-        ref = flux.protected_field
-        # Pad/crop if needed
-        if ref.shape != field.shape:
-            ref = field  # fallback
-        overlap = np.vdot(ref.ravel(), field.ravel())
-        fidelity = float(np.abs(overlap) ** 2 / ((np.vdot(ref, ref).real + 1e-12) * (If + 1e-12)))
-    else:
-        fidelity = float(If / I0)
+    metrics = compute_fidelity_metrics(
+        ref,
+        field,
+        turbulence_level=turbulence_level,
+        n_steps=n_steps,
+        extras={
+            "I0": I0,
+            "If": float(np.sum(np.abs(field) ** 2)),
+            "mean_phase_screen_rms": float(np.mean(phase_rms)) if phase_rms else 0.0,
+            "apply_bmgl": apply_bmgl,
+            "jitter_std": jitter_std,
+        },
+    )
 
-    fidelity = float(np.clip(fidelity, 0.0, 1.0))
-
-    # Store final state back on asteroid for recovery
     asteroid._propagation = PropagationResult(
         turbulence_level=turbulence_level,
         n_steps=n_steps,
         field_final=field,
+        field_reference=ref,
         lattice_theta_final=theta_final.copy() if theta_final is not None else None,
-        fidelity_proxy=fidelity,
+        fidelity_proxy=metrics.overlap_fidelity,
+        metrics=metrics,
         mean_twist_trace=mean_twist_trace,
         intensity_trace=intensity_trace,
         phase_screen_rms=phase_rms,
+        fidelity_trace=fidelity_trace,
         metadata={
             "jitter_std": jitter_std,
             "lattice_memory": lattice_memory,
             "apply_bmgl": apply_bmgl,
             "I0": I0,
-            "If": If,
+            "If": float(np.sum(np.abs(field) ** 2)),
             "lattice_backend": "live" if use_live_lattice else "stub",
             "flux_backend": getattr(flux, "backend", "unknown"),
+            "metrics_summary": metrics.summary_line(),
         },
     )
     return asteroid._propagation

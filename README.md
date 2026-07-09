@@ -75,11 +75,18 @@ seed = PhotonSeedAsteroid("hello photon seed", seed=42).build()
 print(seed.summary())
 
 prop = seed.propagate(turbulence_level=0.3)
+print(prop.metrics.summary_line())  # multi-metric turbulence scorecard
 rec = seed.recover(mode="hybrid")  # digital | photonic | hybrid
 print(rec.payload_text, rec.crc_ok, rec.byte_error_rate, rec.chordal_error_mean)
+
+# SLM hologram package (phase maps for hardware)
+pkg = seed.export_slm("outputs/slm_package", preset="generic_256")
+print(pkg.files)
 ```
 
 Recovery handles quaternion lossiness by packing **unit q + scale** (carrier amplitude side-channel), with CRC-8 and optional shard redundancy.
+
+Turbulence metrics: overlap fidelity, OAM spectrum fidelity, phase RMSE, Strehl proxy, tip/tilt — plus `sweep_turbulence()` for BER vs level curves.
 
 Examples:
 

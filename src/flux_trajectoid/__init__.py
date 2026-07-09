@@ -1,17 +1,19 @@
 """flux_trajectoid — Photon Seed Asteroids (trajectoid shells + VQC + oam_flux)."""
 
-from .photon_seed_asteroid import PhotonSeedAsteroid
-from .shell.generator import ShellGeometry, generate_shell
-from .inner.vqc_encoder import encode_to_quaternion
+from .export.slm import SLMConfig, SLMExportResult, export_slm_package
 from .inner.oam_flux_coupling import (
     couple_to_flux_lattice,
     is_live_oam_flux,
     oam_flux_backend,
 )
+from .inner.vqc_encoder import encode_to_quaternion
+from .photon_seed_asteroid import PhotonSeedAsteroid
+from .propagation.metrics import FidelityMetrics, compute_fidelity_metrics, sweep_turbulence
 from .propagation.simulator import propagate_asteroid
 from .recovery.decoder import recover_asteroid
+from .shell.generator import ShellGeometry, generate_shell
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 __all__ = [
     "PhotonSeedAsteroid",
@@ -23,5 +25,11 @@ __all__ = [
     "oam_flux_backend",
     "propagate_asteroid",
     "recover_asteroid",
+    "FidelityMetrics",
+    "compute_fidelity_metrics",
+    "sweep_turbulence",
+    "SLMConfig",
+    "SLMExportResult",
+    "export_slm_package",
     "__version__",
 ]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a seed, propagate through turbulence, report fidelity."""
+"""Build a seed, propagate through turbulence, report multi-metric fidelity."""
 
 from __future__ import annotations
 
@@ -13,25 +13,45 @@ from flux_trajectoid import PhotonSeedAsteroid
 
 
 def main() -> None:
-    asteroid = PhotonSeedAsteroid(b"flux_trajectoid_demo", seed=7).build()
-    levels = [0.0, 0.15, 0.3, 0.5]
-
-    print("turbulence  fidelity  mean_twist_end  I_final/I0")
+    print(
+        f"{'turb':>6}  {'F':>7}  {'Icorr':>7}  {'Strehl':>7}  "
+        f"{'OAMf':>7}  {'φrms':>7}  {'P':>7}  {'BER':>7}"
+    )
+    levels = [0.0, 0.1, 0.2, 0.3, 0.5]
+    last = None
     for level in levels:
-        a = PhotonSeedAsteroid(b"flux_trajectoid_demo", seed=7).build()
-        prop = a.propagate(turbulence_level=level, n_steps=24)
-        ratio = prop.metadata["If"] / (prop.metadata["I0"] + 1e-12)
+        a = PhotonSeedAsteroid(b"flux_trajectoid_demo", seed=7).build(
+            n_shards=4,
+            lattice_nx=10,
+            n_coupling_steps=3,
+            force_stub_flux=True,
+            n_points=96,
+            scale_grid=3,
+            scale_max_iter=2,
+        )
+        prop = a.propagate(turbulence_level=level, n_steps=12, seed=7)
+        m = prop.metrics
+        rec = a.recover(mode="photonic")
+        ber = rec.byte_error_rate if rec.byte_error_rate is not None else float("nan")
+        assert m is not None
         print(
-            f"  {level:5.2f}     {prop.fidelity_proxy:7.4f}  "
-            f"{prop.mean_twist_trace[-1]:12.4f}  {ratio:8.4f}"
+            f"  {level:4.2f}  {m.overlap_fidelity:7.4f}  {m.intensity_correlation:7.4f}  "
+            f"{m.strehl_proxy:7.4f}  {m.oam_fidelity:7.4f}  {m.phase_rmse_rad:7.3f}  "
+            f"{m.power_retention:7.4f}  {ber:7.3f}"
+        )
+        last = a
+
+    assert last is not None
+    print("\n--- sweep_turbulence() ---")
+    rows = last.sweep_turbulence(levels=[0.0, 0.25, 0.5], n_steps=8)
+    for r in rows:
+        print(
+            f"  L={r['turbulence_level']:.2f}  F={r['overlap_fidelity']:.4f}  "
+            f"OAM={r['oam_fidelity']:.4f}  BER={r.get('photonic_byte_ber')}"
         )
 
-    # Keep last asteroid for a quick recover peek
-    rec = a.recover()
-    print(f"\nRecovered text: {rec.payload_text!r}")
-    print(f"Shell match: {rec.shell_match.matched if rec.shell_match else None} "
-          f"(sim={rec.shell_match.similarity if rec.shell_match else None:.4f})")
-    print(f"Emergence: {rec.emergence_score:.4f}")
+    rec = last.recover(mode="hybrid")
+    print(f"\nHybrid recover: {rec.payload_text!r}  crc={rec.crc_ok}")
 
 
 if __name__ == "__main__":
