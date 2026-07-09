@@ -55,20 +55,21 @@ CUSTOM_CSS = """
 html, body {
   height: var(--ft-app-h) !important;
   min-height: var(--ft-app-h) !important;
-  max-height: var(--ft-app-h) !important;
+  /* no max-height — max-height + short iframe was clipping mid-UI */
   width: 100% !important;
   max-width: 100% !important;
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
   background: #070b14 !important;
+  position: relative !important;
 }
 gradio-app, #root {
   display: flex !important;
   flex-direction: column !important;
   height: var(--ft-app-h) !important;
   min-height: var(--ft-app-h) !important;
-  max-height: var(--ft-app-h) !important;
   width: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -83,7 +84,6 @@ gradio-app, #root {
   flex: 1 1 auto !important;
   height: var(--ft-app-h) !important;
   min-height: var(--ft-app-h) !important;
-  max-height: var(--ft-app-h) !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
@@ -285,14 +285,12 @@ footer,
  */
 #workspace {
   flex: 1 1 0 !important;
-  min-height: 0 !important;
   height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
   min-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
-  max-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
   display: grid !important;
   grid-template-columns:
-    minmax(280px, 1.1fr)
-    minmax(0, 2.15fr)
+    minmax(260px, 1.05fr)
+    minmax(0, 2.2fr)
     minmax(0, 1fr) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   align-items: stretch !important;
@@ -1628,77 +1626,77 @@ def _make_theme():
 SLIDER_FILL_JS = """
 (() => {
   /*
-   * Fit real screen height on HF Spaces.
-   * Hub page embeds Gradio in an iframe that sizes to CONTENT — so 100dvh
-   * inside a short iframe stays ~350px. Compute a target height from the
-   * parent/screen, pin --ft-app-h, and ask parentIFrame to grow.
+   * Fit the host screen (e.g. 1920×1080) on HF Spaces.
+   *
+   * Bug we hit: body was forced TALLER than the short hub iframe with
+   * overflow:hidden → UI clipped mid-panel and a huge black band below
+   * the iframe. Fix:
+   *  1) Target height ≈ parent/screen minus HF chrome
+   *  2) Grow the hub iframe (parentIFrame + iframe-resizer messages)
+   *  3) Pin every layout node to that height and split plot cells 50/50
+   *  4) Never max-height clip below the target (use min-height + height)
    */
+  function hostChrome() {
+    // Spaces header + title row + App/Files tabs (approx)
+    return 155;
+  }
+
   function targetAppHeight() {
-    const navEstimate = 48;
-    // Direct .hf.space / local: use window
+    const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 0;
+    const screenTarget = sh > 0 ? sh - hostChrome() : 0;
+
     let h = window.innerHeight || document.documentElement.clientHeight || 0;
-    // Embedded on huggingface.co: iframe may be short; use parent viewport
+
+    // Prefer parent viewport when same-origin; on HF hub this is cross-origin
     try {
       if (window.parent && window.parent !== window) {
         const ph = window.parent.innerHeight
-          || (window.parent.document && window.parent.document.documentElement
+          || (window.parent.document
+              && window.parent.document.documentElement
               && window.parent.document.documentElement.clientHeight)
           || 0;
-        // HF chrome (~ header + space tabs). Leave a little slack.
-        if (ph > 0) h = Math.max(h, ph - 160);
+        if (ph > 0) h = Math.max(h, ph - hostChrome());
       }
     } catch (_) {
-      // cross-origin: fall back to screen
-      const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 0;
-      if (sh > 0) h = Math.max(h, sh - 180);
+      /* cross-origin */
     }
-    // Absolute floor so we never collapse to content band
-    if (!h || h < 640) {
-      const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 900;
-      h = Math.max(640, sh - 180);
-    }
+
+    // Always respect screen size so a short iframe cannot trap us at ~350px
+    if (screenTarget > 0) h = Math.max(h, screenTarget);
+
+    // visualViewport (mobile / browser UI)
+    try {
+      if (window.visualViewport && window.visualViewport.height) {
+        h = Math.max(h, Math.round(window.visualViewport.height));
+      }
+    } catch (_) {}
+
+    if (!h || h < 560) h = Math.max(560, screenTarget || 800);
+    // Cap so we don't exceed physical screen
+    if (sh > 0) h = Math.min(h, sh - 80);
     return Math.round(h);
   }
 
-  function fitScreen() {
-    const h = targetAppHeight();
-    const root = document.documentElement;
-    root.style.setProperty('--ft-app-h', h + 'px');
-    root.style.height = h + 'px';
-    root.style.minHeight = h + 'px';
-    root.style.maxHeight = h + 'px';
-    if (document.body) {
-      document.body.style.height = h + 'px';
-      document.body.style.minHeight = h + 'px';
-      document.body.style.maxHeight = h + 'px';
-      document.body.style.overflow = 'hidden';
-    }
-    const app = document.querySelector('gradio-app') || document.querySelector('#root');
-    if (app) {
-      app.style.height = h + 'px';
-      app.style.minHeight = h + 'px';
-      app.style.maxHeight = h + 'px';
-    }
-    document.querySelectorAll('.gradio-container').forEach((el) => {
-      el.style.height = h + 'px';
-      el.style.minHeight = h + 'px';
-      el.style.maxHeight = h + 'px';
-    });
-    const nav = document.querySelector('#nav-bar');
-    const navH = (nav && nav.offsetHeight) ? nav.offsetHeight : 48;
-    root.style.setProperty('--ft-nav-h', navH + 'px');
-    const ws = document.querySelector('#workspace');
-    if (ws) {
-      const wh = Math.max(200, h - navH);
-      ws.style.height = wh + 'px';
-      ws.style.minHeight = wh + 'px';
-      ws.style.maxHeight = wh + 'px';
-    }
-    // Grow the HF hub iframe so the app is not a short band
+  function requestIframeHeight(h) {
     try {
-      if (window.parentIFrame && typeof window.parentIFrame.size === 'function') {
-        window.parentIFrame.size(h);
+      if (window.parentIFrame) {
+        if (typeof window.parentIFrame.autoResize === 'function') {
+          window.parentIFrame.autoResize(true);
+        }
+        if (typeof window.parentIFrame.size === 'function') {
+          window.parentIFrame.size(h);
+        }
+        if (typeof window.parentIFrame.setHeightCalculationMethod === 'function') {
+          window.parentIFrame.setHeightCalculationMethod('taggedElement');
+        }
       }
+    } catch (_) {}
+    // iframe-resizer wire formats used by Gradio / HF
+    try {
+      window.parent && window.parent.postMessage(
+        '[iFrameSizer]height:' + h + ':force',
+        '*'
+      );
     } catch (_) {}
     try {
       window.parent && window.parent.postMessage(
@@ -1706,6 +1704,141 @@ SLIDER_FILL_JS = """
         '*'
       );
     } catch (_) {}
+    try {
+      window.parent && window.parent.postMessage(
+        { type: 'iframe-height', height: h },
+        '*'
+      );
+    } catch (_) {}
+  }
+
+  function pin(el, h, w) {
+    if (!el) return;
+    el.style.setProperty('height', h, 'important');
+    el.style.setProperty('min-height', h, 'important');
+    el.style.setProperty('max-height', h, 'important');
+    el.style.setProperty('box-sizing', 'border-box', 'important');
+    if (w) {
+      el.style.setProperty('width', w, 'important');
+      el.style.setProperty('max-width', w, 'important');
+    }
+  }
+
+  function ensureSentinel(h) {
+    // iframe-resizer heightCalculationMethod: "taggedElement"
+    let s = document.getElementById('ft-height-sentinel');
+    if (!s) {
+      s = document.createElement('div');
+      s.id = 'ft-height-sentinel';
+      s.setAttribute('data-iframe-height', '');
+      s.style.cssText = [
+        'position:absolute',
+        'left:0',
+        'width:1px',
+        'height:1px',
+        'pointer-events:none',
+        'opacity:0',
+        'z-index:-1',
+      ].join(';');
+      (document.body || document.documentElement).appendChild(s);
+    }
+    s.style.top = Math.max(0, h - 1) + 'px';
+  }
+
+  function fitScreen() {
+    const h = targetAppHeight();
+    const root = document.documentElement;
+    root.style.setProperty('--ft-app-h', h + 'px');
+    root.style.overflow = 'hidden';
+    pin(root, h + 'px', '100%');
+    if (document.body) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.margin = '0';
+      document.body.style.padding = '0';
+      document.body.style.position = 'relative';
+      pin(document.body, h + 'px', '100%');
+    }
+
+    const app = document.querySelector('gradio-app') || document.querySelector('#root');
+    pin(app, h + 'px', '100%');
+    if (app) {
+      app.style.display = 'flex';
+      app.style.flexDirection = 'column';
+      app.style.overflow = 'hidden';
+    }
+
+    document.querySelectorAll('.gradio-container').forEach((el) => {
+      pin(el, h + 'px', '100%');
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.overflow = 'hidden';
+      el.style.margin = '0';
+      el.style.padding = '0';
+    });
+
+    // Stretch Gradio internal wrappers
+    document.querySelectorAll(
+      '.gradio-container .main, .gradio-container .wrap, .gradio-container .contain, .gradio-container .app'
+    ).forEach((el) => {
+      el.style.setProperty('flex', '1 1 0', 'important');
+      el.style.setProperty('min-height', '0', 'important');
+      el.style.setProperty('height', '100%', 'important');
+      el.style.setProperty('max-height', '100%', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+      el.style.setProperty('display', 'flex', 'important');
+      el.style.setProperty('flex-direction', 'column', 'important');
+      el.style.setProperty('margin', '0', 'important');
+      el.style.setProperty('padding', '0', 'important');
+    });
+
+    const nav = document.querySelector('#nav-bar');
+    const navH = (nav && nav.offsetHeight) ? nav.offsetHeight : 48;
+    root.style.setProperty('--ft-nav-h', navH + 'px');
+    if (nav) {
+      pin(nav, navH + 'px', '100%');
+      nav.style.flex = '0 0 ' + navH + 'px';
+    }
+
+    const wh = Math.max(240, h - navH);
+    const ws = document.querySelector('#workspace');
+    if (ws) {
+      pin(ws, wh + 'px', '100%');
+      ws.style.display = 'grid';
+      ws.style.overflow = 'hidden';
+      ws.style.flex = '1 1 auto';
+    }
+
+    // Columns fill workspace
+    ['#controls', '#col-center', '#col-right'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      pin(el, wh + 'px', null);
+      el.style.overflow = sel === '#controls' ? 'auto' : 'hidden';
+      el.style.minWidth = '0';
+    });
+
+    // Plot cells: equal half of column (2 rows)
+    const gap = 6;
+    const cellH = Math.max(120, Math.floor((wh - gap) / 2));
+    document.querySelectorAll('#col-center .vp-cell, #col-right .vp-cell').forEach((cell) => {
+      pin(cell, cellH + 'px', null);
+      cell.style.flex = '1 1 ' + cellH + 'px';
+      cell.style.overflow = 'hidden';
+      cell.style.display = 'flex';
+      cell.style.flexDirection = 'column';
+    });
+
+    // Images fill their cells
+    document.querySelectorAll(
+      '#col-center .vp-cell .vp-plot, #col-right .vp-cell .vp-plot, #col-center .vp-cell img, #col-right .vp-cell img'
+    ).forEach((el) => {
+      el.style.setProperty('max-height', '100%', 'important');
+      el.style.setProperty('max-width', '100%', 'important');
+      el.style.setProperty('object-fit', 'contain', 'important');
+    });
+
+    ensureSentinel(h);
+    requestIframeHeight(h);
   }
 
   /* theme_default_tabs: main nav active underline/text */
@@ -1791,6 +1924,16 @@ SLIDER_FILL_JS = """
     });
   }
   // Gradio may inject this script before components mount
+  let fitTimer = null;
+  function scheduleFit() {
+    if (fitTimer) return;
+    fitTimer = setTimeout(() => {
+      fitTimer = null;
+      fitScreen();
+      bindAll();
+      bindNavTabs();
+    }, 50);
+  }
   const start = () => {
     fitScreen();
     bindAll();
@@ -1801,18 +1944,33 @@ SLIDER_FILL_JS = """
   } else {
     start();
   }
-  window.addEventListener('resize', fitScreen, { passive: true });
-  window.addEventListener('orientationchange', fitScreen, { passive: true });
+  window.addEventListener('resize', scheduleFit, { passive: true });
+  window.addEventListener('orientationchange', scheduleFit, { passive: true });
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', fitScreen, { passive: true });
+    window.visualViewport.addEventListener('resize', scheduleFit, { passive: true });
   }
-  const obs = new MutationObserver(() => start());
+  // parent may inject iframe-resizer late
+  window.addEventListener('message', (ev) => {
+    if (!ev || ev.data == null) return;
+    const d = ev.data;
+    if (d === 'fit' || d?.type === 'resize' || d?.type === 'SET_SCROLLING') {
+      scheduleFit();
+    }
+  });
+  const obs = new MutationObserver(() => scheduleFit());
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(start, 800);
+  // Keep re-asserting until the hub iframe actually grows
+  let n = 0;
+  const boot = setInterval(() => {
+    fitScreen();
+    n += 1;
+    if (n > 40) clearInterval(boot); // ~20s
+  }, 500);
   setTimeout(start, 0);
-  setTimeout(start, 250);
-  setTimeout(start, 1000);
-  setTimeout(fitScreen, 2000);
+  setTimeout(start, 200);
+  setTimeout(start, 600);
+  setTimeout(start, 1500);
+  setTimeout(start, 3000);
 })();
 """
 
