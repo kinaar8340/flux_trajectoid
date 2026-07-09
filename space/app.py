@@ -39,16 +39,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
 /*
- * Flex-fit full iframe (local + HF Space).
- * Bug: height:auto on #workspace collapsed content to ~350px with empty
- * black below. Force a hard viewport chain so the 3-col grid fills.
+ * Fit the user's screen (e.g. 1920×1080).
+ *
+ * On huggingface.co/spaces the app is in an iframe that auto-sizes to
+ * CONTENT height (iFrameResizer taggedElement). Pure 100dvh inside a short
+ * iframe stays short → empty black under a ~350px band.
+ *
+ * Fix: --ft-app-h is set by JS to the real available height (parent viewport
+ * or screen minus HF chrome). CSS then fills that hard pixel height.
  */
 :root {
   --ft-nav-h: 48px;
-  --ft-app-h: 100vh;
-}
-@supports (height: 100dvh) {
-  :root { --ft-app-h: 100dvh; }
+  --ft-app-h: 100vh; /* JS overwrites with px */
 }
 html, body {
   height: var(--ft-app-h) !important;
@@ -71,8 +73,11 @@ gradio-app, #root {
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
+  box-sizing: border-box !important;
 }
-.gradio-container {
+.gradio-container,
+.gradio-container.fillable,
+.gradio-container.app {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
@@ -87,8 +92,9 @@ gradio-app, #root {
   overflow: hidden !important;
   background: #070b14 !important;
   font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
+  box-sizing: border-box !important;
 }
-/* Gradio chrome wrappers stretch, no page scroll (Gradio 5 + 6) */
+/* Gradio chrome wrappers stretch (Gradio 5 + 6) */
 .gradio-container .main,
 .gradio-container .wrap,
 .gradio-container .contain,
@@ -96,7 +102,8 @@ gradio-app, #root {
 .gradio-container .app,
 .gradio-container > .wrap,
 .gradio-container > .contain,
-div.gradio-container > div {
+div.gradio-container > div,
+.gradio-container .wrap > .contain {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 0 !important;
@@ -108,8 +115,9 @@ div.gradio-container > div {
   margin: 0 !important;
   padding: 0 !important;
   gap: 0 !important;
+  box-sizing: border-box !important;
 }
-/* Direct children of app body: nav (fixed) + workspace (flex fill) */
+/* nav (fixed) + workspace (flex fill) */
 .gradio-container .contain > .gap,
 .gradio-container .contain > div,
 .gradio-container .main > .wrap,
@@ -125,7 +133,7 @@ div.gradio-container > div {
   overflow: hidden !important;
   gap: 0 !important;
 }
-/* HF Space iframe: kill document scroll so only #controls scrolls */
+/* only #controls scrolls */
 html.gradio-container,
 body.gradio-container,
 body > gradio-app,
@@ -163,18 +171,19 @@ footer,
 /* Top navigation — same tab language as CONTROLS | REFERENCES */
 #nav-bar {
   display: flex !important;
-  flex: 0 0 auto !important;
+  flex: 0 0 var(--ft-nav-h) !important;
   align-items: center;
   gap: 0.85rem;
   padding: 0.35rem 0.75rem 0;
   background: rgba(15, 23, 42, 0.92);
   border-bottom: none;
-  min-height: 44px;
-  max-height: 48px;
-  height: 48px !important;
+  min-height: var(--ft-nav-h) !important;
+  max-height: var(--ft-nav-h) !important;
+  height: var(--ft-nav-h) !important;
   position: relative;
   width: 100% !important;
   box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 #nav-bar::after {
   content: "";
@@ -271,16 +280,16 @@ footer,
 }
 
 /*
- * Workspace: hard fill under nav (~full iframe minus 48px nav).
- * Do NOT use height:auto — that collapsed to ~351px on HF.
+ * Workspace: fill everything under nav. JS sets --ft-app-h in px so
+ * this is a real tall grid on 1920×1080 (not content-sized ~351px).
  */
 #workspace {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
+  min-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
   max-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
   display: grid !important;
-  /* Col-1 fits On/Off + x y z xyz one row; center dominant; right slim */
   grid-template-columns:
     minmax(280px, 1.1fr)
     minmax(0, 2.15fr)
@@ -878,88 +887,70 @@ footer,
     var(--ft-glow) !important;
 }
 /*
- * Radio blocks: title ABOVE options (column). Only the option strip is row.
- * Never set .form / .block to row — that put "Show green slice" inline with
- * On/Off and wrapped the title mid-word (HF Gradio 5).
+ * Radio blocks (Gradio 5): title above, option chips in a horizontal row.
+ * Keep rules light so option wraps never collapse to empty gray bars.
  */
 #controls .oval-toggle,
-#controls .block:has(input[type="radio"]),
-#controls .form:has(input[type="radio"]) {
+#controls .block.oval-toggle {
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  margin: 0 0 0.2rem 0 !important;
+  gap: 0.15rem !important;
+  margin: 0 0 0.25rem 0 !important;
   padding: 0 !important;
-  min-height: 0 !important;
-  gap: 0.12rem !important;
   width: 100% !important;
-  max-width: 100% !important;
+  min-height: auto !important;
+  height: auto !important;
+  overflow: visible !important;
 }
-/* Field title full-width above chips — not a chip itself */
-#controls .oval-toggle > label:not(:has(input)),
-#controls .block:has(input[type="radio"]) > label:not(:has(input)),
-#controls .form:has(input[type="radio"]) > label:not(:has(input)),
+#controls .oval-toggle > span,
+#controls .oval-toggle > label:first-child,
 #controls .oval-toggle .block-label,
 #controls .oval-toggle .block-title,
-#controls .block:has(input[type="radio"]) .block-label,
-#controls .block:has(input[type="radio"]) .block-title,
-#controls span[data-testid="block-info"] {
+#controls .oval-toggle [data-testid="block-info"] {
   display: block !important;
   width: 100% !important;
-  max-width: 100% !important;
-  flex: 0 0 auto !important;
+  font-size: 0.65rem !important;
+  line-height: 1.25 !important;
   margin: 0 !important;
   padding: 0 !important;
-  font-size: 0.65rem !important;
-  line-height: 1.2 !important;
-  white-space: normal !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
+  white-space: normal !important;
 }
-/* Option strip only — On/Off · x y z xyz on one line */
+/* Option row: visible chips */
+#controls .oval-toggle .wrap,
 #controls .oval-toggle fieldset,
 #controls .oval-toggle [data-testid="radio-group"],
-#controls .oval-toggle > .wrap,
-#controls .oval-toggle .wrap:has(> label input[type="radio"]),
-#controls .block:has(input[type="radio"]) > .wrap,
-#controls .form:has(input[type="radio"]) > .wrap,
-#controls fieldset:has(input[type="radio"]),
-#controls [data-testid="radio-group"],
-#controls [role="radiogroup"] {
+#controls .oval-toggle [role="radiogroup"] {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: nowrap !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
-  justify-content: flex-start !important;
-  gap: 0.25rem 0.35rem !important;
+  gap: 0.3rem 0.4rem !important;
   width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  box-sizing: border-box !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-}
-/* Chip labels that actually contain the radio input */
-#controls fieldset label:has(input[type="radio"]),
-#controls label:has(> input[type="radio"]),
-#controls label:has(> input[type="checkbox"]),
-#controls [role="radio"],
-#controls [data-testid="radio-group"] label:has(input) {
   min-height: var(--ft-btn-row-h) !important;
-  max-height: var(--ft-btn-row-h) !important;
-  height: var(--ft-btn-row-h) !important;
-  width: auto !important;
-  max-width: none !important;
-  flex: 0 0 auto !important;
-  padding: 0 0.35rem !important;
+  height: auto !important;
+  overflow: visible !important;
   margin: 0 !important;
-  line-height: 1.1 !important;
-  font-size: 0.7rem !important;
+  padding: 0 !important;
+}
+#controls .oval-toggle label:has(input[type="radio"]),
+#controls .oval-toggle label:has(input[type="checkbox"]),
+#controls .oval-toggle [role="radio"] {
   display: inline-flex !important;
   align-items: center !important;
-  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-height: var(--ft-btn-row-h) !important;
+  height: var(--ft-btn-row-h) !important;
+  padding: 0 0.4rem !important;
+  margin: 0 !important;
+  font-size: 0.7rem !important;
   white-space: nowrap !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 /* Action buttons: full-width stack inside left column (never float out) */
 #controls #scan-btn,
@@ -1191,10 +1182,23 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
 def build_app() -> gr.Blocks:
     hero = asset_path("trajectoid_paths.png")
 
-    with gr.Blocks(
+    blocks_kwargs = dict(
         title="flux_trajectoid",
         analytics_enabled=False,
-    ) as demo:
+    )
+    # Gradio 4.44+ / 5.x: expand top-level children to window height
+    try:
+        import inspect as _inspect
+
+        _bp = _inspect.signature(gr.Blocks.__init__).parameters
+        if "fill_height" in _bp:
+            blocks_kwargs["fill_height"] = True
+        if "fill_width" in _bp:
+            blocks_kwargs["fill_width"] = True
+    except Exception:
+        pass
+
+    with gr.Blocks(**blocks_kwargs) as demo:
         # ---- Top navigation ----
         with gr.Row(elem_id="nav-bar"):
             gr.HTML(
@@ -1623,6 +1627,87 @@ def _make_theme():
 # IIFE (plain () => {} is never called). Slider fill + main nav active tab.
 SLIDER_FILL_JS = """
 (() => {
+  /*
+   * Fit real screen height on HF Spaces.
+   * Hub page embeds Gradio in an iframe that sizes to CONTENT — so 100dvh
+   * inside a short iframe stays ~350px. Compute a target height from the
+   * parent/screen, pin --ft-app-h, and ask parentIFrame to grow.
+   */
+  function targetAppHeight() {
+    const navEstimate = 48;
+    // Direct .hf.space / local: use window
+    let h = window.innerHeight || document.documentElement.clientHeight || 0;
+    // Embedded on huggingface.co: iframe may be short; use parent viewport
+    try {
+      if (window.parent && window.parent !== window) {
+        const ph = window.parent.innerHeight
+          || (window.parent.document && window.parent.document.documentElement
+              && window.parent.document.documentElement.clientHeight)
+          || 0;
+        // HF chrome (~ header + space tabs). Leave a little slack.
+        if (ph > 0) h = Math.max(h, ph - 160);
+      }
+    } catch (_) {
+      // cross-origin: fall back to screen
+      const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 0;
+      if (sh > 0) h = Math.max(h, sh - 180);
+    }
+    // Absolute floor so we never collapse to content band
+    if (!h || h < 640) {
+      const sh = (window.screen && (window.screen.availHeight || window.screen.height)) || 900;
+      h = Math.max(640, sh - 180);
+    }
+    return Math.round(h);
+  }
+
+  function fitScreen() {
+    const h = targetAppHeight();
+    const root = document.documentElement;
+    root.style.setProperty('--ft-app-h', h + 'px');
+    root.style.height = h + 'px';
+    root.style.minHeight = h + 'px';
+    root.style.maxHeight = h + 'px';
+    if (document.body) {
+      document.body.style.height = h + 'px';
+      document.body.style.minHeight = h + 'px';
+      document.body.style.maxHeight = h + 'px';
+      document.body.style.overflow = 'hidden';
+    }
+    const app = document.querySelector('gradio-app') || document.querySelector('#root');
+    if (app) {
+      app.style.height = h + 'px';
+      app.style.minHeight = h + 'px';
+      app.style.maxHeight = h + 'px';
+    }
+    document.querySelectorAll('.gradio-container').forEach((el) => {
+      el.style.height = h + 'px';
+      el.style.minHeight = h + 'px';
+      el.style.maxHeight = h + 'px';
+    });
+    const nav = document.querySelector('#nav-bar');
+    const navH = (nav && nav.offsetHeight) ? nav.offsetHeight : 48;
+    root.style.setProperty('--ft-nav-h', navH + 'px');
+    const ws = document.querySelector('#workspace');
+    if (ws) {
+      const wh = Math.max(200, h - navH);
+      ws.style.height = wh + 'px';
+      ws.style.minHeight = wh + 'px';
+      ws.style.maxHeight = wh + 'px';
+    }
+    // Grow the HF hub iframe so the app is not a short band
+    try {
+      if (window.parentIFrame && typeof window.parentIFrame.size === 'function') {
+        window.parentIFrame.size(h);
+      }
+    } catch (_) {}
+    try {
+      window.parent && window.parent.postMessage(
+        { type: 'SET_IFRAME_HEIGHT', height: h },
+        '*'
+      );
+    } catch (_) {}
+  }
+
   /* theme_default_tabs: main nav active underline/text */
   function bindNavTabs() {
     const bar = document.querySelector('#nav-bar');
@@ -1707,6 +1792,7 @@ SLIDER_FILL_JS = """
   }
   // Gradio may inject this script before components mount
   const start = () => {
+    fitScreen();
     bindAll();
     bindNavTabs();
   };
@@ -1715,12 +1801,18 @@ SLIDER_FILL_JS = """
   } else {
     start();
   }
+  window.addEventListener('resize', fitScreen, { passive: true });
+  window.addEventListener('orientationchange', fitScreen, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', fitScreen, { passive: true });
+  }
   const obs = new MutationObserver(() => start());
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(start, 400);
+  setInterval(start, 800);
   setTimeout(start, 0);
   setTimeout(start, 250);
   setTimeout(start, 1000);
+  setTimeout(fitScreen, 2000);
 })();
 """
 
