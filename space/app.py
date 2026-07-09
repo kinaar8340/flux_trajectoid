@@ -292,103 +292,64 @@ footer { display: none !important; }
   overflow: hidden !important;
   padding: 0.3rem 0.4rem !important;
   box-sizing: border-box !important;
-  /* kill header vertical scroll / chevron chrome */
   scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
 }
 #col-center .vp-cell::-webkit-scrollbar,
-#col-right .vp-cell::-webkit-scrollbar,
-#col-center .vp-cell *::-webkit-scrollbar,
-#col-right .vp-cell *::-webkit-scrollbar {
+#col-right .vp-cell::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
-/* Hide Gradio column/block header scroll & chevron controls on viewports */
-#col-center .vp-cell button,
-#col-right .vp-cell button,
-#col-center .vp-cell .icon-button,
-#col-right .vp-cell .icon-button,
-#col-center .vp-cell .icon-button-wrapper,
-#col-right .vp-cell .icon-button-wrapper,
-#col-center .vp-cell button.icon-button,
-#col-right .vp-cell button.icon-button,
-#col-center .vp-cell .padded,
-#col-right .vp-cell .padded,
-#col-center .vp-cell [class*="IconButton"],
-#col-right .vp-cell [class*="IconButton"],
-#col-center .vp-cell .block-header,
-#col-right .vp-cell .block-header,
-#col-center .vp-cell .show-api,
-#col-right .vp-cell .show-api,
-#col-center button[aria-label*="up" i],
-#col-right button[aria-label*="up" i],
-#col-center button[aria-label*="down" i],
-#col-right button[aria-label*="down" i],
-#col-center button[aria-label*="scroll" i],
-#col-right button[aria-label*="scroll" i],
-#col-center .vp-cell .toolbar,
-#col-right .vp-cell .toolbar {
+/*
+ * Hide only header chevron / scroll chrome — never hide .padded or
+ * generic wrappers (those hold titles + Image content).
+ */
+#col-center .vp-cell > .wrap > button.icon-button,
+#col-right .vp-cell > .wrap > button.icon-button,
+#col-center .vp-cell > button.icon-button,
+#col-right .vp-cell > button.icon-button,
+#col-center .vp-cell .icon-button-wrapper:not(:has(img)),
+#col-right .vp-cell .icon-button-wrapper:not(:has(img)) {
   display: none !important;
-  visibility: hidden !important;
-  width: 0 !important;
-  height: 0 !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  overflow: hidden !important;
-}
-/* Markdown titles: no scroll chrome */
-#col-center .vp-cell .prose,
-#col-right .vp-cell .prose,
-#col-center .vp-cell .md,
-#col-right .vp-cell .md,
-#col-center .vp-cell [data-testid="markdown"],
-#col-right .vp-cell [data-testid="markdown"] {
-  overflow: hidden !important;
-  max-height: 1.4rem !important;
 }
 #col-center .vp-cell .viewport-title,
 #col-right .vp-cell .viewport-title {
   flex: 0 0 auto !important;
   margin: 0 0 0.15rem 0 !important;
-  overflow: hidden !important;
 }
-/* Plot component fills rest of cell — do NOT restyle Gradio internals */
+/* Plot fills remaining cell; keep Gradio Image internals intact */
 #col-center .vp-cell .vp-plot,
 #col-right .vp-cell .vp-plot,
 #col-center .vp-cell [data-testid="image"],
 #col-right .vp-cell [data-testid="image"] {
   flex: 1 1 auto !important;
-  min-height: 0 !important;
+  min-height: 120px !important;
   width: 100% !important;
-  height: 100% !important;
   max-height: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
   background: rgba(7, 11, 20, 0.35) !important;
 }
-/* Scale the raster to the image frame only */
 #col-center .vp-cell img,
 #col-right .vp-cell img {
-  width: 100% !important;
-  height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
+  margin: 0 auto !important;
 }
 #col-center .vp-cell .image-container,
 #col-right .vp-cell .image-container {
   width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
+  min-height: 120px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  overflow: hidden !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
