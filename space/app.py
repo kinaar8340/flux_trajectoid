@@ -190,48 +190,50 @@ footer { display: none !important; }
     #070b14 !important;
 }
 /*
- * Page columns: ~25% | ~50% | ~25%
- * (Gradio nests each Column in a wrapper — size the wrappers)
- * Cols 2 & 3: each split 50/50 height (upper matches lower)
+ * Page columns @ 1920×1080: ~25% | ~50% | ~25%
+ * CSS grid keeps all three on-screen (flex + min-width was
+ * pushing #col-right off the right edge under overflow:hidden).
+ * Cols 2 & 3: each split 50/50 height.
  */
 #workspace {
-  display: flex !important;
-  flex-direction: row !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
   align-items: stretch !important;
   gap: 0.4rem !important;
-}
-#workspace > div {
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-/* ~25% | ~50% | ~25% of page width */
-#workspace > div:nth-child(1) {
-  flex: 1 1 25% !important;
-  width: 25% !important;
-  max-width: 28% !important;
-  min-width: 200px !important;
-}
-#workspace > div:nth-child(2) {
-  flex: 2 1 50% !important;
-  width: 50% !important;
-  max-width: 52% !important;
-  min-width: 280px !important;
-}
-#workspace > div:nth-child(3) {
-  flex: 1 1 25% !important;
-  width: 25% !important;
-  max-width: 28% !important;
-  min-width: 180px !important;
-}
-#controls,
-#col-center,
-#col-right {
+  box-sizing: border-box !important;
   width: 100% !important;
-  max-width: 100% !important;
-  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+/* Kill Gradio default column min-widths */
+#workspace .column,
+#workspace [class*="column"],
+#workspace > div,
+#workspace > * {
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+}
+#controls {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  overflow-x: hidden !important;
+}
+#col-center {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+}
+#col-right {
+  grid-column: 3 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* Col-1 scrolls; plot cols do not (fixed half-panels) */
@@ -927,7 +929,7 @@ def build_app() -> gr.Blocks:
         with gr.Row(elem_id="workspace", equal_height=True):
             # Column 1 — CONTROLS | REFERENCES tabs
             with gr.Column(
-                scale=1, min_width=200, elem_classes=["layer-inner"], elem_id="controls"
+                scale=1, min_width=0, elem_classes=["layer-inner"], elem_id="controls"
             ):
                 with gr.Tabs(elem_id="col1-tabs", selected=0) as col1_tabs:
                     with gr.Tab("CONTROLS", id=0):
@@ -1062,11 +1064,12 @@ def build_app() -> gr.Blocks:
             #   [ radial ]
             with gr.Column(
                 scale=2,
-                min_width=320,
+                min_width=0,
                 elem_id="col-center",
                 elem_classes=["vp-col"],
             ):
                 with gr.Column(
+                    min_width=0,
                     elem_classes=["layer-inner", "vp-cell"],
                     elem_id="vp-shell",
                 ):
@@ -1081,6 +1084,7 @@ def build_app() -> gr.Blocks:
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
+                    min_width=0,
                     elem_classes=["layer-inner", "vp-cell"],
                     elem_id="vp-radial",
                 ):
@@ -1100,11 +1104,12 @@ def build_app() -> gr.Blocks:
             #   [ scorecard ]
             with gr.Column(
                 scale=1,
-                min_width=200,
+                min_width=0,
                 elem_id="col-right",
                 elem_classes=["vp-col"],
             ):
                 with gr.Column(
+                    min_width=0,
                     elem_classes=["layer-inner", "vp-cell"],
                     elem_id="vp-path",
                 ):
@@ -1119,6 +1124,7 @@ def build_app() -> gr.Blocks:
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
+                    min_width=0,
                     elem_classes=["layer-inner", "vp-cell"],
                     elem_id="vp-score",
                 ):
@@ -1131,19 +1137,17 @@ def build_app() -> gr.Blocks:
                         elem_classes=["vp-plot"],
                     )
 
-            # Still updated by pipeline; not in the 2×2 page grid
-            img_field = gr.Image(
-                value=blank_rgb(260, 360),
-                visible=False,
-                label="Protected OAM field",
-            )
-            img_trace = gr.Image(
-                value=blank_rgb(200, 360),
-                visible=False,
-                label="Fidelity trace",
-            )
-
-        # Hidden reference / about swap targets (still one page — toggle visibility via content)
+        # Outside #workspace grid so they never steal a column track
+        img_field = gr.Image(
+            value=blank_rgb(260, 360),
+            visible=False,
+            label="Protected OAM field",
+        )
+        img_trace = gr.Image(
+            value=blank_rgb(200, 360),
+            visible=False,
+            label="Fidelity trace",
+        )
         ref_panel = gr.Image(
             value=asset_path("shell_construction.png"),
             visible=False,
