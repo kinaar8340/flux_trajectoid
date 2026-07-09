@@ -53,6 +53,166 @@ def _fig_to_rgb(fig, *, size: tuple[int, int] | None = None) -> np.ndarray:
     return rgb
 
 
+def _slice_axis_and_value(
+    shell,
+    slice_frac: float = 0.5,
+    plane: str = "z",
+) -> tuple[int, int, int, float, np.ndarray, np.ndarray] | None:
+    """Return (axis, a0, a1, plane_value, lo, hi) for the green scan frame."""
+    if shell.surface is None and shell.mesh_vertices is None:
+        return None
+    if shell.surface is not None:
+        pts = np.asarray(shell.surface, dtype=float).reshape(-1, 3)
+    else:
+        pts = np.asarray(shell.mesh_vertices, dtype=float)
+    lo = pts.min(axis=0)
+    hi = pts.max(axis=0)
+    pad = 0.03 * (hi - lo + 1e-9)
+    lo = lo - pad
+    hi = hi + pad
+    axis = {"x": 0, "y": 1, "z": 2}.get(str(plane).lower(), 2)
+    a0, a1 = [i for i in range(3) if i != axis]
+    c = float(lo[axis] + np.clip(float(slice_frac), 0.0, 1.0) * (hi[axis] - lo[axis]))
+    return axis, a0, a1, c, lo, hi
+
+
+def _intersection_curve_on_plane(
+    shell,
+    *,
+    axis: int,
+    a0: int,
+    a1: int,
+    c: float,
+) -> np.ndarray | None:
+    """
+    Sample the curve where the scan plane hits the 3D shell / sphere.
+
+    Prefer UV-surface edge crossings (true shell silhouette on the plane).
+    Fall back to sphere∩plane circle using rolling_radius / surface mean.
+    Returns (N, 3) polyline ordered by angle (closed if possible).
+    """
+    crossings: list[np.ndarray] = []
+
+    if shell.surface is not None:
+        s = np.asarray(shell.surface, dtype=float)
+        if s.ndim == 3 and s.shape[-1] == 3:
+            n_lat, n_lon, _ = s.shape
+            # Cross along meridians (varying latitude)
+            for j in range(n_lon):
+                col = s[:, j, :]
+                vals = col[:, axis]
+                for i in range(n_lat - 1):
+                    v0, v1 = vals[i], vals[i + 1]
+                    if (v0 - c) * (v1 - c) <= 0.0 and abs(v1 - v0) > 1e-14:
+                        t = (c - v0) / (v1 - v0)
+                        crossings.append(col[i] + t * (col[i + 1] - col[i]))
+            # Cross along parallels (varying longitude) for denser arc
+            for i in range(n_lat):
+                row = s[i, :, :]
+                vals = row[:, axis]
+                for j in range(n_lon - 1):
+                    v0, v1 = vals[j], vals[j + 1]
+                    if (v0 - c) * (v1 - c) <= 0.0 and abs(v1 - v0) > 1e-14:
+                        t = (c - v0) / (v1 - v0)
+                        crossings.append(row[j] + t * (row[j + 1] - row[j]))
+
+    if len(crossings) < 6 and shell.mesh_vertices is not None and shell.mesh_faces is not None:
+        # Mesh edge crossings as secondary sample
+        V = np.asarray(shell.mesh_vertices, dtype=float)
+        F = np.asarray(shell.mesh_faces, dtype=int)
+        for tri in F:
+            for a, b in ((0, 1), (1, 2), (2, 0)):
+                p0, p1 = V[tri[a]], V[tri[b]]
+                v0, v1 = p0[axis], p1[axis]
+                if (v0 - c) * (v1 - c) <= 0.0 and abs(v1 - v0) > 1e-14:
+                    t = (c - v0) / (v1 - v0)
+                    crossings.append(p0 + t * (p1 - p0))
+
+    if len(crossings) >= 6:
+        pts = np.asarray(crossings, dtype=float)
+        # Project onto plane (numerical snap)
+        pts[:, axis] = c
+        mid = pts.mean(axis=0)
+        u = pts[:, a0] - mid[a0]
+        v = pts[:, a1] - mid[a1]
+        ang = np.arctan2(v, u)
+        order = np.argsort(ang)
+        pts = pts[order]
+        ang = ang[order]
+        # Angular bin average for a smooth single-valued arc
+        n_bins = min(180, max(48, len(pts) // 2))
+        edges = np.linspace(-np.pi, np.pi, n_bins + 1)
+        smooth: list[np.ndarray] = []
+        for k in range(n_bins):
+            mask = (ang >= edges[k]) & (ang < edges[k + 1])
+            if not np.any(mask):
+                continue
+            smooth.append(pts[mask].mean(axis=0))
+        if len(smooth) >= 6:
+            out = np.asarray(smooth, dtype=float)
+            out = np.vstack([out, out[:1]])  # close loop
+            return out
+
+    # Sphere ∩ plane fallback (idealised rolling sphere)
+    if shell.surface is not None:
+        pts_all = np.asarray(shell.surface, dtype=float).reshape(-1, 3)
+    elif shell.mesh_vertices is not None:
+        pts_all = np.asarray(shell.mesh_vertices, dtype=float)
+    else:
+        return None
+    center = pts_all.mean(axis=0)
+    R = float(getattr(shell, "rolling_radius", 0.0) or 0.0)
+    if R <= 1e-9:
+        R = float(np.median(np.linalg.norm(pts_all - center, axis=1)))
+    delta = float(c - center[axis])
+    if abs(delta) >= R * 0.999:
+        return None
+    r_c = float(np.sqrt(max(R * R - delta * delta, 0.0)))
+    mid = center.copy()
+    mid[axis] = c
+    theta = np.linspace(0.0, 2.0 * np.pi, 128)
+    circle = np.zeros((theta.size, 3), dtype=float)
+    circle[:, axis] = c
+    circle[:, a0] = mid[a0] + r_c * np.cos(theta)
+    circle[:, a1] = mid[a1] + r_c * np.sin(theta)
+    return circle
+
+
+def _draw_intersection_arc(
+    ax,
+    shell,
+    *,
+    axis: int,
+    a0: int,
+    a1: int,
+    c: float,
+) -> None:
+    """Green #00FF00 arc/circle: scan plane ∩ sphere/shell, coplanar with frame."""
+    curve = _intersection_curve_on_plane(shell, axis=axis, a0=a0, a1=a1, c=c)
+    if curve is None or len(curve) < 4:
+        return
+    ax.plot(
+        curve[:, 0],
+        curve[:, 1],
+        curve[:, 2],
+        color="#00FF00",
+        lw=2.6,
+        alpha=1.0,
+        solid_capstyle="round",
+        zorder=14,
+    )
+    # Soft glow underlay
+    ax.plot(
+        curve[:, 0],
+        curve[:, 1],
+        curve[:, 2],
+        color="#00FF00",
+        lw=5.0,
+        alpha=0.22,
+        zorder=13,
+    )
+
+
 def _draw_green_slice(
     ax,
     shell,
@@ -60,26 +220,15 @@ def _draw_green_slice(
     plane: str = "z",
 ) -> None:
     """
-    Matrix-green outlined rectangular slice through the shell.
+    Matrix-green outlined rectangular slice through the shell,
+    plus coplanar intersection arc where the plane hits the shell/sphere.
 
-    Edge: #00FF00 solid · face fill: #00FF00 @ alpha 0.1
+    Edge: #00FF00 solid · face fill: #00FF00 @ alpha 0.1 · hit arc: #00FF00
     """
-    if shell.surface is None and shell.mesh_vertices is None:
+    meta = _slice_axis_and_value(shell, slice_frac=slice_frac, plane=plane)
+    if meta is None:
         return
-    if shell.surface is not None:
-        pts = shell.surface.reshape(-1, 3)
-    else:
-        pts = np.asarray(shell.mesh_vertices, dtype=float)
-
-    lo = pts.min(axis=0)
-    hi = pts.max(axis=0)
-    pad = 0.03 * (hi - lo + 1e-9)
-    lo = lo - pad
-    hi = hi + pad
-
-    axis = {"x": 0, "y": 1, "z": 2}.get(plane, 2)
-    a0, a1 = [i for i in range(3) if i != axis]
-    c = float(lo[axis] + np.clip(slice_frac, 0.0, 1.0) * (hi[axis] - lo[axis]))
+    axis, a0, a1, c, lo, hi = meta
 
     # Outline rectangle
     corners_uv = np.array(
@@ -138,6 +287,9 @@ def _draw_green_slice(
         ax.add_collection3d(poly)
     except Exception:
         pass
+
+    # Arc on the same plane: plane ∩ shell/sphere
+    _draw_intersection_arc(ax, shell, axis=axis, a0=a0, a1=a1, c=c)
 
 
 # Fixed raster sizes for GIF frames (prevents loop glitch from layout jitter)
