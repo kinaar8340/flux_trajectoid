@@ -847,16 +847,14 @@ footer,
 }
 
 /*
- * theme_default_button — two concentric CIRCLES (not ovals, not solid fill)
- *   outer ring = input border
- *   inner ring = radial stroke (line only)
- * button_state=True → BOTH circle lines → #00FF00
+ * theme_default_button — single CIRCLE outline (no inner circle, not oval)
+ *   idle:    slate circle line
+ *   latched: circle line → #00FF00
  * Latched until another radio in the group is selected.
  */
 :root {
   --ft-circle-size: 1.15em;      /* perfect square box → true circle */
-  --ft-ring-width: 2px;          /* stroke width for both rings */
-  --ft-inner-size: 48%;          /* inner circle diameter relative to outer */
+  --ft-ring-width: 2px;          /* stroke width */
   --ft-btn-row-h: 1.45rem;
   --ft-ring-idle: rgba(148, 163, 184, 0.75);
   --ft-ring-active: #00FF00;
@@ -879,20 +877,11 @@ footer,
   max-height: var(--ft-circle-size) !important;
   aspect-ratio: 1 / 1 !important;
   border-radius: 50% !important;
-  /* OUTER concentric circle (line only) */
+  /* single circle line only — no fill, no inner ring */
   border: var(--ft-ring-width) solid var(--ft-ring-idle) !important;
-  /* INNER concentric circle (line only) — radial ring, no fill */
+  background: transparent !important;
   background-color: transparent !important;
-  background-image:
-    radial-gradient(
-      circle closest-side,
-      transparent 0%,
-      transparent 42%,
-      var(--ft-ring-idle) 43%,
-      var(--ft-ring-idle) 58%,
-      transparent 59%,
-      transparent 100%
-    ) !important;
+  background-image: none !important;
   box-shadow: none !important;
   outline: none !important;
   padding: 0 !important;
@@ -904,7 +893,7 @@ footer,
   display: inline-block !important;
   transition: border-color 0.15s ease !important;
 }
-/* kill Gradio / browser default checked glyphs (dots, images, ::after fill) */
+/* kill Gradio / browser default checked glyphs (dots, images, inner rings) */
 #controls input[type="checkbox"]::before,
 #controls input[type="radio"]::before,
 #controls input[type="checkbox"]::after,
@@ -915,25 +904,17 @@ footer,
   border: none !important;
   box-shadow: none !important;
 }
-/* button_state=True → ONLY outer circle line → #00FF00 (inner stays idle) */
+/* button_state=True → circle line → #00FF00 */
 #controls input[type="checkbox"]:checked,
 #controls input[type="radio"]:checked,
 #controls input[type="checkbox"]:checked:hover,
 #controls input[type="radio"]:checked:hover,
 #controls input[type="checkbox"]:checked:focus,
 #controls input[type="radio"]:checked:focus {
-  border-color: var(--ft-ring-active) !important; /* outer line only */
+  border-color: var(--ft-ring-active) !important;
+  background: transparent !important;
   background-color: transparent !important;
-  background-image:
-    radial-gradient(
-      circle closest-side,
-      transparent 0%,
-      transparent 42%,
-      var(--ft-ring-idle) 43%,
-      var(--ft-ring-idle) 58%,
-      transparent 59%,
-      transparent 100%
-    ) !important;
+  background-image: none !important;
   box-shadow: none !important;
   accent-color: #00FF00 !important;
 }
@@ -1074,7 +1055,7 @@ footer,
     ) !important;
   box-shadow: none !important;
 }
-/* button_state=True → outer line only #00FF00 */
+/* button_state=True → both concentric lines #00FF00 */
 #controls label:has(input:checked) > span:first-child,
 #controls [role="radio"][aria-checked="true"]::before,
 #controls .oval-toggle label.selected > span:first-child {
@@ -1084,8 +1065,8 @@ footer,
       circle,
       transparent 0%,
       transparent 28%,
-      var(--ft-ring-idle) 29%,
-      var(--ft-ring-idle) 42%,
+      var(--ft-ring-active) 29%,
+      var(--ft-ring-active) 42%,
       transparent 43%,
       transparent 100%
     ) !important;
