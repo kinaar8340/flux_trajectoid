@@ -43,10 +43,20 @@ class PhotonSeedAsteroid:
         n_shards: int = 8,
         lattice_nx: int = 16,
         flywheel_sites: int = 4,
+        use_tpt: bool = True,
         **shell_kwargs,
     ) -> PhotonSeedAsteroid:
-        """Assemble outer shell + inner VQC encoding + oam_flux coupling."""
-        self.shell = generate_shell(self.payload, self.seed, **shell_kwargs)
+        """Assemble outer shell + inner VQC encoding + oam_flux coupling.
+
+        Shell generation uses real trajectoid rolling constraints (path
+        scaling + SO(3) mismatch + optional two-period TPT closure).
+        """
+        self.shell = generate_shell(
+            self.payload,
+            self.seed,
+            use_tpt=use_tpt,
+            **shell_kwargs,
+        )
         self.quaternion = encode_to_quaternion(self.payload, n_shards=n_shards)
         self.flux_state = couple_to_flux_lattice(
             self.quaternion,
@@ -79,6 +89,12 @@ class PhotonSeedAsteroid:
         if self.shell is not None:
             out["shell_length"] = self.shell.total_length
             out["shell_hash"] = self.shell.metadata.get("payload_hash")
+            out["mismatch_deg"] = self.shell.mismatch_deg
+            out["tilt_deg"] = self.shell.tilt_deg
+            out["kx"] = self.shell.kx
+            out["ky"] = self.shell.ky
+            out["global_scale"] = self.shell.global_scale
+            out["use_tpt"] = self.shell.use_tpt
             fp = self.shell.fourier_fingerprint
             out["fingerprint_l2"] = float(np_l2(fp)) if fp is not None else None
         if self.quaternion is not None:

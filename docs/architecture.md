@@ -16,7 +16,8 @@ Optical free-space and fiber channels suffer from turbulence, mode crosstalk, an
 
 ### 2. Outer shell (`shell/`)
 
-- **`generator.generate_shell`**: SHA-256 digest → harmonic coefficients → two-period closed parametric curve (toy trajectoid). Optional soft surface sweep (macadamia-like).
+- **`generator.generate_shell`**: SHA-256 digest → harmonic planar curve → **path scaling (kx, ky)** minimizing SO(3) rolling mismatch → optional **Two-Period Trajectoid (TPT)** closure → cumulative rolling rotations → Fourier + arc-length + 1D phase/trench mask.
+- **Rolling constraint**: pure-roll increments `angle = ds / r` about the in-plane left normal; mismatch is the magnitude of the total cumulative rotation (degrees).
 - **Fourier descriptors**: complex DFT of centered boundary; magnitude fingerprint for matching.
 - **Arc-length unroll**: uniform-s reparameterization + curvature signal as 1D metadata channel.
 - **`modulator.shell_to_phase_mask`**: silhouette → amplitude envelope + boundary trench potential + azimuthal phase from curvature; per-ℓ phase bias from fingerprint.

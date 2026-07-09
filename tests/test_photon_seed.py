@@ -27,6 +27,28 @@ def test_shell_deterministic():
     assert not np.allclose(a.vertices, c.vertices)
     assert a.fourier_fingerprint is not None
     assert a.total_length > 0
+    assert a.mismatch_deg >= 0.0
+    assert a.rotation_matrices is not None
+    assert a.phase_trench_mask is not None
+
+
+def test_trajectoid_scaling_reduces_or_reports_mismatch():
+    from flux_trajectoid.shell.generator import (
+        compute_cumulative_rotations,
+        scale_path_for_closure,
+    )
+
+    t = np.linspace(0, 2 * np.pi, 128, endpoint=False)
+    path = np.column_stack([np.cos(t), 1.3 * np.sin(t)])
+    path = np.vstack([path, path[0]])
+    _, m0, _ = compute_cumulative_rotations(path, r=1.0)
+    scaled, kx, ky, g, m1 = scale_path_for_closure(
+        path, rolling_radius=1.0, rng=np.random.default_rng(0), max_iter=12, grid=5
+    )
+    assert kx > 0 and ky > 0 and g > 0
+    assert m1 <= m0 + 1e-6  # scaling search must not worsen best candidate
+    _, m_check, _ = compute_cumulative_rotations(scaled, r=1.0)
+    assert abs(m_check - m1) < 1.0  # allow tiny SVD/composition drift
 
 
 def test_fourier_and_unroll():

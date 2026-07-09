@@ -28,10 +28,26 @@ def main() -> None:
     assert asteroid.quaternion is not None
     assert asteroid.flux_state is not None
 
-    print("\nShell:")
+    print("\nShell (trajectoid):")
     print(f"  vertices: {asteroid.shell.vertices.shape}")
     print(f"  total_length: {asteroid.shell.total_length:.4f}")
+    print(
+        f"  kx={asteroid.shell.kx:.4f}  ky={asteroid.shell.ky:.4f}  "
+        f"global_scale={asteroid.shell.global_scale:.4f}"
+    )
+    print(
+        f"  mismatch_deg: {asteroid.shell.mismatch_deg:.4f}  "
+        f"(base={asteroid.shell.metadata.get('mismatch_base_deg', float('nan')):.4f}, "
+        f"scaled={asteroid.shell.metadata.get('mismatch_scaled_deg', float('nan')):.4f})"
+    )
+    print(f"  tilt_deg: {asteroid.shell.tilt_deg:.4f}")
+    print(f"  use_tpt: {asteroid.shell.use_tpt}")
     print(f"  fingerprint: {np.array2string(asteroid.shell.fourier_fingerprint, precision=3)}")
+    if asteroid.shell.phase_trench_mask is not None:
+        print(
+            f"  phase_trench_mask: len={len(asteroid.shell.phase_trench_mask)} "
+            f"rms={float(np.std(asteroid.shell.phase_trench_mask)):.4f}"
+        )
 
     print("\nInner VQC:")
     print(f"  shards: {len(asteroid.quaternion.shards)}")
