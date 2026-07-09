@@ -1500,37 +1500,44 @@ SLIDER_FILL_JS = """
 """
 
 
+def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
+    """Launch with kwargs filtered to the installed Gradio version."""
+    import inspect
+
+    queued = demo.queue(default_concurrency_limit=1)
+    base = {
+        "server_name": "0.0.0.0",
+        "server_port": port,
+        "share": False,
+        "show_error": True,
+    }
+    # Optional kwargs (vary across Gradio 4/5/6)
+    optional = {
+        "theme": theme,
+        "css": css,
+        "js": js,
+        "ssr": False,  # experimental SSR triggers extra api_info hits
+        "ssr_mode": False,
+        "show_api": False,  # avoid broken /info schema path when possible
+    }
+    try:
+        params = inspect.signature(queued.launch).parameters
+    except (TypeError, ValueError):
+        params = {}
+    kwargs = dict(base)
+    for k, v in optional.items():
+        if k in params:
+            kwargs[k] = v
+    if "css" not in params:
+        try:
+            demo.css = css  # type: ignore[attr-defined]
+        except Exception:
+            pass
+    queued.launch(**kwargs)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", os.environ.get("GRADIO_SERVER_PORT", "7860")))
     demo = build_app()
     theme = _make_theme()
-    # Gradio 4.x: css/theme on Blocks; 5/6: often on launch — try launch first
-    queued = demo.queue(default_concurrency_limit=1)
-    try:
-        queued.launch(
-            server_name="0.0.0.0",
-            server_port=port,
-            share=False,
-            show_error=True,
-            theme=theme,
-            css=CUSTOM_CSS,
-            js=SLIDER_FILL_JS,
-        )
-    except TypeError:
-        # Fallback: inject CSS via head if launch rejects css/js
-        demo.css = CUSTOM_CSS  # type: ignore[attr-defined]
-        try:
-            queued.launch(
-                server_name="0.0.0.0",
-                server_port=port,
-                share=False,
-                show_error=True,
-                js=SLIDER_FILL_JS,
-            )
-        except TypeError:
-            queued.launch(
-                server_name="0.0.0.0",
-                server_port=port,
-                share=False,
-                show_error=True,
-            )
+    _launch(demo, port=port, theme=theme, css=CUSTOM_CSS, js=SLIDER_FILL_JS)

@@ -2,9 +2,13 @@ numpy>=1.24
 scipy>=1.10
 matplotlib>=3.7
 pyyaml>=6.0
-# Gradio 5 works with current huggingface_hub (HfFolder removed in hub 1.x)
-gradio>=5.5.0,<6
-huggingface_hub>=0.26.0,<1.0
 pillow>=10.0
-# Python 3.13+ removed stdlib audioop; Gradio/pydub need this shim if 3.13 is used
+# Pin stack that avoids HF Space api_info crash:
+#   TypeError: argument of type 'bool' is not iterable
+#   (gradio_client json_schema_to_python_type + pydantic 2.11+)
+gradio==5.23.2
+gradio_client==1.8.0
+huggingface_hub>=0.26.0,<0.30
+pydantic==2.10.6
+# Python 3.13+ removed stdlib audioop
 audioop-lts>=0.2.1; python_version>='3.13'
