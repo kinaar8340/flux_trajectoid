@@ -442,76 +442,107 @@ footer,
   max-height: 2rem !important;
   overflow: hidden !important;
 }
-/* Plots MUST claim remaining cell height (min-height prevents flex collapse) */
+/*
+ * Viewport plot layer stack (bring image to front):
+ *   z0  cell background
+ *   z1  Gradio empty/upload chrome (hidden)
+ *   z5  .ft-vp-img-wrap  (plot host)
+ *   z6  .ft-vp-img       (actual pixels)
+ */
 #vp-shell .vp-plot,
 #vp-radial .vp-plot,
 #vp-path .vp-plot,
 #vp-score .vp-plot,
-#vp-shell [data-testid="image"],
-#vp-radial [data-testid="image"],
-#vp-path [data-testid="image"],
-#vp-score [data-testid="image"],
+#img-shell,
+#img-path,
+#img-radial,
+#img-metrics,
+#vp-shell [data-testid="html"],
+#vp-path [data-testid="html"],
+#vp-radial [data-testid="html"],
+#vp-score [data-testid="html"],
 #vp-shell .block:not([data-testid="markdown"]),
 #vp-path .block:not([data-testid="markdown"]),
 #vp-radial .block:not([data-testid="markdown"]),
 #vp-score .block:not([data-testid="markdown"]) {
+  position: relative !important;
+  z-index: 5 !important;
   flex: 1 1 auto !important;
-  min-height: 180px !important;
+  min-height: 200px !important;
   width: 100% !important;
   height: 100% !important;
   max-height: none !important;
   overflow: hidden !important;
   margin: 0 !important;
   border-radius: 8px !important;
-  background: rgba(7, 11, 20, 0.45) !important;
+  background: #0a0f18 !important;
   display: flex !important;
   flex-direction: column !important;
   visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
 }
-#vp-shell .image-container,
-#vp-radial .image-container,
-#vp-path .image-container,
-#vp-score .image-container,
-#vp-shell .vp-plot > div,
-#vp-radial .vp-plot > div,
-#vp-path .vp-plot > div,
-#vp-score .vp-plot > div,
-#vp-shell .vp-plot > .wrap,
-#vp-radial .vp-plot > .wrap,
-#vp-path .vp-plot > .wrap,
-#vp-score .vp-plot > .wrap,
-#vp-shell .empty,
-#vp-path .empty,
-#vp-radial .empty,
-#vp-score .empty {
+/* HTML plot host — always on top of any Gradio chrome inside the cell */
+#vp-shell .ft-vp-img-wrap,
+#vp-path .ft-vp-img-wrap,
+#vp-radial .ft-vp-img-wrap,
+#vp-score .ft-vp-img-wrap,
+.ft-vp-img-wrap {
+  position: relative !important;
+  z-index: 6 !important;
   flex: 1 1 auto !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 160px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 200px !important;
+  margin: 0 !important;
+  padding: 0 !important;
   overflow: hidden !important;
+  background: #0a0f18 !important;
   visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
 }
-#vp-shell img,
-#vp-radial img,
-#vp-path img,
-#vp-score img {
+#vp-shell .ft-vp-img,
+#vp-path .ft-vp-img,
+#vp-radial .ft-vp-img,
+#vp-score .ft-vp-img,
+.ft-vp-img,
+#vp-shell img.ft-vp-img,
+#vp-path img.ft-vp-img,
+#vp-radial img.ft-vp-img,
+#vp-score img.ft-vp-img {
+  position: relative !important;
+  z-index: 7 !important;
   max-width: 100% !important;
   max-height: 100% !important;
   width: auto !important;
   height: auto !important;
-  min-width: 80px !important;
-  min-height: 80px !important;
+  min-width: 120px !important;
+  min-height: 120px !important;
   object-fit: contain !important;
   object-position: center !important;
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
+  background: transparent !important;
 }
+/* Hide Gradio Image empty/upload/overlay layers if any remain */
+#vp-shell .empty,
+#vp-path .empty,
+#vp-radial .empty,
+#vp-score .empty,
+#vp-shell .upload-container,
+#vp-path .upload-container,
+#vp-radial .upload-container,
+#vp-score .upload-container,
+#vp-shell .source-selection,
+#vp-path .source-selection,
+#vp-radial .source-selection,
+#vp-score .source-selection,
 #vp-shell button.icon-button,
 #vp-radial button.icon-button,
 #vp-path button.icon-button,
@@ -521,6 +552,9 @@ footer,
 #vp-path .icon-button-wrapper,
 #vp-score .icon-button-wrapper {
   display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
 }
 
 /* Column 1: compact controls stack
@@ -1249,27 +1283,28 @@ def run_ui(
             show_slice=_as_on(show_slice),
         )
         return (
-            _to_pil(out["img_shell"]),
-            _to_pil(out["img_radial"]),
+            _to_html(out["img_shell"]),
+            _to_html(out["img_radial"]),
             _to_pil(out["img_field"]),
-            _to_pil(out["img_path"]),
-            _to_pil(out["img_metrics"]),
+            _to_html(out["img_path"]),
+            _to_html(out["img_metrics"]),
             _to_pil(out["img_trace"]),
             out["status_md"],
             out.get("shell"),
         )
     except Exception as exc:
         logger.exception("pipeline failed")
-        err = _to_pil(blank_rgb())
+        err_h = _to_html(blank_rgb())
+        err_i = _to_pil(blank_rgb())
         md = f"### Error\n```\n{exc!r}\n```"
-        return err, err, err, err, err, err, md, None
+        return err_h, err_h, err_i, err_h, err_h, err_i, md, None
 
 
 def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
     """
     Live replot of all three scan viewports (shell / radial / path).
 
-    Always returns RGB stills at the same (frac, plane) so a plane change
+    Always returns HTML stills at the same (frac, plane) so a plane change
     cancels any playing GIFs and keeps the suite synchronized.
     """
     s, r, p = replot_scan_suite(
@@ -1278,7 +1313,7 @@ def update_slice_ui(shell, slice_frac, slice_plane, show_slice):
         slice_plane=str(slice_plane or "z"),
         show_slice=_as_on(show_slice),
     )
-    return _to_pil(s), _to_pil(r), _to_pil(p)
+    return _to_html(s), _to_html(r), _to_html(p)
 
 
 def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
@@ -1293,11 +1328,10 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
         ping_pong=_as_on(ping_pong),
         duration_ms=90,
     )
-    # Gradio Image autoplays GIF paths; fall back to blank if missing
     return (
-        g_shell if g_shell else blank_rgb(300, 360),
-        g_radial if g_radial else blank_rgb(300, 360),
-        g_path if g_path else blank_rgb(400, 220),
+        _to_html(g_shell if g_shell else blank_rgb(300, 360)),
+        _to_html(g_radial if g_radial else blank_rgb(300, 360)),
+        _to_html(g_path if g_path else blank_rgb(400, 220)),
         msg,
     )
 
@@ -1318,7 +1352,7 @@ def _as_uint8_rgb(arr: np.ndarray) -> np.ndarray:
 
 
 def _to_pil(arr_or_path):
-    """Convert ndarray / path / PIL → RGB PIL Image (best gr.Image seed)."""
+    """Convert ndarray / path / PIL → RGB PIL Image."""
     from PIL import Image as PILImage
 
     if arr_or_path is None:
@@ -1326,15 +1360,84 @@ def _to_pil(arr_or_path):
     if isinstance(arr_or_path, PILImage.Image):
         return arr_or_path.convert("RGB")
     if isinstance(arr_or_path, (str, Path)):
+        # Already an HTML plot fragment — do not re-open
+        s = str(arr_or_path)
+        if s.lstrip().startswith("<") or s.startswith("data:image"):
+            return PILImage.fromarray(blank_rgb(360, 420))
         p = Path(arr_or_path)
         if not p.is_file():
-            # try relative to app root
             p2 = Path(__file__).resolve().parent / str(arr_or_path)
             p = p2 if p2.is_file() else p
         if p.is_file():
-            return PILImage.open(p).convert("RGB")
+            try:
+                return PILImage.open(p).convert("RGB")
+            except Exception:
+                return PILImage.fromarray(blank_rgb(360, 420))
         return PILImage.fromarray(blank_rgb(360, 420))
     return PILImage.fromarray(_as_uint8_rgb(np.asarray(arr_or_path)))
+
+
+def _to_html(arr_or_path) -> str:
+    """Viewport plot as HTML <img> — bypasses Gradio Image empty/overlay layers.
+
+    Pixels are base64 data-URIs so nothing depends on /tmp file serving or
+    nested Image z-index chrome. Always paints above cell background.
+    """
+    import base64
+    import io
+
+    from PIL import Image as PILImage
+
+    # Pass-through already-rendered HTML
+    if isinstance(arr_or_path, str) and (
+        "ft-vp-img" in arr_or_path or arr_or_path.lstrip().startswith("<div")
+    ):
+        return arr_or_path
+
+    # GIF path (matrix scan) → animated data-URI
+    if isinstance(arr_or_path, (str, Path)):
+        p = Path(arr_or_path)
+        if not p.is_file():
+            p2 = Path(__file__).resolve().parent / str(arr_or_path)
+            p = p2 if p2.is_file() else p
+        if p.is_file() and p.suffix.lower() == ".gif":
+            try:
+                b64 = base64.b64encode(p.read_bytes()).decode("ascii")
+                return (
+                    '<div class="ft-vp-img-wrap">'
+                    f'<img class="ft-vp-img" src="data:image/gif;base64,{b64}" '
+                    'alt="matrix scan" draggable="false"/>'
+                    "</div>"
+                )
+            except Exception:
+                logger.exception("gif→html failed for %s", p)
+
+    pil = _to_pil(arr_or_path)
+    buf = io.BytesIO()
+    pil.save(buf, format="PNG", optimize=True)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return (
+        '<div class="ft-vp-img-wrap">'
+        f'<img class="ft-vp-img" src="data:image/png;base64,{b64}" '
+        'alt="plot" draggable="false"/>'
+        "</div>"
+    )
+
+
+def _display_html(value, *, elem_id=None, elem_classes=None):
+    """gr.HTML plot viewport — no Image chrome, image always frontmost."""
+    classes = list(elem_classes or [])
+    if "vp-plot" not in classes:
+        classes.append("vp-plot")
+    if "ft-vp-html" not in classes:
+        classes.append("ft-vp-html")
+    kwargs = {
+        "value": _to_html(value),
+        "elem_classes": classes,
+    }
+    if elem_id is not None:
+        kwargs["elem_id"] = elem_id
+    return gr.HTML(**kwargs)
 
 
 def _save_rgb_png(arr: np.ndarray, name: str):
@@ -1656,9 +1759,8 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         gr.Markdown(
                             '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
                         )
-                        img_shell = _display_image(
+                        img_shell = _display_html(
                             boot["img_shell"],
-                            height=360,
                             elem_classes=["vp-plot"],
                             elem_id="img-shell",
                         )
@@ -1671,9 +1773,8 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         gr.Markdown(
                             '<p class="viewport-title">Rolling path (Nature-style)</p>'
                         )
-                        img_path = _display_image(
+                        img_path = _display_html(
                             boot["img_path"],
-                            height=360,
                             elem_classes=["vp-plot"],
                             elem_id="img-path",
                         )
@@ -1687,9 +1788,8 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         gr.Markdown(
                             '<p class="viewport-title">Radial trench / shave</p>'
                         )
-                        img_radial = _display_image(
+                        img_radial = _display_html(
                             boot["img_radial"],
-                            height=360,
                             elem_classes=["vp-plot"],
                             elem_id="img-radial",
                         )
@@ -1702,9 +1802,8 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                         gr.Markdown(
                             '<p class="viewport-title">Scorecard</p>'
                         )
-                        img_metrics = _display_image(
+                        img_metrics = _display_html(
                             boot["img_metrics"],
-                            height=360,
                             elem_classes=["vp-plot"],
                             elem_id="img-metrics",
                         )
@@ -1877,9 +1976,7 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
             outputs=[status, col1_tabs],
         )
 
-        # Re-push boot PIL images once after mount (fixes empty frames when the
-        # initial value is dropped during Gradio's first client hydrate).
-        # Do NOT load full run_ui — that wiped panels / caused flicker.
+        # Re-push HTML plots after hydrate so front layer is never empty.
         _seed = (
             boot.get("img_shell"),
             boot.get("img_path"),
@@ -1889,10 +1986,10 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
 
         def _seed_plots():
             return (
-                _to_pil(_seed[0]),
-                _to_pil(_seed[1]),
-                _to_pil(_seed[2]),
-                _to_pil(_seed[3]),
+                _to_html(_seed[0]),
+                _to_html(_seed[1]),
+                _to_html(_seed[2]),
+                _to_html(_seed[3]),
             )
 
         try:
@@ -2182,10 +2279,12 @@ SLIDER_FILL_JS = """
         border: '1px solid rgba(148, 163, 184, 0.22)',
         borderRadius: '10px',
       });
-      el.querySelectorAll('.vp-plot, [data-testid="image"], .image-container').forEach((node) => {
+      el.querySelectorAll('.vp-plot, .ft-vp-html, [data-testid="html"], .ft-vp-img-wrap').forEach((node) => {
         setImp(node, {
+          position: 'relative',
+          zIndex: '6',
           flex: '1 1 auto',
-          minHeight: '0px',
+          minHeight: '200px',
           height: '100%',
           width: '100%',
           display: 'flex',
@@ -2194,19 +2293,30 @@ SLIDER_FILL_JS = """
           overflow: 'hidden',
           visibility: 'visible',
           opacity: '1',
+          pointerEvents: 'auto',
         });
       });
-      el.querySelectorAll('img').forEach((img) => {
+      // Bring plot pixels to the front of any Gradio chrome layers
+      el.querySelectorAll('img.ft-vp-img, .ft-vp-img-wrap img, img').forEach((img) => {
         setImp(img, {
+          position: 'relative',
+          zIndex: '7',
           maxWidth: '100%',
           maxHeight: '100%',
           width: 'auto',
           height: 'auto',
+          minWidth: '120px',
+          minHeight: '120px',
           objectFit: 'contain',
           display: 'block',
           visibility: 'visible',
           opacity: '1',
+          pointerEvents: 'auto',
         });
+      });
+      // Hide leftover empty/upload overlays inside the cell
+      el.querySelectorAll('.empty, .upload-container, .source-selection, button.icon-button').forEach((n) => {
+        setImp(n, { display: 'none', opacity: '0', pointerEvents: 'none', zIndex: '0' });
       });
       return true;
     };
