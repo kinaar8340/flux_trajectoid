@@ -13,11 +13,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
-# Package path: repo src/ when running locally
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if SRC.is_dir() and str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Package path:
+#   local:  <repo>/src/flux_trajectoid  (parents[1]/src)
+#   HF:     <space>/flux_trajectoid     (alongside app.py)
+_HERE = Path(__file__).resolve().parent
+_ROOT_CANDIDATES = (
+    _HERE.parent,  # repo root when file is space/demo_core.py
+    _HERE,  # HF Space root when file is ./demo_core.py
+)
+ROOT = _HERE.parent if (_HERE.parent / "src" / "flux_trajectoid").is_dir() else _HERE
+for _base in (
+    ROOT / "src",
+    _HERE,
+    _HERE / "src",
+):
+    if (_base / "flux_trajectoid").is_dir() and str(_base) not in sys.path:
+        sys.path.insert(0, str(_base))
+        break
 
 from flux_trajectoid import PhotonSeedAsteroid, oam_flux_backend  # noqa: E402
 

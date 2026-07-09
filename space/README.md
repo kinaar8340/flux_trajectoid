@@ -4,7 +4,7 @@ emoji: 🪨
 colorFrom: blue
 colorTo: purple
 sdk: gradio
-sdk_version: 4.44.0
+sdk_version: 4.44.1
 app_file: app.py
 pinned: false
 license: mit
@@ -17,7 +17,14 @@ Single-page visual demo of **trajectoid shells + VQC/OAM + oam_flux lattice**.
 - **Space:** https://huggingface.co/spaces/kinaar111/flux_trajectoid  
 - **Code:** https://github.com/kinaar8340/flux_trajectoid  
 
-## Local run (keep local until ready to push)
+## Features
+
+- 25/50/25 layout · CONTROLS | REFERENCES · 2×2 viewports  
+- Matrix slice planes **x / y / z / xyz** with synced shell · radial · path  
+- Green scan frame + intersection arc · plane-specific trench heatmaps  
+- Play matrix scan GIFs (XYZ sequences X→Y→Z)  
+
+## Local run
 
 From the repo root:
 
@@ -26,27 +33,11 @@ cd ~/Projects/flux_trajectoid
 source .venv/bin/activate
 pip install -e ".[dev]"
 pip install -r space/requirements.txt
-
-# Ensure package import works from space/
 export PYTHONPATH="$(pwd)/src:${PYTHONPATH}"
 python space/app.py
 # → http://127.0.0.1:7860
 ```
 
-Or:
+## Deploy
 
-```bash
-cd space
-PYTHONPATH=../src python app.py
-```
-
-## UI notes
-
-- Fixed viewport layout (no page scroll); top navigation bar  
-- Multi-column viewports: shell · radial · field · path · metrics  
-- Glass layers use **opacity 0.3** on inner/foreground panels  
-- Hero visual: Nature-style trajectoid gallery (`assets/trajectoid_paths.png`)  
-
-## HF deploy (later)
-
-Copy `space/` contents to the Space repo root (or set Space to use `space/` subdirectory), ensure `requirements.txt` installs `flux-trajectoid` from git or vendor `src/`.
+Space root is the contents of `space/` (including vendored `flux_trajectoid/`).
