@@ -259,12 +259,11 @@ footer,
 }
 
 /*
- * Workspace: fixed under nav — 3×2 CSS grid (controls spans both rows)
+ * Workspace layout (natural Gradio flex — no reparent / CSS-grid hacks):
  *
- *   [ controls ] [ shell  ] [ path     ]
- *   [ controls ] [ radial ] [ scorecard]
- *
- * Each #vp-* is a direct grid child (no nested Gradio columns).
+ *   [ controls | plots-col ---------------------- ]
+ *              [ plots-top:  shell | path       ]
+ *              [ plots-bot:  radial | scorecard ]
  */
 #workspace {
   position: fixed !important;
@@ -272,78 +271,127 @@ footer,
   left: 0 !important;
   right: 0 !important;
   bottom: 0 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
   width: 100% !important;
-  display: grid !important;
-  grid-template-columns:
-    minmax(260px, 1.05fr)
-    minmax(0, 2.2fr)
-    minmax(0, 1fr) !important;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: row !important;
   align-items: stretch !important;
   gap: 0.35rem !important;
-  box-sizing: border-box !important;
-  overflow: hidden !important;
   padding: 0.3rem 0.4rem 0.35rem 0.4rem !important;
   margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
   z-index: 900 !important;
   background:
     radial-gradient(ellipse 80% 50% at 20% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
     radial-gradient(ellipse 60% 40% at 90% 100%, rgba(167, 139, 250, 0.10), transparent 50%),
     #070b14 !important;
 }
-/* Kill Gradio chrome min-widths; grid items size from tracks */
-#controls,
-#vp-shell,
-#vp-radial,
-#vp-path,
-#vp-score {
+/* Gradio Row wraps children — stretch the flex row chain */
+#workspace > .form,
+#workspace > .wrap,
+#workspace > div {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 1 auto !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  max-width: none !important;
-  box-sizing: border-box !important;
+  height: 100% !important;
+  gap: 0.35rem !important;
+  overflow: hidden !important;
 }
-/* Explicit placement — JS also re-parents these under #workspace */
 #controls {
-  grid-column: 1 / 2 !important;
-  grid-row: 1 / 3 !important; /* span both rows */
-  height: auto !important;
-  max-height: none !important;
+  flex: 0 0 28% !important;
+  max-width: 380px !important;
+  min-width: 260px !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   scrollbar-width: thin;
   scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.4);
+  box-sizing: border-box !important;
 }
 #controls::-webkit-scrollbar { width: 8px; }
 #controls::-webkit-scrollbar-thumb {
   background: rgba(56, 189, 248, 0.4);
   border-radius: 4px;
 }
-#vp-shell  { grid-column: 2 / 3 !important; grid-row: 1 / 2 !important; }
-#vp-radial { grid-column: 2 / 3 !important; grid-row: 2 / 3 !important; }
-#vp-path   { grid-column: 3 / 4 !important; grid-row: 1 / 2 !important; }
-#vp-score  { grid-column: 3 / 4 !important; grid-row: 2 / 3 !important; }
-
-/* Each viewport cell fills its grid area */
-#vp-shell,
-#vp-radial,
-#vp-path,
-#vp-score {
+#plots-col {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
+  gap: 0.35rem !important;
+  overflow: hidden !important;
+}
+/* Gradio wraps Column children */
+#plots-col > .form,
+#plots-col > .wrap,
+#plots-col > div {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  gap: 0.35rem !important;
+  overflow: hidden !important;
+}
+#plots-top,
+#plots-bot {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 50% !important;
+  max-height: 50% !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 0.35rem !important;
+  overflow: hidden !important;
+  align-items: stretch !important;
+}
+#plots-top > .form,
+#plots-top > .wrap,
+#plots-top > div,
+#plots-bot > .form,
+#plots-bot > .wrap,
+#plots-bot > div {
+  display: flex !important;
+  flex-direction: row !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  gap: 0.35rem !important;
+  overflow: hidden !important;
+}
+#vp-shell,
+#vp-path,
+#vp-radial,
+#vp-score {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   height: 100% !important;
   max-height: 100% !important;
-  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
   overflow: hidden !important;
   padding: 0.3rem 0.4rem !important;
+  box-sizing: border-box !important;
   visibility: visible !important;
   opacity: 1 !important;
   background: rgba(15, 23, 42, 0.3) !important;
   border: 1px solid rgba(148, 163, 184, 0.18) !important;
   border-radius: 10px !important;
 }
+#vp-shell { flex: 2.2 1 0 !important; }
+#vp-radial { flex: 2.2 1 0 !important; }
+#vp-path { flex: 1 1 0 !important; }
+#vp-score { flex: 1 1 0 !important; }
+
 #vp-shell .viewport-title,
 #vp-radial .viewport-title,
 #vp-path .viewport-title,
@@ -403,7 +451,6 @@ footer,
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* Hide Gradio image chrome in viewports */
 #vp-shell button.icon-button,
 #vp-radial button.icon-button,
 #vp-path button.icon-button,
@@ -1310,12 +1357,12 @@ def build_app() -> gr.Blocks:
         view_state = gr.State("demo")
         shell_state = gr.State(boot.get("shell"))
 
-        # ---- Workspace (single page, multi-column) ----
+        # ---- Workspace: controls | (2×2 plots) ----
         with gr.Row(elem_id="workspace", equal_height=True):
-            # Column 1 — CONTROLS | REFERENCES tabs
+            # Left — CONTROLS | REFERENCES
             with gr.Column(
-                scale=5,
-                min_width=300,
+                scale=3,
+                min_width=280,
                 elem_classes=["layer-inner"],
                 elem_id="controls",
             ):
@@ -1452,63 +1499,70 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
                                 elem_classes=["layer-fg"],
                             )
 
-            # Four plot viewports as DIRECT children of #workspace (CSS grid 2×2):
-            #   shell (r1c2) · path (r1c3)
-            #   radial(r2c2) · score(r2c3)
+            # Right — 2×2 plot stack (equal rows via #plots-top / #plots-bot)
             with gr.Column(
-                scale=5,
+                scale=7,
                 min_width=0,
-                elem_classes=["layer-inner", "vp-cell"],
-                elem_id="vp-shell",
+                elem_id="plots-col",
             ):
-                gr.Markdown(
-                    '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
-                )
-                img_shell = _display_image(
-                    boot["img_shell"],
-                    height=280,
-                    elem_classes=["vp-plot"],
-                )
-            with gr.Column(
-                scale=3,
-                min_width=0,
-                elem_classes=["layer-inner", "vp-cell"],
-                elem_id="vp-path",
-            ):
-                gr.Markdown(
-                    '<p class="viewport-title">Rolling path (Nature-style)</p>'
-                )
-                img_path = _display_image(
-                    boot["img_path"],
-                    height=280,
-                    elem_classes=["vp-plot"],
-                )
-            with gr.Column(
-                scale=5,
-                min_width=0,
-                elem_classes=["layer-inner", "vp-cell"],
-                elem_id="vp-radial",
-            ):
-                gr.Markdown(
-                    '<p class="viewport-title">Radial trench / shave</p>'
-                )
-                img_radial = _display_image(
-                    boot["img_radial"],
-                    height=280,
-                    elem_classes=["vp-plot"],
-                )
-            with gr.Column(
-                scale=3,
-                min_width=0,
-                elem_classes=["layer-inner", "vp-cell"],
-                elem_id="vp-score",
-            ):
-                gr.Markdown('<p class="viewport-title">Scorecard</p>')
-                img_metrics = _display_image(
-                    boot["img_metrics"],
-                    height=280,
-                    elem_classes=["vp-plot"],
-                )
+                with gr.Row(elem_id="plots-top", equal_height=True):
+                    with gr.Column(
+                        scale=2,
+                        min_width=0,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-shell",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
+                        )
+                        img_shell = _display_image(
+                            boot["img_shell"],
+                            height=260,
+                            elem_classes=["vp-plot"],
+                        )
+                    with gr.Column(
+                        scale=1,
+                        min_width=0,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-path",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Rolling path (Nature-style)</p>'
+                        )
+                        img_path = _display_image(
+                            boot["img_path"],
+                            height=260,
+                            elem_classes=["vp-plot"],
+                        )
+                with gr.Row(elem_id="plots-bot", equal_height=True):
+                    with gr.Column(
+                        scale=2,
+                        min_width=0,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-radial",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Radial trench / shave</p>'
+                        )
+                        img_radial = _display_image(
+                            boot["img_radial"],
+                            height=260,
+                            elem_classes=["vp-plot"],
+                        )
+                    with gr.Column(
+                        scale=1,
+                        min_width=0,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-score",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Scorecard</p>'
+                        )
+                        img_metrics = _display_image(
+                            boot["img_metrics"],
+                            height=260,
+                            elem_classes=["vp-plot"],
+                        )
 
         # Outside #workspace grid so they never steal a column track
         img_field = gr.Image(
@@ -1678,12 +1732,9 @@ Links: [GitHub](https://github.com/kinaar8340/flux_trajectoid) ·
             outputs=[status, col1_tabs],
         )
 
-        # Auto-run once on load for immediate visual
-        demo.load(
-            fn=run_ui,
-            inputs=ctrl_inputs,
-            outputs=outs + [shell_state],
-        )
+        # Boot PNGs + shell_state already seed the UI. Do NOT demo.load(run_ui):
+        # Gradio clears Image outputs during load → empty-panel flicker (screencast).
+        # User clicks Build to recompute; slice controls use boot shell_state.
 
     return demo
 
@@ -1820,9 +1871,8 @@ SLIDER_FILL_JS = """
       nav.style.setProperty('z-index', '1000', 'important');
     }
 
-    // Fixed workspace: 3×2 grid. Re-parent controls + 4 viewports as DIRECT
-    // children so grid-column/row placement actually applies (Gradio wrappers
-    // otherwise leave radial/scorecard as thin title strips).
+    // Fixed workspace flex shell only — layout is CSS (#plots-top/#plots-bot).
+    // Do NOT reparent nodes (that fought Gradio and blanked panels).
     const ws = document.querySelector('#workspace');
     if (ws) {
       ws.style.setProperty('position', 'fixed', 'important');
@@ -1830,84 +1880,45 @@ SLIDER_FILL_JS = """
       ws.style.setProperty('left', '0', 'important');
       ws.style.setProperty('right', '0', 'important');
       ws.style.setProperty('bottom', '0', 'important');
-      ws.style.setProperty('height', 'auto', 'important');
-      ws.style.setProperty('width', '100%', 'important');
-      ws.style.setProperty('display', 'grid', 'important');
-      ws.style.setProperty('grid-template-columns', 'minmax(260px,1.05fr) minmax(0,2.2fr) minmax(0,1fr)', 'important');
-      ws.style.setProperty('grid-template-rows', 'minmax(0,1fr) minmax(0,1fr)', 'important');
-      ws.style.setProperty('gap', '0.35rem', 'important');
+      ws.style.setProperty('display', 'flex', 'important');
+      ws.style.setProperty('flex-direction', 'row', 'important');
       ws.style.setProperty('overflow', 'hidden', 'important');
       ws.style.setProperty('z-index', '900', 'important');
-      ws.style.setProperty('align-items', 'stretch', 'important');
-
-      const place = [
-        ['#controls', '1 / 2', '1 / 3'],
-        ['#vp-shell', '2 / 3', '1 / 2'],
-        ['#vp-radial', '2 / 3', '2 / 3'],
-        ['#vp-path', '3 / 4', '1 / 2'],
-        ['#vp-score', '3 / 4', '2 / 3'],
-      ];
-      place.forEach(([sel, col, row]) => {
-        const el = document.querySelector(sel);
-        if (!el) return;
-        if (el.parentElement !== ws) {
-          try { ws.appendChild(el); } catch (_) { /* ignore */ }
-        }
-        el.style.setProperty('grid-column', col, 'important');
-        el.style.setProperty('grid-row', row, 'important');
-        el.style.setProperty('min-width', '0', 'important');
-        el.style.setProperty('min-height', '0', 'important');
-        el.style.setProperty('visibility', 'visible', 'important');
-        el.style.setProperty('opacity', '1', 'important');
-      });
     }
-
-    const ctrl = document.querySelector('#controls');
-    if (ctrl) {
-      ctrl.style.setProperty('display', 'flex', 'important');
-      ctrl.style.setProperty('flex-direction', 'column', 'important');
-      ctrl.style.setProperty('overflow', 'auto', 'important');
+    const plots = document.querySelector('#plots-col');
+    if (plots) {
+      plots.style.setProperty('display', 'flex', 'important');
+      plots.style.setProperty('flex-direction', 'column', 'important');
+      plots.style.setProperty('flex', '1 1 auto', 'important');
+      plots.style.setProperty('min-height', '0', 'important');
+      plots.style.setProperty('overflow', 'hidden', 'important');
     }
-    const top = document.querySelector('#controls-top');
-    if (top) {
-      top.style.setProperty('display', 'flex', 'important');
-      top.style.setProperty('flex-direction', 'column', 'important');
-      top.style.setProperty('visibility', 'visible', 'important');
-    }
-    const panels = Array.from(
-      document.querySelectorAll('#col1-tabs .tabitem, #col1-tabs [role="tabpanel"]')
-    );
-    if (panels.length && panels.every((p) => {
-      const d = (p.style && p.style.display) || getComputedStyle(p).display;
-      return d === 'none';
-    })) {
-      const first = panels[0];
-      first.style.setProperty('display', 'block', 'important');
-      first.style.setProperty('visibility', 'visible', 'important');
-    }
-
-    // Viewport cells + images fill their grid tracks equally
+    ['#plots-top', '#plots-bot'].forEach((sel) => {
+      const row = document.querySelector(sel);
+      if (!row) return;
+      row.style.setProperty('display', 'flex', 'important');
+      row.style.setProperty('flex-direction', 'row', 'important');
+      row.style.setProperty('flex', '1 1 0', 'important');
+      row.style.setProperty('min-height', '0', 'important');
+      row.style.setProperty('overflow', 'hidden', 'important');
+    });
     ['#vp-shell', '#vp-radial', '#vp-path', '#vp-score'].forEach((sel) => {
       const cell = document.querySelector(sel);
       if (!cell) return;
       cell.style.setProperty('display', 'flex', 'important');
       cell.style.setProperty('flex-direction', 'column', 'important');
+      cell.style.setProperty('min-height', '0', 'important');
       cell.style.setProperty('overflow', 'hidden', 'important');
-      cell.style.setProperty('height', '100%', 'important');
-      cell.style.setProperty('max-height', '100%', 'important');
+      cell.style.setProperty('visibility', 'visible', 'important');
+      cell.style.setProperty('opacity', '1', 'important');
     });
     document.querySelectorAll(
-      '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img, #vp-shell .vp-plot, #vp-radial .vp-plot, #vp-path .vp-plot, #vp-score .vp-plot'
+      '#vp-shell img, #vp-radial img, #vp-path img, #vp-score img'
     ).forEach((el) => {
-      el.style.setProperty('max-height', '100%', 'important');
-      el.style.setProperty('max-width', '100%', 'important');
-      el.style.setProperty('width', '100%', 'important');
-      el.style.setProperty('height', '100%', 'important');
-      el.style.setProperty('min-height', '120px', 'important');
       el.style.setProperty('object-fit', 'contain', 'important');
       el.style.setProperty('visibility', 'visible', 'important');
       el.style.setProperty('opacity', '1', 'important');
-      el.style.setProperty('display', el.tagName === 'IMG' ? 'block' : 'flex', 'important');
+      el.style.setProperty('display', 'block', 'important');
     });
 
     requestIframeHeight(h);
