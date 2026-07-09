@@ -1013,7 +1013,7 @@ footer,
   color: #e2e8f0 !important;
   box-shadow: none !important;
 }
-/* Gradio-drawn custom control (span / ::before) — two concentric circles */
+/* Gradio-drawn custom control (span / ::before) — single circle outline */
 #controls .oval-toggle label > span:first-child:not(:has(*)),
 #controls label:has(input[type="radio"]) > span:first-child,
 #controls [role="radio"]::before {
@@ -1027,49 +1027,19 @@ footer,
   border-radius: 50% !important;
   box-sizing: border-box !important;
   padding: 0 !important;
-  /* outer circle line */
   border: var(--ft-ring-width) solid var(--ft-ring-idle) !important;
   background: transparent !important;
   background-image: none !important;
-  /* inner circle line via radial ring (no fill) */
-  box-shadow:
-    inset 0 0 0 calc((100% - var(--ft-inner-size)) / 4)
-      transparent,
-    inset 0 0 0 calc((100% - var(--ft-inner-size)) / 4 + var(--ft-ring-width))
-      var(--ft-ring-idle) !important;
-  color: transparent !important;
-  position: relative !important;
-}
-/* simpler inner ring for Gradio span using background ring */
-#controls label:has(input[type="radio"]) > span:first-child,
-#controls .oval-toggle label > span:first-child:not(:has(*)) {
-  background:
-    radial-gradient(
-      circle,
-      transparent 0%,
-      transparent 28%,
-      var(--ft-ring-idle) 29%,
-      var(--ft-ring-idle) 42%,
-      transparent 43%,
-      transparent 100%
-    ) !important;
   box-shadow: none !important;
+  color: transparent !important;
 }
-/* button_state=True → both concentric lines #00FF00 */
+/* button_state=True → single circle line #00FF00 */
 #controls label:has(input:checked) > span:first-child,
 #controls [role="radio"][aria-checked="true"]::before,
 #controls .oval-toggle label.selected > span:first-child {
   border-color: var(--ft-ring-active) !important;
-  background:
-    radial-gradient(
-      circle,
-      transparent 0%,
-      transparent 28%,
-      var(--ft-ring-active) 29%,
-      var(--ft-ring-active) 42%,
-      transparent 43%,
-      transparent 100%
-    ) !important;
+  background: transparent !important;
+  background-image: none !important;
   box-shadow: none !important;
   color: transparent !important;
 }
