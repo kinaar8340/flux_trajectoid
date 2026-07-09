@@ -268,9 +268,11 @@ body.ft-view-docs #page-docs {
   visibility: visible !important;
   opacity: 1 !important;
 }
-/* Hide Home chrome when on Figures/Docs */
+/* Hide Home chrome when on Figures/Docs (must beat #img-* visibility:visible) */
 body.ft-view-figures #controls,
 body.ft-view-docs #controls,
+body.ft-view-figures #workspace,
+body.ft-view-docs #workspace,
 body.ft-view-figures #plots-col,
 body.ft-view-docs #plots-col,
 body.ft-view-figures #img-shell,
@@ -280,19 +282,42 @@ body.ft-view-figures #img-metrics,
 body.ft-view-docs #img-shell,
 body.ft-view-docs #img-path,
 body.ft-view-docs #img-radial,
-body.ft-view-docs #img-metrics {
+body.ft-view-docs #img-metrics,
+body.ft-view-figures #img-shell.ft-panel,
+body.ft-view-docs #img-shell.ft-panel,
+body.ft-view-figures #img-path.ft-panel,
+body.ft-view-docs #img-path.ft-panel,
+body.ft-view-figures #img-radial.ft-panel,
+body.ft-view-docs #img-radial.ft-panel,
+body.ft-view-figures #img-metrics.ft-panel,
+body.ft-view-docs #img-metrics.ft-panel {
+  display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  z-index: 0 !important;
 }
 body.ft-view-home #page-figures,
-body.ft-view-home #page-docs {
+body.ft-view-home #page-docs,
+body:not(.ft-view-figures) #page-figures,
+body:not(.ft-view-docs) #page-docs {
   display: none !important;
 }
+body.ft-view-figures #page-figures,
+body.ft-view-docs #page-docs {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 60 !important;
+  pointer-events: auto !important;
+}
 #ft-view-marker-wrap {
-  display: none !important;
-  height: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
   overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Controls + plots-col pinned; viewports placed as fixed 2×2 by CSS fallback + JS */
@@ -1263,80 +1288,163 @@ def _figures_page_html() -> str:
 
 
 def _docs_page_html() -> str:
-    """Full-page Docs (top nav · Docs) — HTML for non-specialist accessibility."""
-    # Keep in sync with DOCS_MD; HTML so the full-page panel renders without Gradio MD chrome
+    """Full-page Docs — project about, uses, panels, and every control explained."""
     return f"""
-<div class="ft-page-docs" style="max-width:820px;margin:0 auto;color:#cbd5e1;font-size:0.9rem;line-height:1.55;">
-  <h2 style="color:#e2e8f0;font-size:1.2rem;margin:0 0 0.75rem 0;">How it works</h2>
-  <p><b style="color:#e2e8f0;">Photon Seed Asteroid</b> = a layered photonic data carrier:</p>
-  <ol style="padding-left:1.2rem;margin:0.4rem 0 1rem 0;">
-    <li><b>Outer shell (trajectoid)</b> — 3D body built for a prescribed rolling path (geometry as fingerprint + protection).</li>
-    <li><b>Inner nut (VQC + OAM)</b> — payload in quaternion shards + scale on LG modes, coupled into an <code>oam_flux</code> Hopf lattice.</li>
-    <li><b>Channel</b> — simulated turbulence; metrics report how much structure survives.</li>
-    <li><b>Recovery</b> — hybrid digital CRC + photonic BER scorecard.</li>
-    <li><b>SLM export</b> — phase holograms for lab spatial light modulators.</li>
-  </ol>
+<div class="ft-page-docs" style="max-width:880px;margin:0 auto;color:#cbd5e1;font-size:0.9rem;line-height:1.55;padding-bottom:2.5rem;">
+  <h1 style="color:#e2e8f0;font-size:1.35rem;font-weight:600;margin:0 0 0.35rem 0;">Docs · About this project</h1>
+  <p style="color:#94a3b8;margin:0 0 1.25rem 0;font-size:0.88rem;">
+    Explanatory guide for <b style="color:#e2e8f0;">flux_trajectoid</b> — what it is, what the Home
+    demo shows, what each control does, and how to read the scorecard. Aimed at curious visitors,
+    not only specialists.
+  </p>
 
-  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">Trajectoids (background)</h3>
-  <p><b>Trajectoids</b> are convex 3D shapes engineered to roll along <i>arbitrary prescribed paths</i>
-  (Sobolev et al., <i>Nature</i> 2023). This demo uses that geometric language — rolling paths,
-  contact trenches, shaved shells — as the outer layer of a photonic packet.</p>
-  <ul style="padding-left:1.2rem;">
-    <li><a href="https://en.wikipedia.org/wiki/Trajectoid" style="color:#38bdf8;">Wikipedia: Trajectoid</a></li>
-    <li><a href="https://www.nature.com/articles/s41586-023-06306-y" style="color:#38bdf8;">Sobolev et al. 2023 (Nature)</a></li>
-    <li><a href="{GITHUB}/blob/main/docs/architecture.md" style="color:#38bdf8;">Project architecture</a></li>
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.4rem 0 0.5rem 0;font-weight:600;">What is this?</h2>
+  <p><b style="color:#e2e8f0;">Photon Seed Asteroids</b> package data as a layered photonic “seed”:</p>
+  <ol style="padding-left:1.25rem;margin:0.35rem 0 1rem 0;">
+    <li><b>Outer shell (trajectoid geometry)</b> — a 3D body whose rolling path encodes a prescribed curve.
+      Geometry doubles as an ID fingerprint and a protective trench around the inner field.</li>
+    <li><b>Inner nut (VQC + OAM)</b> — payload → quaternion shards + amplitude scale on Laguerre–Gaussian
+      modes, coupled into a live <code style="color:#e2e8f0;">oam_flux</code> Hopf lattice (flywheels / flux deposit).</li>
+    <li><b>Channel</b> — simulated optical turbulence (phase screens, tip/tilt, soft spectral gate).
+      Metrics report how much structure survives.</li>
+    <li><b>Recovery</b> — hybrid path: digital CRC-correct payload for demos + photonic BER scorecard for honesty about the channel.</li>
+    <li><b>SLM export</b> — phase-only hologram package for real spatial light modulators (lab hardware).</li>
+  </ol>
+  <p style="color:#94a3b8;font-size:0.85rem;">
+    Inspired by macadamia-style “hard shell / dense kernel” packaging and by
+    <b style="color:#e2e8f0;">trajectoids</b> (Sobolev et al., <i>Nature</i> 2023) — convex shapes engineered
+    to roll along arbitrary prescribed paths.
+  </p>
+
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Background reading</h2>
+  <ul style="padding-left:1.25rem;margin:0.3rem 0 1rem 0;">
+    <li><a href="https://en.wikipedia.org/wiki/Trajectoid" style="color:#38bdf8;">Wikipedia — Trajectoid</a></li>
+    <li><a href="https://www.nature.com/articles/s41586-023-06306-y" style="color:#38bdf8;">Sobolev et al. 2023, Nature</a> (original trajectoid paper)</li>
+    <li><a href="{GITHUB}/blob/main/docs/architecture.md" style="color:#38bdf8;">Architecture</a> ·
+        <a href="{GITHUB}/blob/main/docs/metrics.md" style="color:#38bdf8;">Metrics guide</a> ·
+        <a href="{GITHUB}#readme" style="color:#38bdf8;">README</a></li>
+    <li><a href="{HF_SPACE}" style="color:#38bdf8;">Live HF Space</a> ·
+        <a href="https://x.com/kinaar111/status/2075134240703029650" style="color:#38bdf8;">Demo video on X</a></li>
   </ul>
 
-  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">What each Home 2×2 panel means</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
-    <tr style="border-bottom:1px solid rgba(148,163,184,0.25);">
-      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Panel</th>
-      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">What you see</th>
-      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Why it matters</th>
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Home 2×2 panels</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:0.84rem;margin:0.4rem 0 1rem 0;">
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.28);">
+      <th align="left" style="padding:0.4rem;color:#94a3b8;">Panel</th>
+      <th align="left" style="padding:0.4rem;color:#94a3b8;">What you see</th>
+      <th align="left" style="padding:0.4rem;color:#94a3b8;">Why it matters</th>
     </tr>
     <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
-      <td style="padding:0.35rem 0.4rem;"><b>3D shell</b></td>
-      <td style="padding:0.35rem 0.4rem;">Asteroid mesh + green matrix slice</td>
-      <td style="padding:0.35rem 0.4rem;">Geometry ID + scan of the protective body</td>
+      <td style="padding:0.4rem;vertical-align:top;"><b>3D shell</b></td>
+      <td style="padding:0.4rem;">Asteroid mesh + green matrix slice (plane ∩ shell)</td>
+      <td style="padding:0.4rem;">Protective body + geometric ID; scan plane visualizes contact structure</td>
     </tr>
     <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
-      <td style="padding:0.35rem 0.4rem;"><b>Rolling path</b></td>
-      <td style="padding:0.35rem 0.4rem;">Nature-style path with X/Y/Z scan head</td>
-      <td style="padding:0.35rem 0.4rem;">Prescribed SO(3) rolling curve</td>
+      <td style="padding:0.4rem;vertical-align:top;"><b>Rolling path</b></td>
+      <td style="padding:0.4rem;">Nature-style path with a moving scan head (X / Y / Z)</td>
+      <td style="padding:0.4rem;">The prescribed curve the shell is built to follow under pure roll</td>
     </tr>
     <tr style="border-bottom:1px solid rgba(148,163,184,0.12);">
-      <td style="padding:0.35rem 0.4rem;"><b>Radial trench</b></td>
-      <td style="padding:0.35rem 0.4rem;">Heat map of contact / shave structure</td>
-      <td style="padding:0.35rem 0.4rem;">Where the shell modulates the field</td>
+      <td style="padding:0.4rem;vertical-align:top;"><b>Radial trench</b></td>
+      <td style="padding:0.4rem;">Heat map on a cylindrical / spherical unwrapping</td>
+      <td style="padding:0.4rem;">Contact trench / shave — where geometry modulates the inner field</td>
     </tr>
     <tr>
-      <td style="padding:0.35rem 0.4rem;"><b>Scorecard</b></td>
-      <td style="padding:0.35rem 0.4rem;">P · Strehl · OAMf · Icorr · F</td>
-      <td style="padding:0.35rem 0.4rem;">Packet integrity after the channel</td>
+      <td style="padding:0.4rem;vertical-align:top;"><b>Scorecard</b></td>
+      <td style="padding:0.4rem;">Bars: P · Strehl · OAMf · Icorr · F</td>
+      <td style="padding:0.4rem;">Quantitative integrity after the simulated optical channel</td>
     </tr>
   </table>
 
-  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">Scorecard keys</h3>
-  <p style="margin:0.3rem 0;"><b>P</b> power · <b>Strehl</b> peak coherence · <b>OAMf</b> OAM spectral fidelity ·
-  <b>Icorr</b> intensity correlation · <b>F</b> field overlap fidelity.</p>
-  <p style="color:#94a3b8;font-size:0.85rem;">As turbulence rises, <b>F</b> often drops faster than <b>OAMf</b> —
-  structured angular-momentum content is harder to scramble than raw hologram overlap.</p>
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Scorecard keys (turbulence)</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:0.84rem;margin:0.3rem 0 0.75rem 0;">
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.28);">
+      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Key</th>
+      <th align="left" style="padding:0.35rem 0.4rem;color:#94a3b8;">Meaning</th>
+    </tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);"><td style="padding:0.35rem 0.4rem;"><b>P</b></td><td style="padding:0.35rem 0.4rem;">Power retention (total intensity ratio)</td></tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);"><td style="padding:0.35rem 0.4rem;"><b>Strehl</b></td><td style="padding:0.35rem 0.4rem;">Peak coherence / focusing proxy</td></tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);"><td style="padding:0.35rem 0.4rem;"><b>OAMf</b></td><td style="padding:0.35rem 0.4rem;">OAM spectral fidelity — angular-momentum structure similarity</td></tr>
+    <tr style="border-bottom:1px solid rgba(148,163,184,0.12);"><td style="padding:0.35rem 0.4rem;"><b>Icorr</b></td><td style="padding:0.35rem 0.4rem;">Intensity-map correlation (shape survival even if phase is messy)</td></tr>
+    <tr><td style="padding:0.35rem 0.4rem;"><b>F</b></td><td style="padding:0.35rem 0.4rem;">Field overlap fidelity |⟨ref|obs⟩|² (coherent hologram quality)</td></tr>
+  </table>
+  <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 1rem 0;">
+    <b style="color:#e2e8f0;">Rule of thumb:</b> as turbulence rises, <b>F</b> often drops faster than <b>OAMf</b> —
+    structured OAM content is harder to scramble than raw field overlap. That is why the “seed” framing
+    emphasizes angular-momentum identity, not just peak fidelity.
+  </p>
 
-  <h3 style="color:#e2e8f0;font-size:1rem;margin:1.2rem 0 0.45rem 0;">How to use this Space</h3>
-  <ol style="padding-left:1.2rem;">
-    <li><b style="color:#00FF00;">Home</b> — CONTROLS · Matrix slice · Build · Play · SLM export</li>
-    <li><b>Build · Propagate · Recover</b> — full pipeline fills the 2×2 plots</li>
-    <li><b>Play matrix scan</b> — plane <b>xyz</b> runs <b>X → Y → Z</b></li>
-    <li><b>SLM export</b> — download phase package for hardware presets</li>
-    <li><b style="color:#00FF00;">Figures</b> — Nature-style construction &amp; path art</li>
-    <li><b style="color:#00FF00;">Docs</b> — this guide</li>
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Controls (Home panel) — what each one is for</h2>
+  <p style="margin:0 0 0.65rem 0;">All of these live under the left <b>CONTROLS</b> column on the <b style="color:#00FF00;">Home</b> page.</p>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">Payload &amp; identity</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>Payload</b> — text (or short message) packed into the seed. Hash + seed shape the shell geometry and packing.</li>
+    <li><b>Seed</b> — integer RNG seed for reproducible geometry and channel noise.</li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">Channel</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>Turbulence</b> — strength of simulated optical channel distortion (0 = mild / reference, higher = harsher).</li>
+    <li><b>Channel steps</b> — how many propagation / lattice steps to run (more steps = more evolution, slower).</li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">Shell / lattice</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>TPT closure</b> — Two-Period Trajectoid path closure (helps rolling consistency).</li>
+    <li><b>3D shell</b> — build a full 3D mesh + trench (Off = lighter planar path only).</li>
+    <li><b>Fast stub lattice</b> — On uses a fast numpy stub for the flux lattice (default on HF for speed).
+      Off prefers live <code>oam_flux</code> when available.</li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">SLM export</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>Device preset</b> — target SLM resolution / pitch class (e.g. <code>generic_256</code>, Holoeye, Meadowlark).</li>
+    <li><b>Export SLM package</b> — rebuild a seed, export phase maps, and offer a <b>downloadable zip</b>
+      (phase levels, manifest, previews) for hardware experiments.</li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">Matrix slice</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>Green slice</b> — show/hide the matrix-green plane frame on the 3D shell (plane ∩ shell).</li>
+    <li><b>Plane x / y / z / xyz</b> — which axis the slice and path/radial “scan” use.
+      <b>xyz</b> plays a full <b>X → Y → Z</b> sequence when you hit Play (or when you select xyz).</li>
+    <li><b>Position</b> — slice fraction along the chosen axis (0…1). Live-updates still frames.</li>
+    <li><b>Frames</b> — GIF frame count per axis for Play (xyz is capped so the full sequence can finish on free HF CPU).</li>
+    <li><b>Ping-pong</b> — if On, scan reverses after reaching the end (can look bouncy; default On in UI).</li>
+    <li><b>Play matrix scan</b> — generate synced GIFs for shell + radial + path at the same timeline.</li>
+  </ul>
+
+  <h3 style="color:#e2e8f0;font-size:0.95rem;margin:1rem 0 0.35rem 0;">Primary action</h3>
+  <ul style="padding-left:1.2rem;margin:0.2rem 0 0.8rem 0;">
+    <li><b>Build · Propagate · Recover</b> — run the full pipeline: build shell + encode nut → turbulence channel →
+      hybrid recovery, then refresh all plots and the seed status table.</li>
+  </ul>
+
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Suggested first run</h2>
+  <ol style="padding-left:1.25rem;margin:0.3rem 0 1rem 0;">
+    <li>Stay on <b style="color:#00FF00;">Home</b> with defaults.</li>
+    <li>Click <b>Build · Propagate · Recover</b> — wait for status + scorecard to update.</li>
+    <li>Drag <b>Position</b> or switch plane <b>x / y / z</b> — watch shell, path, and radial stay in sync.</li>
+    <li>Select plane <b>xyz</b> → <b>Play matrix scan</b> — titles should cycle <b>X → Y → Z</b>.</li>
+    <li>Open <b>SLM export</b> → Export → download the zip.</li>
+    <li>Visit <b style="color:#00FF00;">Figures</b> for Nature-style construction art; return here anytime via <b>Docs</b>.</li>
   </ol>
 
-  <p style="margin-top:1.25rem;font-size:0.85rem;">
+  <h2 style="color:#00FF00;font-size:1.05rem;margin:1.5rem 0 0.5rem 0;font-weight:600;">Practical uses</h2>
+  <ul style="padding-left:1.2rem;margin:0.3rem 0 1rem 0;">
+    <li>Exploratory tool for <b>geometric photonics</b> — trajectoid shells + OAM-structured light.</li>
+    <li>Teaching aid for SO(3) rolling paths, contact trenches, and multi-view radial maps.</li>
+    <li>Turbulence scorecards for comparing <b>field F</b> vs <b>OAM fidelity</b>.</li>
+    <li>Bridge to the lab via <b>SLM phase export</b> (device presets).</li>
+  </ul>
+
+  <p style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid rgba(148,163,184,0.22);font-size:0.85rem;">
     <a href="{GITHUB}" style="color:#38bdf8;">GitHub</a> ·
     <a href="{HF_SPACE}" style="color:#38bdf8;">HF Space</a> ·
     <a href="https://x.com/kinaar111/status/2075134240703029650" style="color:#38bdf8;">Demo video</a> ·
-    <a href="{GITHUB}#readme" style="color:#38bdf8;">README</a>
+    <a href="{GITHUB}#readme" style="color:#38bdf8;">README</a> ·
+    <a href="https://www.nature.com/articles/s41586-023-06306-y" style="color:#38bdf8;">Nature 2023</a>
   </p>
 </div>
 """
@@ -2464,17 +2572,62 @@ SLIDER_FILL_JS = """
 
   function setAppView(view) {
     const v = (view || 'home').toLowerCase();
+    const name = ['home', 'figures', 'docs'].includes(v) ? v : 'home';
     document.body.classList.remove('ft-view-home', 'ft-view-figures', 'ft-view-docs');
-    document.body.classList.add('ft-view-' + (['home', 'figures', 'docs'].includes(v) ? v : 'home'));
-    // Active tab: green border + glow (CSS .nav-active)
+    document.body.classList.add('ft-view-' + name);
+    document.documentElement.classList.remove('ft-view-home', 'ft-view-figures', 'ft-view-docs');
+    document.documentElement.classList.add('ft-view-' + name);
+
+    // Force show/hide with inline styles (beats Gradio + layoutOnce setImp)
+    const showPage = (sel, on) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      if (on) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('z-index', '60', 'important');
+        el.style.setProperty('pointer-events', 'auto', 'important');
+      } else {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+      }
+    };
+    showPage('#page-figures', name === 'figures');
+    showPage('#page-docs', name === 'docs');
+
+    const homeOn = name === 'home';
+    ['#controls', '#workspace', '#img-shell', '#img-path', '#img-radial', '#img-metrics'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      if (homeOn) {
+        el.style.removeProperty('display');
+        el.style.removeProperty('visibility');
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('pointer-events');
+        if (sel === '#controls') {
+          el.style.setProperty('visibility', 'visible', 'important');
+          el.style.setProperty('opacity', '1', 'important');
+          el.style.setProperty('pointer-events', 'auto', 'important');
+          el.style.setProperty('display', 'flex', 'important');
+        }
+      } else {
+        el.style.setProperty('display', 'none', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('pointer-events', 'none', 'important');
+      }
+    });
+
+    // Active tab: green border + glow
     const bar = document.querySelector('#nav-bar');
     if (!bar) return;
     const map = { home: 0, figures: 1, docs: 2 };
-    const idx = map[v] != null ? map[v] : 0;
-    const buttons = Array.from(bar.querySelectorAll('button.nav-tab, button'));
-    // Skip non-nav if any; prefer .nav-tab
+    const idx = map[name];
     const tabs = bar.querySelectorAll('button.nav-tab');
-    const list = tabs.length ? tabs : buttons;
+    const list = tabs.length ? tabs : bar.querySelectorAll('button');
     list.forEach((btn, i) => {
       btn.classList.remove('nav-active', 'primary', 'selected');
       if (i === idx) btn.classList.add('nav-active', 'selected');
@@ -2487,6 +2640,13 @@ SLIDER_FILL_JS = """
     setAppView(v);
   }
 
+  function viewFromButton(btn) {
+    const t = ((btn && btn.textContent) || '').trim().toLowerCase();
+    if (t.indexOf('figure') >= 0) return 'figures';
+    if (t.indexOf('doc') >= 0) return 'docs';
+    return 'home';
+  }
+
   function bindNavTabs() {
     const bar = document.querySelector('#nav-bar');
     if (!bar) return;
@@ -2494,7 +2654,9 @@ SLIDER_FILL_JS = """
       if (btn.dataset.ftNavBound === '1') return;
       btn.dataset.ftNavBound = '1';
       btn.addEventListener('click', () => {
-        // Class set immediately for glow; Gradio handler updates marker/view
+        const view = viewFromButton(btn);
+        // Immediate switch — do not wait for Gradio round-trip
+        setAppView(view);
         bar.querySelectorAll('button').forEach((b) => {
           b.classList.remove('nav-active', 'primary', 'selected');
         });
@@ -2603,6 +2765,24 @@ SLIDER_FILL_JS = """
     const x0 = plotsLeft;
     const x1 = plotsLeft + leftW + colGap;
 
+    // If not on Home, keep plot panels hidden (do not re-show via setImp)
+    const onHome = document.body.classList.contains('ft-view-home')
+      || (!document.body.classList.contains('ft-view-figures')
+          && !document.body.classList.contains('ft-view-docs'));
+    if (!onHome) {
+      ['#img-shell', '#img-path', '#img-radial', '#img-metrics', '#controls'].forEach((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        setImp(el, {
+          display: 'none',
+          visibility: 'hidden',
+          opacity: '0',
+          pointerEvents: 'none',
+        });
+      });
+      return;
+    }
+
     const placePanel = (sel, x, y, w, h) => {
       const el = document.querySelector(sel);
       if (!el) return false;
@@ -2663,6 +2843,14 @@ SLIDER_FILL_JS = """
   }
 
   function start() {
+    // Reparent full pages to body so position:fixed covers the iframe
+    ['#page-figures', '#page-docs'].forEach((sel) => {
+      const el = document.querySelector(sel);
+      if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
+    });
+    setAppView('home');
     layoutOnce();
     bindNavTabs();
     bindSliders();
