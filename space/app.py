@@ -1237,19 +1237,26 @@ def play_scan_ui(shell, slice_plane, n_frames, ping_pong):
 
 
 def build_app() -> gr.Blocks:
+    # Gradio 5+: css/js/head are set on launch (and on Blocks when supported).
+    # Slider fill JS MUST run on page load — head <script> is most reliable on HF.
     blocks_kwargs = dict(
         title="flux_trajectoid",
         analytics_enabled=False,
     )
-    # Gradio 4.44+ / 5.x: expand top-level children to window height
+    optional_block = {
+        "css": CUSTOM_CSS,
+        "js": SLIDER_FILL_JS,
+        "head": f"<script>\n{SLIDER_FILL_JS}\n</script>",
+        "fill_height": True,
+        "fill_width": True,
+    }
     try:
         import inspect as _inspect
 
         _bp = _inspect.signature(gr.Blocks.__init__).parameters
-        if "fill_height" in _bp:
-            blocks_kwargs["fill_height"] = True
-        if "fill_width" in _bp:
-            blocks_kwargs["fill_width"] = True
+        for k, v in optional_block.items():
+            if k in _bp:
+                blocks_kwargs[k] = v
     except Exception:
         pass
 
@@ -1907,64 +1914,122 @@ SLIDER_FILL_JS = """
     if (!isFinite(den) || den === 0) return 0;
     return Math.max(0, Math.min(100, ((val - min) / den) * 100));
   }
+
+  /* Inline styles for the analog line — beats Gradio CSS specificity wars */
+  const FILL_STYLE = [
+    'position:absolute',
+    'left:0',
+    'top:50%',
+    'transform:translateY(-50%)',
+    'height:2px',
+    'min-height:2px',
+    'max-height:2px',
+    'border-radius:999px',
+    'background:#00FF00',
+    'background-color:#00FF00',
+    'box-shadow:0 0 2px 0.5px rgba(0,255,0,0.9),0 0 5px 1px rgba(0,255,0,0.45),0 0 10px 2px rgba(0,255,0,0.22)',
+    'pointer-events:none',
+    'z-index:5',
+    'display:block',
+    'opacity:1',
+    'visibility:visible',
+    'margin:0',
+    'padding:0',
+    'border:none',
+  ].join(';');
+
+  const RAIL_STYLE = [
+    'position:absolute',
+    'left:0',
+    'right:0',
+    'top:50%',
+    'transform:translateY(-50%)',
+    'height:2px',
+    'border-radius:999px',
+    'background:rgba(100,116,139,0.5)',
+    'pointer-events:none',
+    'z-index:1',
+  ].join(';');
+
   function ensureShell(el) {
     let shell = el.closest('.ft-slider-shell');
-    if (shell) {
-      // ensure fill sibling exists (Gradio may wipe children)
-      if (!shell.querySelector(':scope > .ft-slider-fill')) {
-        const fill = document.createElement('div');
-        fill.className = 'ft-slider-fill';
-        const rail = shell.querySelector(':scope > .ft-slider-rail');
-        if (rail) shell.insertBefore(fill, rail.nextSibling);
-        else shell.insertBefore(fill, el);
-      }
-      if (!shell.querySelector(':scope > .ft-slider-rail')) {
-        const rail = document.createElement('div');
-        rail.className = 'ft-slider-rail';
-        shell.insertBefore(rail, shell.firstChild);
-      }
-      return shell;
+    if (!shell) {
+      shell = document.createElement('div');
+      shell.className = 'ft-slider-shell';
+      shell.style.cssText = [
+        'position:relative',
+        'display:block',
+        'width:100%',
+        'height:14px',
+        'margin:0.3rem 0 0.5rem 0',
+        'overflow:visible',
+        'box-sizing:border-box',
+      ].join(';');
+      const parent = el.parentNode;
+      if (!parent) return null;
+      parent.insertBefore(shell, el);
+      shell.appendChild(el);
     }
-    shell = document.createElement('div');
-    shell.className = 'ft-slider-shell';
-    const rail = document.createElement('div');
-    rail.className = 'ft-slider-rail';
-    const fill = document.createElement('div');
-    fill.className = 'ft-slider-fill';
-    const parent = el.parentNode;
-    if (!parent) return null;
-    parent.insertBefore(shell, el);
-    shell.appendChild(rail);
-    shell.appendChild(fill); // sibling of rail — not clipped inside 2px rail
-    shell.appendChild(el);
+    let rail = shell.querySelector(':scope > .ft-slider-rail');
+    if (!rail) {
+      rail = document.createElement('div');
+      rail.className = 'ft-slider-rail';
+      shell.insertBefore(rail, shell.firstChild);
+    }
+    rail.style.cssText = RAIL_STYLE;
+    let fill = shell.querySelector(':scope > .ft-slider-fill');
+    if (!fill) {
+      fill = document.createElement('div');
+      fill.className = 'ft-slider-fill';
+      shell.insertBefore(fill, el);
+    }
+    // keep fill above rail, under input hit-target
+    if (fill.nextSibling !== el) {
+      shell.insertBefore(fill, el);
+    }
     return shell;
   }
+
   function paint(el) {
     if (!el || el.type !== 'range') return;
     const shell = ensureShell(el);
     if (!shell) return;
     const pct = pctOf(el);
+    const fill = shell.querySelector(':scope > .ft-slider-fill');
+    if (!fill) return;
+
+    // Width in px to the knob center (accounts for thumb radius)
+    const shellW = shell.clientWidth || shell.getBoundingClientRect().width || 0;
+    const thumb = 12;
+    let wPx;
+    if (shellW > 0) {
+      // value maps across (width - thumb) with thumb centered
+      wPx = Math.max(0, (thumb / 2) + ((shellW - thumb) * pct) / 100);
+    } else {
+      wPx = null;
+    }
+
+    fill.style.cssText = FILL_STYLE + ';width:' + (
+      wPx != null ? (wPx.toFixed(2) + 'px') : (pct.toFixed(3) + '%')
+    );
+
+    // CSS var fallback for track gradient
     const pctStr = pct.toFixed(3) + '%';
-    // CSS var drives .ft-slider-fill width + track gradient fallback
     shell.style.setProperty('--ft-fill-pct', pctStr);
     el.style.setProperty('--ft-fill-pct', pctStr);
-    const fill = shell.querySelector(':scope > .ft-slider-fill');
-    if (fill) {
-      fill.style.setProperty('width', pctStr, 'important');
-      fill.style.setProperty('background', '#00FF00', 'important');
-      fill.style.setProperty('background-color', '#00FF00', 'important');
-      fill.style.setProperty('display', 'block', 'important');
-      fill.style.setProperty('opacity', '1', 'important');
-      fill.style.setProperty('visibility', 'visible', 'important');
-    }
+
+    // Inline track gradient on the input (Chrome sees this better than vars alone)
+    const rail = 'rgba(100,116,139,0.5)';
+    el.style.setProperty(
+      'background',
+      'linear-gradient(to right,#00FF00 0%,#00FF00 ' + pctStr + ',' + rail + ' ' + pctStr + ',' + rail + ' 100%)',
+      'important'
+    );
   }
+
   function bindAll() {
-    // all ranges in the app (Matrix slice Position / Frames live in #controls)
     document.querySelectorAll('input[type="range"]').forEach((el) => {
-      // Gradio may recreate the node — re-shell if needed
-      if (!el.closest('.ft-slider-shell')) {
-        el.dataset.ftSliderBound = '0';
-      }
+      if (!el.closest('.ft-slider-shell')) el.dataset.ftSliderBound = '0';
       if (el.dataset.ftSliderBound === '1') {
         paint(el);
         return;
@@ -1972,30 +2037,12 @@ SLIDER_FILL_JS = """
       el.dataset.ftSliderBound = '1';
       ensureShell(el);
       const upd = () => paint(el);
-      el.addEventListener('input', upd, { passive: true });
-      el.addEventListener('change', upd, { passive: true });
-      el.addEventListener('pointerdown', upd, { passive: true });
+      ['input', 'change', 'pointerdown', 'pointerup', 'touchstart', 'touchmove'].forEach((ev) => {
+        el.addEventListener(ev, upd, { passive: true });
+      });
       el.addEventListener('pointermove', () => {
         if (el.matches(':active')) paint(el);
       }, { passive: true });
-      el.addEventListener('touchmove', upd, { passive: true });
-      try {
-        const desc = Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype, 'value'
-        );
-        if (desc && desc.set && !el.dataset.ftValueHook) {
-          el.dataset.ftValueHook = '1';
-          const orig = desc.set;
-          Object.defineProperty(el, 'value', {
-            get: desc.get,
-            set(v) {
-              orig.call(this, v);
-              paint(this);
-            },
-            configurable: true,
-          });
-        }
-      } catch (_) { /* ignore */ }
       paint(el);
     });
   }
@@ -2072,6 +2119,18 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
     """Launch with kwargs filtered to the installed Gradio version."""
     import inspect
 
+    # Ensure Blocks carries css/js even if constructor ignored them
+    for attr, val in (("css", css), ("js", js)):
+        try:
+            setattr(demo, attr, val)
+        except Exception:
+            pass
+    try:
+        if getattr(demo, "head", None) in (None, ""):
+            demo.head = f"<script>\n{js}\n</script>"
+    except Exception:
+        pass
+
     queued = demo.queue(default_concurrency_limit=1)
     base = {
         "server_name": "0.0.0.0",
@@ -2079,14 +2138,14 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
         "share": False,
         "show_error": True,
     }
-    # Optional kwargs (vary across Gradio 4/5/6)
     optional = {
         "theme": theme,
         "css": css,
         "js": js,
-        "ssr": False,  # experimental SSR triggers extra api_info hits
+        "head": f"<script>\n{js}\n</script>",
+        "ssr": False,
         "ssr_mode": False,
-        "show_api": False,  # avoid broken /info schema path when possible
+        "show_api": False,
     }
     try:
         params = inspect.signature(queued.launch).parameters
@@ -2096,11 +2155,6 @@ def _launch(demo, *, port: int, theme, css: str, js: str) -> None:
     for k, v in optional.items():
         if k in params:
             kwargs[k] = v
-    if "css" not in params:
-        try:
-            demo.css = css  # type: ignore[attr-defined]
-        except Exception:
-            pass
     queued.launch(**kwargs)
 
 
