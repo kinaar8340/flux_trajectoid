@@ -39,31 +39,34 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 CUSTOM_CSS = """
 /*
- * Flex-fit to screen (local + HF Space iframe).
- * Chain: html/body → gradio-app → container → main → wrap → contain → nav + workspace
+ * Flex-fit full iframe (local + HF Space).
+ * Bug: height:auto on #workspace collapsed content to ~350px with empty
+ * black below. Force a hard viewport chain so the 3-col grid fills.
  */
+:root {
+  --ft-nav-h: 48px;
+  --ft-app-h: 100vh;
+}
+@supports (height: 100dvh) {
+  :root { --ft-app-h: 100dvh; }
+}
 html, body {
-  height: 100% !important;
+  height: var(--ft-app-h) !important;
+  min-height: var(--ft-app-h) !important;
+  max-height: var(--ft-app-h) !important;
   width: 100% !important;
-  max-height: 100% !important;
   max-width: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
   padding: 0 !important;
   background: #070b14 !important;
 }
-/* Prefer dynamic viewport units when available (mobile / HF chrome) */
-@supports (height: 100dvh) {
-  html, body {
-    height: 100dvh !important;
-    max-height: 100dvh !important;
-  }
-}
 gradio-app, #root {
   display: flex !important;
   flex-direction: column !important;
-  height: 100% !important;
-  max-height: 100% !important;
+  height: var(--ft-app-h) !important;
+  min-height: var(--ft-app-h) !important;
+  max-height: var(--ft-app-h) !important;
   width: 100% !important;
   overflow: hidden !important;
   margin: 0 !important;
@@ -73,11 +76,12 @@ gradio-app, #root {
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
-  height: 100% !important;
-  max-height: 100% !important;
+  height: var(--ft-app-h) !important;
+  min-height: var(--ft-app-h) !important;
+  max-height: var(--ft-app-h) !important;
   width: 100% !important;
   max-width: 100% !important;
-  min-height: 0 !important;
+  min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
@@ -95,7 +99,7 @@ gradio-app, #root {
 div.gradio-container > div {
   display: flex !important;
   flex-direction: column !important;
-  flex: 1 1 auto !important;
+  flex: 1 1 0 !important;
   height: 100% !important;
   max-height: 100% !important;
   min-height: 0 !important;
@@ -114,7 +118,7 @@ div.gradio-container > div {
 .gradio-container .app > div {
   display: flex !important;
   flex-direction: column !important;
-  flex: 1 1 auto !important;
+  flex: 1 1 0 !important;
   min-height: 0 !important;
   height: 100% !important;
   max-height: 100% !important;
@@ -127,8 +131,8 @@ body.gradio-container,
 body > gradio-app,
 body > #root {
   overflow: hidden !important;
-  height: 100% !important;
-  max-height: 100% !important;
+  height: var(--ft-app-h) !important;
+  max-height: var(--ft-app-h) !important;
 }
 footer,
 .footer,
@@ -267,19 +271,19 @@ footer,
 }
 
 /*
- * Workspace: flex-fill under nav · columns ~25% | 50% | 25%
- * Height comes from flex (not fixed 100vh-52) so HF iframe chrome fits.
+ * Workspace: hard fill under nav (~full iframe minus 48px nav).
+ * Do NOT use height:auto — that collapsed to ~351px on HF.
  */
 #workspace {
-  flex: 1 1 auto !important;
+  flex: 1 1 0 !important;
   min-height: 0 !important;
-  height: auto !important;
-  max-height: none !important;
+  height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
+  max-height: calc(var(--ft-app-h) - var(--ft-nav-h)) !important;
   display: grid !important;
-  /* Col-1 wide enough for On/Off + x y z xyz on one row (match desired local look) */
+  /* Col-1 fits On/Off + x y z xyz one row; center dominant; right slim */
   grid-template-columns:
-    minmax(300px, 1.15fr)
-    minmax(0, 2.1fr)
+    minmax(280px, 1.1fr)
+    minmax(0, 2.15fr)
     minmax(0, 1fr) !important;
   grid-template-rows: minmax(0, 1fr) !important;
   align-items: stretch !important;
@@ -874,24 +878,58 @@ footer,
     var(--ft-glow) !important;
 }
 /*
- * Radio / toggle chips — ONLY the option row, never parent .wrap/.form.
- * Broad #controls .wrap { flex-direction:row } broke Gradio 5: Play/Build
- * escaped the left column and xyz wrapped under a narrow track.
+ * Radio blocks: title ABOVE options (column). Only the option strip is row.
+ * Never set .form / .block to row — that put "Show green slice" inline with
+ * On/Off and wrapped the title mid-word (HF Gradio 5).
  */
+#controls .oval-toggle,
+#controls .block:has(input[type="radio"]),
+#controls .form:has(input[type="radio"]) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  margin: 0 0 0.2rem 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  gap: 0.12rem !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+/* Field title full-width above chips — not a chip itself */
+#controls .oval-toggle > label:not(:has(input)),
+#controls .block:has(input[type="radio"]) > label:not(:has(input)),
+#controls .form:has(input[type="radio"]) > label:not(:has(input)),
+#controls .oval-toggle .block-label,
+#controls .oval-toggle .block-title,
+#controls .block:has(input[type="radio"]) .block-label,
+#controls .block:has(input[type="radio"]) .block-title,
+#controls span[data-testid="block-info"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.65rem !important;
+  line-height: 1.2 !important;
+  white-space: normal !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+/* Option strip only — On/Off · x y z xyz on one line */
 #controls .oval-toggle fieldset,
 #controls .oval-toggle [data-testid="radio-group"],
 #controls .oval-toggle > .wrap,
-#controls .oval-toggle .wrap:has(input[type="radio"]),
+#controls .oval-toggle .wrap:has(> label input[type="radio"]),
+#controls .block:has(input[type="radio"]) > .wrap,
+#controls .form:has(input[type="radio"]) > .wrap,
 #controls fieldset:has(input[type="radio"]),
 #controls [data-testid="radio-group"],
-#controls [role="radiogroup"],
-#controls .block:has(> .wrap input[type="radio"]) > .wrap,
-#controls .block:has(input[type="radio"]) > .form,
-#controls .form:has(> input[type="radio"]),
-#controls .form:has(> label > input[type="radio"]) {
+#controls [role="radiogroup"] {
   display: flex !important;
   flex-direction: row !important;
-  flex-wrap: nowrap !important; /* keep On/Off and x y z xyz on one line */
+  flex-wrap: nowrap !important;
   align-items: center !important;
   justify-content: flex-start !important;
   gap: 0.25rem 0.35rem !important;
@@ -899,16 +937,15 @@ footer,
   max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
-  overflow-x: auto !important; /* last resort if viewport tiny */
+  overflow-x: auto !important;
   overflow-y: hidden !important;
 }
-#controls .oval-toggle fieldset label,
-#controls .oval-toggle label,
-#controls fieldset label,
-#controls label:has(input[type="radio"]),
-#controls label:has(input[type="checkbox"]),
+/* Chip labels that actually contain the radio input */
+#controls fieldset label:has(input[type="radio"]),
+#controls label:has(> input[type="radio"]),
+#controls label:has(> input[type="checkbox"]),
 #controls [role="radio"],
-#controls [data-testid="radio-group"] label {
+#controls [data-testid="radio-group"] label:has(input) {
   min-height: var(--ft-btn-row-h) !important;
   max-height: var(--ft-btn-row-h) !important;
   height: var(--ft-btn-row-h) !important;
@@ -923,24 +960,6 @@ footer,
   align-items: center !important;
   box-sizing: border-box !important;
   white-space: nowrap !important;
-}
-/* Compact radio block chrome so Matrix slice + Play + Build fit */
-#controls .oval-toggle,
-#controls .block:has(input[type="radio"]) {
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 0 !important;
-  gap: 0.1rem !important;
-}
-#controls .oval-toggle .label-wrap,
-#controls .block:has(input[type="radio"]) > label,
-#controls .block:has(input[type="radio"]) span[data-testid="block-info"],
-#controls .block:has(input[type="radio"]) .block-label,
-#controls .block:has(input[type="radio"]) .block-title {
-  margin: 0 0 0.08rem 0 !important;
-  padding: 0 !important;
-  font-size: 0.65rem !important;
-  line-height: 1.15 !important;
 }
 /* Action buttons: full-width stack inside left column (never float out) */
 #controls #scan-btn,
@@ -1270,14 +1289,14 @@ def build_app() -> gr.Blocks:
                                 show_slice = gr.Radio(
                                     choices=["On", "Off"],
                                     value="On",
-                                    label="Show green slice",
+                                    label="Green slice",
                                     type="value",
                                     elem_classes=["oval-toggle"],
                                 )
                                 slice_plane = gr.Radio(
                                     choices=["x", "y", "z", "xyz"],
                                     value="z",
-                                    label="Slice plane",
+                                    label="Plane",
                                     type="value",
                                     elem_classes=["oval-toggle"],
                                 )
@@ -1286,19 +1305,19 @@ def build_app() -> gr.Blocks:
                                     1.0,
                                     value=1.0,
                                     step=0.02,
-                                    label="Slice position",
+                                    label="Position",
                                 )
                                 scan_frames = gr.Slider(
                                     8,
                                     24,
                                     value=24,
                                     step=1,
-                                    label="Scan frames",
+                                    label="Frames",
                                 )
                                 scan_ping = gr.Radio(
                                     choices=["On", "Off"],
                                     value="On",
-                                    label="Ping-pong scan (can look bouncy)",
+                                    label="Ping-pong",
                                     type="value",
                                     elem_classes=["oval-toggle"],
                                 )
@@ -1352,7 +1371,7 @@ def build_app() -> gr.Blocks:
                     )
                     img_shell = _display_image(
                         blank_rgb(640, 480),
-                        height="42vh",
+                        height="100%",
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1365,7 +1384,7 @@ def build_app() -> gr.Blocks:
                     )
                     img_radial = _display_image(
                         blank_rgb(640, 480),
-                        height="42vh",
+                        height="100%",
                         elem_classes=["vp-plot"],
                     )
 
@@ -1388,7 +1407,7 @@ def build_app() -> gr.Blocks:
                     )
                     img_path = _display_image(
                         blank_rgb(480, 400),
-                        height="42vh",
+                        height="100%",
                         elem_classes=["vp-plot"],
                     )
                 with gr.Column(
@@ -1399,7 +1418,7 @@ def build_app() -> gr.Blocks:
                     gr.Markdown('<p class="viewport-title">Scorecard</p>')
                     img_metrics = _display_image(
                         blank_rgb(480, 400),
-                        height="42vh",
+                        height="100%",
                         elem_classes=["vp-plot"],
                     )
 
