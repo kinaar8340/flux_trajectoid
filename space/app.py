@@ -196,10 +196,8 @@ footer { display: none !important; }
   max-height: 100% !important;
 }
 
-/* Independent vertical scrollbars on all three columns */
-#controls,
-#col-center,
-#col-right {
+/* Col-1 scrolls independently; viewports use fixed balanced grid */
+#controls {
   height: 100% !important;
   max-height: 100% !important;
   min-height: 0 !important;
@@ -208,16 +206,77 @@ footer { display: none !important; }
   scrollbar-width: thin;
   scrollbar-color: rgba(56, 189, 248, 0.45) rgba(15, 23, 42, 0.4);
 }
-#controls::-webkit-scrollbar,
-#col-center::-webkit-scrollbar,
-#col-right::-webkit-scrollbar {
+#controls::-webkit-scrollbar {
   width: 8px;
 }
-#controls::-webkit-scrollbar-thumb,
-#col-center::-webkit-scrollbar-thumb,
-#col-right::-webkit-scrollbar-thumb {
+#controls::-webkit-scrollbar-thumb {
   background: rgba(56, 189, 248, 0.4);
   border-radius: 4px;
+}
+
+/*
+ * 2×N viewport grid (cols 2–3 merged):
+ *   · equal row heights → shared horizontal baselines
+ *   · column ratio 4fr : 3fr (different widths OK)
+ *   · each cell fills its grid slot edge-to-edge
+ */
+#viewport-grid {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.35rem !important;
+  padding: 0.3rem !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+/* Each row: equal share of vertical space (fixed horizontal mid-lines) */
+#viewport-grid > .vp-row,
+#viewport-grid > div {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  height: auto !important;
+  overflow: hidden !important;
+  gap: 0.35rem !important;
+  align-items: stretch !important;
+}
+/* Cells stretch full row height; width ratio from Gradio scale */
+#viewport-grid .vp-cell {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  padding: 0.3rem 0.4rem !important;
+}
+#viewport-grid .vp-cell > .viewport-title,
+#viewport-grid .vp-cell .viewport-title {
+  flex: 0 0 auto !important;
+  margin: 0 0 0.2rem 0 !important;
+}
+/* Image block fills remaining cell height */
+#viewport-grid .vp-cell > .block,
+#viewport-grid .vp-cell .block,
+#viewport-grid .vp-cell [data-testid="image"],
+#viewport-grid .vp-cell .image-container {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+#viewport-grid .vp-cell img,
+#viewport-grid .vp-cell .image-container img {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  flex: 1 1 auto !important;
 }
 
 /* Column 1: compact top stack + Seed Status fills remainder */
@@ -661,6 +720,11 @@ footer { display: none !important; }
   max-height: 100% !important;
   object-fit: contain !important;
 }
+#viewport-grid .image-container,
+#viewport-grid img {
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
 .viewport-title {
   color: #64748b !important;
   font-size: 0.7rem !important;
@@ -939,12 +1003,28 @@ def build_app() -> gr.Blocks:
                                 '<p id="hero-caption">Trajectoid shapes + theory/experiment paths · used as HF Space visual language</p>',
                             )
 
-            # Column 2 — primary viewports (scrollable)
+            # Columns 2–3: balanced 2×N viewport grid
+            #   row heights equal (shared horizontals)
+            #   col widths 4 : 3 (different widths OK)
+            #   [ shell  | path     ]
+            #   [ radial | scorecard]
+            #   [ field  | trace    ]
             with gr.Column(
-                scale=4, min_width=320, elem_classes=["layer-inner"], elem_id="col-center"
+                scale=7,
+                min_width=560,
+                elem_id="viewport-grid",
             ):
-                with gr.Row(equal_height=True):
-                    with gr.Column():
+                with gr.Row(
+                    equal_height=True,
+                    elem_classes=["vp-row"],
+                    elem_id="vp-row-top",
+                ):
+                    with gr.Column(
+                        scale=4,
+                        min_width=280,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-shell",
+                    ):
                         gr.Markdown(
                             '<p class="viewport-title">3D shell · contact path · matrix slice</p>'
                         )
@@ -952,52 +1032,89 @@ def build_app() -> gr.Blocks:
                             value=blank_rgb(300, 360),
                             label=None,
                             show_label=False,
-                            height=260,
+                            container=True,
                         )
-                    with gr.Column():
-                        gr.Markdown('<p class="viewport-title">Radial trench / shave</p>')
+                    with gr.Column(
+                        scale=3,
+                        min_width=200,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-path",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Rolling path (Nature-style)</p>'
+                        )
+                        img_path = gr.Image(
+                            value=blank_rgb(400, 220),
+                            label=None,
+                            show_label=False,
+                            container=True,
+                        )
+                with gr.Row(
+                    equal_height=True,
+                    elem_classes=["vp-row"],
+                    elem_id="vp-row-mid",
+                ):
+                    with gr.Column(
+                        scale=4,
+                        min_width=280,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-radial",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Radial trench / shave</p>'
+                        )
                         img_radial = gr.Image(
                             value=blank_rgb(300, 360),
                             label=None,
                             show_label=False,
-                            height=260,
+                            container=True,
                         )
-                with gr.Row(equal_height=True):
-                    with gr.Column():
-                        gr.Markdown('<p class="viewport-title">Protected OAM field</p>')
+                    with gr.Column(
+                        scale=3,
+                        min_width=200,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-score",
+                    ):
+                        gr.Markdown('<p class="viewport-title">Scorecard</p>')
+                        img_metrics = gr.Image(
+                            value=blank_rgb(260, 360),
+                            label=None,
+                            show_label=False,
+                            container=True,
+                        )
+                with gr.Row(
+                    equal_height=True,
+                    elem_classes=["vp-row"],
+                    elem_id="vp-row-bot",
+                ):
+                    with gr.Column(
+                        scale=4,
+                        min_width=280,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-field",
+                    ):
+                        gr.Markdown(
+                            '<p class="viewport-title">Protected OAM field</p>'
+                        )
                         img_field = gr.Image(
                             value=blank_rgb(260, 360),
                             label=None,
                             show_label=False,
-                            height=220,
+                            container=True,
                         )
-                    with gr.Column():
+                    with gr.Column(
+                        scale=3,
+                        min_width=200,
+                        elem_classes=["layer-inner", "vp-cell"],
+                        elem_id="vp-trace",
+                    ):
                         gr.Markdown('<p class="viewport-title">Fidelity trace</p>')
                         img_trace = gr.Image(
                             value=blank_rgb(200, 360),
                             label=None,
                             show_label=False,
-                            height=220,
+                            container=True,
                         )
-
-            # Column 3 — path + scorecard (gallery moved to col-1 REFERENCES)
-            with gr.Column(
-                scale=3, min_width=240, elem_classes=["layer-inner"], elem_id="col-right"
-            ):
-                gr.Markdown('<p class="viewport-title">Rolling path (Nature-style)</p>')
-                img_path = gr.Image(
-                    value=blank_rgb(400, 220),
-                    label=None,
-                    show_label=False,
-                    height=300,
-                )
-                gr.Markdown('<p class="viewport-title">Scorecard</p>')
-                img_metrics = gr.Image(
-                    value=blank_rgb(260, 360),
-                    label=None,
-                    show_label=False,
-                    height=220,
-                )
 
         # Hidden reference / about swap targets (still one page — toggle visibility via content)
         ref_panel = gr.Image(
