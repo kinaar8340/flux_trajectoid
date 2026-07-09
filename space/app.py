@@ -187,6 +187,109 @@ footer { display: none !important; }
   min-height: 1.6rem !important;
   padding: 0.15rem 0.35rem !important;
 }
+/*
+ * theme_default_slider
+ *   analog_fill_color   = #00FF00  (was light blue)
+ *   analog_bar_height   = ~10% of prior (~1.5–2px vs ~12–16px)
+ *   analog_effect_glowing = True
+ */
+:root {
+  --ft-slider-fill: #00FF00;
+  --ft-slider-track: rgba(100, 116, 139, 0.45);
+  --ft-slider-h: 1.5px;              /* bar height after ~90% reduction */
+  --ft-slider-thumb: 10px;
+  --ft-slider-glow: 0 0 4px 1px rgba(0, 255, 0, 0.55),
+                    0 0 8px 2px rgba(0, 255, 0, 0.28);
+}
+/* Native range (and Gradio range inputs) */
+#controls input[type="range"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  height: var(--ft-slider-h) !important;
+  min-height: var(--ft-slider-h) !important;
+  max-height: var(--ft-slider-h) !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  padding: 0.55rem 0 !important;   /* hit area without thick bar */
+  margin: 0.15rem 0 0.35rem 0 !important;
+  accent-color: var(--ft-slider-fill) !important;
+  cursor: pointer !important;
+}
+#controls input[type="range"]::-webkit-slider-runnable-track {
+  height: var(--ft-slider-h) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    to right,
+    var(--ft-slider-fill) 0%,
+    var(--ft-slider-fill) var(--ft-slider-pct, 50%),
+    var(--ft-slider-track) var(--ft-slider-pct, 50%),
+    var(--ft-slider-track) 100%
+  ) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+}
+#controls input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: var(--ft-slider-thumb) !important;
+  height: var(--ft-slider-thumb) !important;
+  margin-top: calc((var(--ft-slider-h) - var(--ft-slider-thumb)) / 2) !important;
+  border-radius: 50% !important;
+  background: #f8fafc !important;
+  border: 1.5px solid var(--ft-slider-fill) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  cursor: pointer !important;
+}
+#controls input[type="range"]::-moz-range-track {
+  height: var(--ft-slider-h) !important;
+  border-radius: 999px !important;
+  background: var(--ft-slider-track) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  border: none !important;
+}
+#controls input[type="range"]::-moz-range-progress {
+  height: var(--ft-slider-h) !important;
+  border-radius: 999px !important;
+  background: var(--ft-slider-fill) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  border: none !important;
+}
+#controls input[type="range"]::-moz-range-thumb {
+  width: var(--ft-slider-thumb) !important;
+  height: var(--ft-slider-thumb) !important;
+  border-radius: 50% !important;
+  background: #f8fafc !important;
+  border: 1.5px solid var(--ft-slider-fill) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  cursor: pointer !important;
+}
+/* Gradio custom slider track / fill (Svelte / div-based) */
+#controls .slider,
+#controls [class*="slider"],
+#controls .range,
+#controls [data-testid="slider"] {
+  --slider-color: var(--ft-slider-fill) !important;
+  --color-accent: var(--ft-slider-fill) !important;
+}
+#controls .slider > div,
+#controls [class*="slider"] > div,
+#controls input[type="range"] + div,
+#controls .range div {
+  height: var(--ft-slider-h) !important;
+  min-height: var(--ft-slider-h) !important;
+}
+/* Filled portion (left of thumb) — green + glow */
+#controls .slider [style*="background"],
+#controls [class*="slider"] .progress,
+#controls [class*="slider"] [class*="fill"],
+#controls [class*="slider"] [class*="track"] > div:first-child {
+  background-color: var(--ft-slider-fill) !important;
+  background: var(--ft-slider-fill) !important;
+  box-shadow: var(--ft-slider-glow) !important;
+  height: var(--ft-slider-h) !important;
+  border-radius: 999px !important;
+}
 /* Collapsed accordion headers ~ one compact row each */
 #controls .label-wrap,
 #controls .accordion,
