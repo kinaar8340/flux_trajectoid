@@ -1,51 +1,179 @@
 # flux_trajectoid
 
-**Photon Seed Asteroids** — trajectoid shells + VQC quaternion + oam_flux helical lattice for robust photonic data carriers.
+**Photon Seed Asteroids** — 3D trajectoid shells + VQC quaternion/OAM + live `oam_flux` Hopf lattice for robust photonic data carriers.
 
-Inspired by macadamia nuts (hard shell, dense kernel) and [trajectoids](https://en.wikipedia.org/wiki/Trajectoid) (bodies whose rolling path encodes a closed curve), this project models a layered biomimetic photonic packet that propagates as a protected “seed” through simulated optical channels.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Core concept
+Inspired by **macadamia nuts** (hard shell, dense kernel) and **[trajectoids](https://en.wikipedia.org/wiki/Trajectoid)** (3D bodies whose rolling path encodes a prescribed curve), this project models a layered biomimetic photonic packet that propagates as a protected “seed” through simulated optical channels — and exports SLM-ready holograms.
 
-| Layer | Role |
-|-------|------|
-| **Outer shell** | Hard, uniquely shaped geometry (trajectoid-inspired). Fourier descriptors + arc-length unrolling for ID / metadata / protection. |
-| **Inner nut** | Dense payload via VQC (quaternion + OAM) and oam_flux (helical twist packets + Hopf lattice flux flywheels). |
-| **Whole unit** | Propagates as a protected seed; shell modulates/protects inner modes (“potential trench”). |
+---
 
-## Architecture
+## Why this works
+
+| Idea | Role in flux_trajectoid |
+|------|-------------------------|
+| **Trajectoid scaling** | Anisotropic `(kx, ky)` + perimeter lock minimizes SO(3) rolling mismatch so the shell geometry is a reproducible ID fingerprint. |
+| **3D shaved sphere** | Contact curve + oriented cutting planes turn the rolling plan into a real asteroid mesh with a potential trench. |
+| **q × scale packing** | Unit quaternions alone lose bytes (S³ is 3-DOF). Scale rides on the OAM carrier amplitude → near-lossless photonic recovery on clean fields. |
+| **OAM robustness** | Metrics show OAM spectral fidelity decays slower under turbulence than raw field overlap — angular momentum structure is hard to scramble. |
+| **Hybrid recovery** | Digital CRC-perfect path + photonic BER scorecard so you always know channel quality. |
+
+---
+
+## Architecture (layered)
 
 ```
 Photon Seed Asteroid (flux_trajectoid)
 │
-├── 1. DATA INGESTION LAYER
-│   └── packet → metadata + raw_data
+├── 1. DATA INGESTION
+│   └── str | bytes + seed → deterministic identity
 │
-├── 2. OUTER SHELL LAYER (Trajectoid Geometry)
-│   ├── shell/generator.py
-│   │   ├── Parametric closed surface (trajectoid-style)
-│   │   ├── Fourier descriptors (boundary → coefficients)
-│   │   └── Arc-length unrolling → 1D path (metadata signal)
-│   └── Protection + Identification
-│       └── Unique shape fingerprint (routing / error resilience)
+├── 2. OUTER SHELL (3D trajectoid)
+│   ├── Planar path from payload hash
+│   ├── Path scaling + TPT closure + SO(3) rolling
+│   ├── 3D mesh: sphere + contact trench + oriented shaves
+│   ├── Fourier fingerprint (silhouette) + curvature signal
+│   └── shell/modulator → phase mask / potential trench
 │
-├── 3. INNER PAYLOAD LAYER (VQC + oam_flux)
-│   ├── inner/vqc_encoder.py       ← Quaternion shards + Orbital Braille
-│   ├── inner/oam_flux_coupling.py ← Helical twist packets + Hopf lattice
-│   └── Inner data packing (DNA-like density)
+├── 3. INNER NUT (VQC + oam_flux)
+│   ├── Quaternion shards (q) + scale (s) → LG OAM imprint
+│   ├── Live TwistLattice + deposit_on_flywheels
+│   └── Shell-attenuated multi-ℓ coupling
 │
-├── 4. MODULATION & PROTECTION LAYER
-│   └── shell/modulator.py
-│       └── Shell → phase mask / constraint on inner OAM modes
+├── 4. TRANSMISSION
+│   ├── Kolmogorov phase screens + tip/tilt + BMGL gate
+│   ├── Lattice PDE evolution
+│   └── FidelityMetrics scorecard + sweep_turbulence()
 │
-├── 5. TRANSMISSION / SIMULATION LAYER
-│   └── propagation/simulator.py
-│       ├── Turbulent channel (Kolmogorov + jitter)
-│       └── Hopf lattice medium + BMGL gating stub
+├── 5. RECOVERY
+│   ├── Shell ID (Fourier cosine match)
+│   ├── digital | photonic | hybrid (CRC-8)
+│   └── Flywheel emergence probe
 │
-└── 6. RECOVERY / DECODING LAYER
-    ├── recovery/shell_identifier.py
-    └── recovery/decoder.py
+└── 6. HARDWARE HOOK
+    └── export/slm → phase maps, GS option, device presets
 ```
+
+See **[docs/architecture.md](docs/architecture.md)** for the full design write-up, **[docs/metrics.md](docs/metrics.md)** for fidelity interpretation, and **[docs/gallery.md](docs/gallery.md)** for usage vignettes.
+
+---
+
+## Install
+
+```bash
+git clone --recurse-submodules https://github.com/kinaar8340/flux_trajectoid.git
+cd flux_trajectoid
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+```
+
+Submodules (already linked if you used `--recurse-submodules`):
+
+| Path | Role |
+|------|------|
+| `external/oam_flux` | Live Hopf lattice + VQC flux deposition |
+| `external/vqc_proto` | Quaternion / Orbital Braille reference |
+| `external/vqc_sims_public` | Photonics simulation lineage |
+
+```python
+from flux_trajectoid import oam_flux_backend, is_live_oam_flux
+print(oam_flux_backend(), is_live_oam_flux())
+```
+
+---
+
+## End-to-end quick start
+
+```python
+from flux_trajectoid import PhotonSeedAsteroid
+
+ast = PhotonSeedAsteroid("Hello from the shell", seed=42).build(
+    lattice_nx=16,
+    n_coupling_steps=12,
+    use_tpt=True,
+    build_3d=True,       # 3D shaved-sphere shell (default)
+)
+
+print(ast.summary())
+# is_3d, mesh_vertices, mismatch_deg, flux_backend, ...
+
+prop = ast.propagate(turbulence_level=0.35, n_steps=24)
+print(prop.metrics.summary_line())
+# F=… Icorr=… Strehl=… φrms=… OAM=… tt=…
+
+rec = ast.recover(mode="hybrid")
+print(rec.payload_text, rec.crc_ok, rec.byte_error_rate, rec.chordal_error_mean)
+
+pkg = ast.export_slm("outputs/slm_package", preset="generic_256")
+print(pkg.files)
+```
+
+### Recovery modes
+
+| Mode | Behavior |
+|------|----------|
+| `hybrid` (default) | Lossless digital payload + photonic BER / chordal metrics |
+| `digital` | ShardPack blocks only (CRC-8) |
+| `photonic` | Field-only LG projection → `(q, s)` → bytes |
+
+### Examples
+
+```bash
+python examples/create_seed.py       # shell + mesh + protected field plot
+python examples/propagate_seed.py    # turbulence scorecard table
+python examples/recover_seed.py      # digital / photonic / hybrid
+python examples/export_slm.py        # SLM package on disk
+```
+
+---
+
+## Metrics at a glance
+
+After `propagate()`, inspect `prop.metrics`:
+
+| Field | Meaning |
+|-------|---------|
+| `overlap_fidelity` | Primary field fidelity \|⟨ref\|obs⟩\|² |
+| `oam_fidelity` | Cosine similarity of LG weight spectra |
+| `phase_rmse_rad` | Intensity-weighted phase error |
+| `strehl_proxy` | Peak intensity ratio |
+| `power_retention` | Total power ratio |
+| `tip_tilt_rms` | Residual tip/tilt energy |
+
+OAM fidelity typically stays high while raw field F drops with turbulence — a signature of structured angular-momentum encoding.
+
+```python
+rows = ast.sweep_turbulence(levels=[0.0, 0.25, 0.5], n_steps=12)
+```
+
+Full guide: **[docs/metrics.md](docs/metrics.md)**.
+
+---
+
+## Project layout
+
+```
+flux_trajectoid/
+├── configs/default.yaml
+├── docs/
+│   ├── architecture.md
+│   ├── metrics.md
+│   └── gallery.md
+├── examples/
+├── src/flux_trajectoid/
+│   ├── photon_seed_asteroid.py   # orchestrator
+│   ├── shell/                    # 3D trajectoid + modulator
+│   ├── inner/                    # VQC + live oam_flux
+│   ├── propagation/              # channel + metrics
+│   ├── recovery/                 # hybrid decoder
+│   ├── export/                   # SLM holograms
+│   └── utils/
+├── tests/
+└── external/                     # git submodules
+```
+
+---
 
 ## Related projects
 
@@ -55,84 +183,7 @@ Photon Seed Asteroid (flux_trajectoid)
 | [oam_flux](https://github.com/kinaar8340/oam_flux) | Helical packets, Hopf lattice, flux flywheels |
 | [vqc_sims_public](https://github.com/kinaar8340/vqc_sims_public) | Photonics simulation lineage |
 
-Optional git submodules under `external/` after clone (see below).
-
-## Install
-
-```bash
-cd ~/Projects/flux_trajectoid
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-## Quick start
-
-```python
-from flux_trajectoid import PhotonSeedAsteroid
-
-seed = PhotonSeedAsteroid("hello photon seed", seed=42).build()
-print(seed.summary())
-
-prop = seed.propagate(turbulence_level=0.3)
-print(prop.metrics.summary_line())  # multi-metric turbulence scorecard
-rec = seed.recover(mode="hybrid")  # digital | photonic | hybrid
-print(rec.payload_text, rec.crc_ok, rec.byte_error_rate, rec.chordal_error_mean)
-
-# SLM hologram package (phase maps for hardware)
-pkg = seed.export_slm("outputs/slm_package", preset="generic_256")
-print(pkg.files)
-```
-
-Recovery handles quaternion lossiness by packing **unit q + scale** (carrier amplitude side-channel), with CRC-8 and optional shard redundancy.
-
-Turbulence metrics: overlap fidelity, OAM spectrum fidelity, phase RMSE, Strehl proxy, tip/tilt — plus `sweep_turbulence()` for BER vs level curves.
-
-Examples:
-
-```bash
-python examples/create_seed.py
-python examples/propagate_seed.py
-python examples/recover_seed.py
-```
-
-## Project layout
-
-```
-flux_trajectoid/
-├── configs/default.yaml
-├── src/flux_trajectoid/
-│   ├── photon_seed_asteroid.py   # orchestrator
-│   ├── shell/                    # trajectoid geometry + modulator
-│   ├── inner/                    # VQC + oam_flux coupling
-│   ├── propagation/              # turbulence + lattice
-│   ├── recovery/                 # shell ID + decoder
-│   └── utils/                    # Fourier + quaternions
-├── examples/
-├── tests/
-└── docs/architecture.md
-```
-
-## Submodules
-
-```bash
-git clone --recurse-submodules https://github.com/kinaar8340/flux_trajectoid.git
-# or after clone:
-git submodule update --init --recursive
-```
-
-| Path | Role |
-|------|------|
-| `external/oam_flux` | **Live** Hopf lattice + VQC flux deposition (used by default when present) |
-| `external/vqc_proto` | Quaternion / Orbital Braille reference |
-| `external/vqc_sims_public` | Photonics simulation lineage |
-
-Override discovery with `FLUX_TRAJECTOID_OAM_FLUX_PATH=/path/to/oam_flux/src`.
-
-```python
-from flux_trajectoid import oam_flux_backend, is_live_oam_flux
-print(oam_flux_backend(), is_live_oam_flux())
-```
+---
 
 ## License
 

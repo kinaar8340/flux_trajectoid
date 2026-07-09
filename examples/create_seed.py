@@ -33,7 +33,8 @@ def main() -> None:
     assert asteroid.flux_state is not None
 
     print("\nShell (trajectoid):")
-    print(f"  vertices: {asteroid.shell.vertices.shape}")
+    print(f"  is_3d: {asteroid.shell.is_3d}")
+    print(f"  vertices (silhouette): {asteroid.shell.vertices.shape}")
     print(f"  total_length: {asteroid.shell.total_length:.4f}")
     print(
         f"  kx={asteroid.shell.kx:.4f}  ky={asteroid.shell.ky:.4f}  "
@@ -46,6 +47,16 @@ def main() -> None:
     )
     print(f"  tilt_deg: {asteroid.shell.tilt_deg:.4f}")
     print(f"  use_tpt: {asteroid.shell.use_tpt}")
+    if asteroid.shell.is_3d and asteroid.shell.mesh_vertices is not None:
+        print(
+            f"  mesh: V={asteroid.shell.mesh_vertices.shape[0]} "
+            f"F={asteroid.shell.mesh_faces.shape[0] if asteroid.shell.mesh_faces is not None else 0}"
+        )
+        print(
+            f"  volume_proxy={asteroid.shell.volume_proxy:.4f}  "
+            f"mean_r={asteroid.shell.metadata.get('mean_radius')}  "
+            f"contact_coverage={asteroid.shell.metadata.get('contact_coverage')}"
+        )
     print(f"  fingerprint: {np.array2string(asteroid.shell.fourier_fingerprint, precision=3)}")
     if asteroid.shell.phase_trench_mask is not None:
         print(
@@ -81,23 +92,42 @@ def main() -> None:
         out_dir = ROOT / "outputs"
         out_dir.mkdir(exist_ok=True)
 
-        fig = plt.figure(figsize=(10, 4))
-        ax1 = fig.add_subplot(121, projection="3d")
-        v = asteroid.shell.vertices
-        ax1.plot(v[:, 0], v[:, 1], v[:, 2], color="C0")
-        ax1.set_title("Trajectoid shell curve")
+        fig = plt.figure(figsize=(12, 4))
+        ax1 = fig.add_subplot(131, projection="3d")
+        if asteroid.shell.is_3d and asteroid.shell.surface is not None:
+            s = asteroid.shell.surface
+            ax1.plot_surface(
+                s[:, :, 0], s[:, :, 1], s[:, :, 2],
+                rstride=2, cstride=2, color="C0", alpha=0.75, linewidth=0,
+            )
+            if asteroid.shell.path_on_body is not None:
+                p = asteroid.shell.path_on_body
+                ax1.plot(p[:, 0], p[:, 1], p[:, 2], color="C3", lw=1.5)
+            ax1.set_title("3D trajectoid shell")
+        else:
+            v = asteroid.shell.vertices
+            ax1.plot(v[:, 0], v[:, 1], v[:, 2], color="C0")
+            ax1.set_title("Trajectoid path")
 
-        ax2 = fig.add_subplot(122)
+        ax2 = fig.add_subplot(132)
+        if asteroid.shell.radial_map is not None:
+            ax2.imshow(asteroid.shell.radial_map, origin="lower", cmap="viridis", aspect="auto")
+            ax2.set_title("Radial map (trench / shave)")
+        else:
+            ax2.plot(asteroid.shell.curvature_signal)
+            ax2.set_title("Curvature signal")
+
+        ax3 = fig.add_subplot(133)
         if asteroid.flux_state.protected_field is not None:
-            ax2.imshow(
+            ax3.imshow(
                 np.abs(asteroid.flux_state.protected_field) ** 2,
                 origin="lower",
                 cmap="magma",
             )
-            ax2.set_title("|protected field|²")
+            ax3.set_title("|protected field|²")
         else:
-            ax2.plot(asteroid.shell.curvature_signal)
-            ax2.set_title("Unrolled curvature signal")
+            ax3.plot(asteroid.shell.curvature_signal)
+            ax3.set_title("Unrolled curvature")
 
         fig.tight_layout()
         path = out_dir / "create_seed.png"

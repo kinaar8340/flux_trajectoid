@@ -20,9 +20,9 @@ from flux_trajectoid.utils.quaternion_utils import (
 
 
 def test_shell_deterministic():
-    a = generate_shell("abc", seed=1)
-    b = generate_shell("abc", seed=1)
-    c = generate_shell("abc", seed=2)
+    a = generate_shell("abc", seed=1, n_lat=24, n_lon=48)
+    b = generate_shell("abc", seed=1, n_lat=24, n_lon=48)
+    c = generate_shell("abc", seed=2, n_lat=24, n_lon=48)
     assert np.allclose(a.vertices, b.vertices)
     assert not np.allclose(a.vertices, c.vertices)
     assert a.fourier_fingerprint is not None
@@ -30,6 +30,19 @@ def test_shell_deterministic():
     assert a.mismatch_deg >= 0.0
     assert a.rotation_matrices is not None
     assert a.phase_trench_mask is not None
+    assert a.is_3d
+    assert a.mesh_vertices is not None and a.mesh_faces is not None
+    assert a.radial_map is not None
+    assert a.path_on_body is not None
+    assert a.volume_proxy > 0
+    assert np.allclose(a.mesh_vertices, b.mesh_vertices)
+
+
+def test_shell_2d_legacy_mode():
+    s = generate_shell("flat", seed=0, build_3d=False, scale_grid=3, scale_max_iter=2)
+    assert not s.is_3d
+    assert s.mesh_vertices is None
+    assert s.surface is not None
 
 
 def test_trajectoid_scaling_reduces_or_reports_mismatch():

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flux-trajectoid"
-version = "0.1.3"
-description = "Photon Seed Asteroids — Trajectoid shells + VQC quaternion + oam_flux helical lattice for robust photonic data carriers"
+version = "0.2.0"
+description = "Photon Seed Asteroids — 3D trajectoid shells + VQC quaternion + oam_flux helical lattice for robust photonic data carriers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

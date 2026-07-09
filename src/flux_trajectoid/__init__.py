@@ -13,7 +13,7 @@ from .propagation.simulator import propagate_asteroid
 from .recovery.decoder import recover_asteroid
 from .shell.generator import ShellGeometry, generate_shell
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 __all__ = [
     "PhotonSeedAsteroid",

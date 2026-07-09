@@ -27,14 +27,19 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from ..utils.fourier_descriptors import compute_fourier_descriptors, unroll_curve
+from .mesh3d import TrajectoidMesh3D, build_trajectoid_mesh3d, orthographic_silhouette
 
 
 @dataclass
 class ShellGeometry:
-    """Closed trajectoid-style shell with identification descriptors."""
+    """Closed trajectoid-style shell with identification descriptors.
+
+    Always carries a planar rolling path (Fourier ID). When ``build_3d=True``
+    (default), also includes a true 3D shaved-sphere mesh.
+    """
 
     vertices: np.ndarray  # (N, 2) or (N, 3) closed curve / silhouette
-    surface: np.ndarray | None = None  # optional (nu, nv, 3) parametric surface
+    surface: np.ndarray | None = None  # (nu, nv, 3) parametric / UV surface
     fourier_coeffs: np.ndarray | None = None
     fourier_fingerprint: np.ndarray | None = None
     unrolled_path: np.ndarray | None = None
@@ -51,6 +56,13 @@ class ShellGeometry:
     arc_length: np.ndarray | None = None
     phase_trench_mask: np.ndarray | None = None
     rotation_matrices: np.ndarray | None = None  # (M, 3, 3) cumulative SO(3)
+    # 3D body
+    is_3d: bool = False
+    mesh_vertices: np.ndarray | None = None  # (Nv, 3)
+    mesh_faces: np.ndarray | None = None  # (Nf, 3)
+    path_on_body: np.ndarray | None = None  # contact curve body frame
+    radial_map: np.ndarray | None = None  # (n_lat, n_lon)
+    volume_proxy: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -72,6 +84,12 @@ class ShellGeometry:
             "arc_length": self.arc_length,
             "phase_trench_mask": self.phase_trench_mask,
             "rotation_matrices": self.rotation_matrices,
+            "is_3d": self.is_3d,
+            "mesh_vertices": self.mesh_vertices,
+            "mesh_faces": self.mesh_faces,
+            "path_on_body": self.path_on_body,
+            "radial_map": self.radial_map,
+            "volume_proxy": self.volume_proxy,
             "metadata": self.metadata,
         }
 
@@ -465,6 +483,10 @@ def generate_shell(
     rolling_radius: float = 1.0,
     scale_max_iter: int = 20,
     scale_grid: int = 7,
+    build_3d: bool = True,
+    n_lat: int = 40,
+    n_lon: int = 80,
+    trench_depth: float = 0.08,
 ) -> ShellGeometry:
     """
     Create a unique shell with real trajectoid rolling constraints.
@@ -477,6 +499,13 @@ def generate_shell(
         If True, apply two-period trajectoid closure before final rolling analysis.
     rolling_radius
         Effective sphere/body radius ``r`` in ``angle = ds / r``.
+    build_3d
+        If True (default), build a shaved-sphere 3D mesh with contact trench
+        and oriented cutting planes (``mesh3d``).
+    n_lat, n_lon
+        UV resolution of the 3D body.
+    trench_depth
+        Contact-groove depth as a fraction of radius scale (absolute in body units).
     """
     rng = np.random.default_rng(seed)
 
@@ -517,13 +546,47 @@ def generate_shell(
     arc_lengths, curvature, total_length = _arc_length_and_curvature(final_path)
     phase_mask = _phase_trench_mask(arc_lengths, mismatch)
 
-    # 6. Embed to 3D for surface / viz; Fourier on planar projection
-    vertices = _embed_xyz(final_path, curvature)
-    surface = _parametric_surface(vertices)
+    # 6. 3D body (default) or legacy soft tube around planar path
+    mesh3d: TrajectoidMesh3D | None = None
+    mesh_vertices = None
+    mesh_faces = None
+    path_on_body = None
+    radial_map = None
+    volume_proxy = 0.0
+    is_3d = False
+
+    # Rolling path is the identity carrier for Fourier / arc-length
+    path_vertices = _embed_xyz(final_path, curvature)
+    vertices = path_vertices
+    unroll_src = path_vertices
+    silhouette_2d = None
+
+    if build_3d:
+        mesh3d = build_trajectoid_mesh3d(
+            matrices,
+            radius=rolling_radius,
+            n_lat=n_lat,
+            n_lon=n_lon,
+            trench_depth=trench_depth,
+            curvature_signal=curvature,
+        )
+        surface = mesh3d.surface
+        mesh_vertices = mesh3d.vertices
+        mesh_faces = mesh3d.faces
+        path_on_body = mesh3d.path_on_body
+        radial_map = mesh3d.radial_map
+        volume_proxy = mesh3d.volume_proxy
+        is_3d = True
+        # Orthographic silhouette of the mesh (viz / routing); not used for Fourier
+        silhouette_2d = orthographic_silhouette(
+            mesh3d.vertices, axis="z", n_angles=min(n_points, 256)
+        )
+    else:
+        surface = _parametric_surface(vertices)
 
     fd = compute_fourier_descriptors(vertices, n_harmonics=n_harmonics)
     unrolled = unroll_curve(
-        vertices, n_samples=min(n_points, max(len(vertices) - 1, 8))
+        unroll_src, n_samples=min(n_points, max(len(unroll_src) - 1, 8))
     )
 
     meta = {
@@ -543,6 +606,16 @@ def generate_shell(
         "use_tpt": apply_tpt,
         "n_rotations": len(matrices),
         "perimeter": total_length,
+        "is_3d": is_3d,
+        "n_lat": n_lat if is_3d else None,
+        "n_lon": n_lon if is_3d else None,
+        "mesh_n_vertices": int(mesh_vertices.shape[0]) if mesh_vertices is not None else 0,
+        "mesh_n_faces": int(mesh_faces.shape[0]) if mesh_faces is not None else 0,
+        "volume_proxy": volume_proxy,
+        "mean_radius": mesh3d.mean_radius if mesh3d is not None else None,
+        "contact_coverage": mesh3d.contact_coverage if mesh3d is not None else None,
+        "trench_depth": trench_depth if is_3d else None,
+        "silhouette_2d": silhouette_2d,
     }
 
     return ShellGeometry(
@@ -563,5 +636,11 @@ def generate_shell(
         arc_length=arc_lengths,
         phase_trench_mask=phase_mask,
         rotation_matrices=matrices,
+        is_3d=is_3d,
+        mesh_vertices=mesh_vertices,
+        mesh_faces=mesh_faces,
+        path_on_body=path_on_body,
+        radial_map=radial_map,
+        volume_proxy=volume_proxy,
         metadata=meta,
     )

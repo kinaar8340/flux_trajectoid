@@ -165,6 +165,10 @@ class PhotonSeedAsteroid:
             out["ky"] = self.shell.ky
             out["global_scale"] = self.shell.global_scale
             out["use_tpt"] = self.shell.use_tpt
+            out["is_3d"] = self.shell.is_3d
+            out["volume_proxy"] = self.shell.volume_proxy
+            if self.shell.mesh_vertices is not None:
+                out["mesh_vertices"] = int(self.shell.mesh_vertices.shape[0])
             fp = self.shell.fourier_fingerprint
             out["fingerprint_l2"] = float(np_l2(fp)) if fp is not None else None
         if self.quaternion is not None:
