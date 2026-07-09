@@ -195,11 +195,11 @@ def _draw_intersection_arc(
     if curve is None or len(curve) < 4:
         return
     xs, ys, zs = curve[:, 0], curve[:, 1], curve[:, 2]
-    # Glow halo (wide → soft)
+    # Glow halo scaled under core opacity 0.3
     for lw, alpha, z in (
-        (6.0, 0.08, 12),
-        (3.5, 0.18, 13),
-        (2.2, 0.35, 14),
+        (6.0, 0.04, 12),
+        (3.5, 0.08, 13),
+        (2.2, 0.14, 14),
     ):
         ax.plot(
             xs, ys, zs,
@@ -209,12 +209,12 @@ def _draw_intersection_arc(
             solid_capstyle="round",
             zorder=z,
         )
-    # Core line (50% thinner)
+    # Core intersection oval — opacity 0.3
     ax.plot(
         xs, ys, zs,
         color="#00FF00",
         lw=1.3,
-        alpha=1.0,
+        alpha=0.3,
         solid_capstyle="round",
         zorder=15,
     )
@@ -252,11 +252,11 @@ def _draw_green_slice(
     outline[:, a1] = corners_uv[:, 1]
     outline[:, axis] = c
     ox, oy, oz = outline[:, 0], outline[:, 1], outline[:, 2]
-    # Frame glow (wide → soft)
+    # Frame glow scaled under core opacity 0.3
     for lw, alpha, z in (
-        (4.5, 0.08, 8),
-        (2.6, 0.18, 9),
-        (1.6, 0.35, 10),
+        (4.5, 0.04, 8),
+        (2.6, 0.08, 9),
+        (1.6, 0.14, 10),
     ):
         ax.plot(
             ox, oy, oz,
@@ -266,12 +266,12 @@ def _draw_green_slice(
             solid_capstyle="round",
             zorder=z,
         )
-    # Frame edge core (50% thinner: 1.8 → 0.9)
+    # Frame outer edge core — opacity 0.3
     ax.plot(
         ox, oy, oz,
         color="#00FF00",
         lw=0.9,
-        alpha=1.0,
+        alpha=0.3,
         solid_capstyle="round",
         zorder=11,
     )
