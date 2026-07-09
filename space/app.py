@@ -191,61 +191,90 @@ footer { display: none !important; }
  * theme_default_slider
  *   analog_fill_color     = #00FF00  (left of knob only)
  *   analog_bar_height     = ~1.5px
- *   analog_effect_glowing = True (thumb + filled track)
+ *   analog_effect_glowing = True (thumb + fill layer)
  *
- * Gradio 6 paints fill on ::-webkit-slider-runnable-track via
- *   --slider-color + --range_progress  (updated as the knob moves).
- * Do NOT zero the track background or put full-width green glow on
- * the <input> — that made the whole bar look filled.
+ * Fill is a real DOM inner layer (.ft-slider-fill) whose width tracks
+ * the knob — pseudo-element track gradients were painting full-bar green.
  */
 :root {
   --ft-slider-fill: #00FF00;
-  --ft-slider-track: rgba(100, 116, 139, 0.45);
+  --ft-slider-rail: rgba(100, 116, 139, 0.45);
   --ft-slider-h: 1.5px;
   --ft-slider-thumb: 10px;
   --ft-slider-glow: 0 0 4px 1px rgba(0, 255, 0, 0.55),
                     0 0 8px 2px rgba(0, 255, 0, 0.28);
 }
-/* Gradio reads these; also force on every range host */
-#controls .slider,
-#controls [class*="slider"],
-#controls [data-testid="slider"],
-#controls input[type="range"] {
-  --slider-color: var(--ft-slider-fill) !important;
-  --color-accent: var(--ft-slider-fill) !important;
+/* Shell: rail + fill sit under a transparent range input */
+#controls .ft-slider-shell {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: var(--ft-slider-thumb) !important;
+  display: flex !important;
+  align-items: center !important;
+  margin: 0.2rem 0 0.4rem 0 !important;
 }
+#controls .ft-slider-rail {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 50% !important;
+  height: var(--ft-slider-h) !important;
+  transform: translateY(-50%) !important;
+  border-radius: 999px !important;
+  background: var(--ft-slider-rail) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  overflow: hidden !important; /* clip fill glow to filled segment */
+}
+/* Inner layer — only this is green; width set by JS as % of rail */
+#controls .ft-slider-fill {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 0%;
+  border-radius: 999px !important;
+  background: var(--ft-slider-fill) !important;
+  box-shadow:
+    0 0 4px 0 rgba(0, 255, 0, 0.7),
+    0 0 8px 1px rgba(0, 255, 0, 0.35) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+  transition: none !important;
+}
+/* Range sits on top; its own track is fully invisible */
+#controls .ft-slider-shell > input[type="range"],
 #controls input[type="range"] {
   -webkit-appearance: none !important;
   appearance: none !important;
+  position: relative !important;
+  z-index: 2 !important;
   width: 100% !important;
   height: var(--ft-slider-thumb) !important;
   min-height: var(--ft-slider-thumb) !important;
+  margin: 0 !important;
+  padding: 0 !important;
   border: none !important;
   outline: none !important;
-  margin: 0.2rem 0 0.4rem 0 !important;
-  padding: 0 !important;
   cursor: pointer !important;
-  accent-color: var(--ft-slider-fill) !important;
-  background: transparent !important; /* fill lives on the track */
-  border-radius: 999px !important;
-  box-shadow: none !important; /* no full-bar green glow */
+  background: transparent !important;
+  box-shadow: none !important;
+  accent-color: transparent !important;
+  /* kill Gradio progressive green on the native track */
+  --slider-color: transparent !important;
+  --range_progress: 0% !important;
 }
-/* WebKit/Chromium: progressive fill follows --range_progress (knob) */
+#controls .ft-slider-shell > input[type="range"]::-webkit-slider-runnable-track,
 #controls input[type="range"]::-webkit-slider-runnable-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
+  background: transparent !important;
   border: none !important;
-  /* green 0 → knob; dim after */
-  background: linear-gradient(
-    to right,
-    var(--ft-slider-fill) 0%,
-    var(--ft-slider-fill) var(--range_progress, 0%),
-    var(--ft-slider-track) var(--range_progress, 0%),
-    var(--ft-slider-track) 100%
-  ) !important;
-  /* no full-track green box-shadow — only the fill color + thumb glow */
   box-shadow: none !important;
 }
+#controls .ft-slider-shell > input[type="range"]::-webkit-slider-thumb,
 #controls input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none !important;
   appearance: none !important;
@@ -258,25 +287,24 @@ footer { display: none !important; }
   box-shadow: var(--ft-slider-glow) !important;
   cursor: pointer !important;
   position: relative !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
 }
+#controls .ft-slider-shell > input[type="range"]::-moz-range-track,
 #controls input[type="range"]::-moz-range-track {
   height: var(--ft-slider-h) !important;
   border-radius: 999px !important;
-  background: var(--ft-slider-track) !important;
+  background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
-/* Firefox: ::-moz-range-progress tracks the knob natively */
+#controls .ft-slider-shell > input[type="range"]::-moz-range-progress,
 #controls input[type="range"]::-moz-range-progress {
   height: var(--ft-slider-h) !important;
-  border-radius: 999px !important;
-  background: var(--ft-slider-fill) !important;
-  box-shadow:
-    0 0 3px 0 rgba(0, 255, 0, 0.45),
-    0 0 6px 0 rgba(0, 255, 0, 0.22) !important;
+  background: transparent !important;
   border: none !important;
+  box-shadow: none !important;
 }
+#controls .ft-slider-shell > input[type="range"]::-moz-range-thumb,
 #controls input[type="range"]::-moz-range-thumb {
   width: var(--ft-slider-thumb) !important;
   height: var(--ft-slider-thumb) !important;
@@ -904,8 +932,7 @@ def _make_theme():
         return None
 
 
-# Reinforces Gradio --range_progress so green fill always tracks the knob
-# (WebKit has no ::-moz-range-progress; Gradio uses --range_progress on the track)
+# Inner-layer fill: inject .ft-slider-fill under each range; width = knob %
 SLIDER_FILL_JS = """
 () => {
   function pctOf(el) {
@@ -916,26 +943,47 @@ SLIDER_FILL_JS = """
     if (!isFinite(den) || den === 0) return 0;
     return Math.max(0, Math.min(100, ((val - min) / den) * 100));
   }
+  function ensureShell(el) {
+    if (el.closest('.ft-slider-shell')) return el.closest('.ft-slider-shell');
+    const shell = document.createElement('div');
+    shell.className = 'ft-slider-shell';
+    const rail = document.createElement('div');
+    rail.className = 'ft-slider-rail';
+    const fill = document.createElement('div');
+    fill.className = 'ft-slider-fill';
+    rail.appendChild(fill);
+    const parent = el.parentNode;
+    if (!parent) return null;
+    parent.insertBefore(shell, el);
+    shell.appendChild(rail);
+    shell.appendChild(el);
+    return shell;
+  }
   function paint(el) {
-    const pct = pctOf(el);
-    // Gradio native var used by ::-webkit-slider-runnable-track gradient
-    el.style.setProperty('--range_progress', pct + '%');
-    el.style.setProperty('--slider-color', '#00FF00');
+    const shell = el.closest('.ft-slider-shell') || ensureShell(el);
+    if (!shell) return;
+    const fill = shell.querySelector('.ft-slider-fill');
+    if (!fill) return;
+    fill.style.width = pctOf(el) + '%';
+    // prevent Gradio from repainting native track green
+    el.style.setProperty('--slider-color', 'transparent');
+    el.style.setProperty('--range_progress', '0%');
   }
   function bindAll() {
-    document.querySelectorAll('#controls input[type="range"], input[type="range"]').forEach((el) => {
+    const scope = document.querySelector('#controls') || document;
+    scope.querySelectorAll('input[type="range"]').forEach((el) => {
       if (el.dataset.ftSliderBound === '1') {
         paint(el);
         return;
       }
       el.dataset.ftSliderBound = '1';
+      ensureShell(el);
       const upd = () => paint(el);
       el.addEventListener('input', upd, { passive: true });
       el.addEventListener('change', upd, { passive: true });
       el.addEventListener('pointermove', () => {
         if (el.matches(':active')) paint(el);
       }, { passive: true });
-      // Gradio sets .value programmatically
       const desc = Object.getOwnPropertyDescriptor(
         HTMLInputElement.prototype, 'value'
       );
@@ -956,7 +1004,7 @@ SLIDER_FILL_JS = """
   bindAll();
   const obs = new MutationObserver(() => bindAll());
   obs.observe(document.documentElement, { childList: true, subtree: true });
-  setInterval(bindAll, 600);
+  setInterval(bindAll, 500);
 }
 """
 
