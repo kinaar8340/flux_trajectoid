@@ -432,3 +432,22 @@ def test_convex_defect_multi_scale_screen():
     assert prop.metadata.get("multi_scale") is True
     assert prop.metadata.get("dynamical_multi_scale") is True
     assert 0.0 <= prop.fidelity_proxy <= 1.0
+
+
+def test_screen_diagnostics_structure_and_leakage():
+    from flux_trajectoid.propagation.phase_screens import kolmogorov_phase_screen
+    from flux_trajectoid.propagation.screen_diagnostics import (
+        oam_leakage_under_screen,
+        phase_screen_structure,
+    )
+
+    rng = np.random.default_rng(0)
+    phi = kolmogorov_phase_screen(48, 0.4, rng)
+    st = phase_screen_structure(phi)
+    assert st.rms > 0
+    assert 0.0 <= st.high_k_fraction <= 1.0
+    leak = oam_leakage_under_screen(phi, size=48)
+    assert leak.leakage_matrix.shape == (4, 4)
+    assert 0.0 <= leak.diagonal_retention <= 1.0
+    # rows sum to ~1
+    assert np.allclose(leak.leakage_matrix.sum(axis=1), 1.0, atol=1e-5)

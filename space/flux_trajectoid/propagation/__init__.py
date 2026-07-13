@@ -8,6 +8,12 @@ from .phase_screens import (
     kolmogorov_phase_screen,
     make_phase_screen_engine,
 )
+from .screen_diagnostics import (
+    channel_metric_row,
+    oam_leakage_under_screen,
+    phase_screen_structure,
+    sample_screen_ensemble,
+)
 from .simulator import PropagationResult, propagate_asteroid
 
 __all__ = [
@@ -21,4 +27,8 @@ __all__ = [
     "kolmogorov_phase_screen",
     "make_phase_screen_engine",
     "convex_defect_available",
+    "phase_screen_structure",
+    "oam_leakage_under_screen",
+    "sample_screen_ensemble",
+    "channel_metric_row",
 ]
