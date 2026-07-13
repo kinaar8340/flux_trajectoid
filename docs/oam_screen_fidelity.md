@@ -176,4 +176,8 @@ Outputs under `outputs/multiscale_param_sweep/`:
 - **n_scales** — number of log bins over \(s \in [s_{\min}, s_{\max}]\). More bins resolve fractal texture; after RMS-normalization this often **lowers F** while OAMf may stay high if `|c_ℓ|` shape holds.
 - **scale_coupling** — fraction mixed with neighbor bins each step. Zero = independent scales; large values homogenize the spectrum toward a single effective texture.
 
+**Separability fix.** A purely product field \(\rho_{ij,k}=A(x_{ij})\,S_k\) makes \(\sum_k\rho_k w_k \propto A(x)\); RMS normalization then erases all dependence on \(n_s\) and coupling. `MultiScaleParams.scale_texture_amp` injects **per-scale spatial textures** (finer correlation length at small \(s\)) so the integrated screen PSD actually changes with the knobs.
+
+**Empirical trends (stub channel, seed=7).** At L=0.3, **few bins (n_scales=4)** give the best F and OAMf; mid bin counts (12) hurt both; **scale_coupling** is a weaker lever than **n_scales** but can raise OAMf slightly at high L.
+
 See also: `docs/metrics.md`, `convex_defect` theory notes, `examples/compare_phase_screens.py`.
