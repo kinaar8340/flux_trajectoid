@@ -402,3 +402,33 @@ def test_phase_screen_engine_rms():
     s = eng.next_screen()
     assert s.shape == (32, 32)
     assert abs(float(s.std()) - 0.4) < 0.05
+
+
+def test_convex_defect_multi_scale_screen():
+    from flux_trajectoid.propagation.phase_screens import convex_defect_available
+
+    if not convex_defect_available():
+        pytest.skip("convex_defect not on PYTHONPATH")
+
+    ast = PhotonSeedAsteroid(b"ms", seed=5).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=1,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    prop = ast.propagate(
+        turbulence_level=0.25,
+        n_steps=5,
+        seed=5,
+        screen_model="convex_defect",
+        multi_scale=True,
+        n_scales=8,
+        scale_coupling=0.05,
+        convex_f=1.2,
+    )
+    assert prop.metadata.get("multi_scale") is True
+    assert prop.metadata.get("dynamical_multi_scale") is True
+    assert 0.0 <= prop.fidelity_proxy <= 1.0

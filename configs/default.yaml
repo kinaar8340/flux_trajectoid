@@ -34,6 +34,9 @@ propagation:
   grid_correlation: 0.85
   grid_noise_frac: 0.25
   pointer_gamma: 0.35
+  multi_scale: false
+  n_scales: 12
+  scale_coupling: 0.05
 
 
 recovery:

@@ -210,6 +210,8 @@ prop = ast.propagate(
     convex_f=1.5,
     convex_s=0.5,
     hybrid_weight=0.55,  # hybrid only
+    multi_scale=True,     # dynamical ρ(s) field per pixel
+    n_scales=12,
 )
 rows = ast.sweep_turbulence(levels=[0.0, 0.3], screen_model="hybrid", hybrid_weight=0.5)
 ```

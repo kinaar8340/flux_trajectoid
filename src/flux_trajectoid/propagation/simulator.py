@@ -88,6 +88,9 @@ def propagate_asteroid(
     pointer_gamma: float = 0.35,
     hybrid_weight: float = 0.5,
     x_scale: float = 1.0,
+    multi_scale: bool = False,
+    n_scales: int = 12,
+    scale_coupling: float = 0.05,
 ) -> PropagationResult:
     """
     Propagate a built PhotonSeedAsteroid through a turbulent + lattice medium.
@@ -106,6 +109,10 @@ def propagate_asteroid(
 
     Convex knobs (``convex_f``, ``convex_s``, ``convex_kappa``, …) control
     frequency, fractal scale, and gauge of the defect density field.
+
+    Set ``multi_scale=True`` to evolve a dynamical multi-scale ρ(s) field
+    (``convex_defect.MultiScaleDefectField``) instead of instantaneous
+    single-scale ρ evaluation.
     """
     if asteroid.flux_state is None:
         raise RuntimeError("Asteroid must be built before propagate() — call build() first")
@@ -151,6 +158,9 @@ def propagate_asteroid(
         pointer_gamma=pointer_gamma,
         hybrid_weight=hybrid_weight,
         x_scale=x_scale,
+        multi_scale=multi_scale,
+        n_scales=n_scales,
+        scale_coupling=scale_coupling,
     )
 
     for step in range(n_steps):

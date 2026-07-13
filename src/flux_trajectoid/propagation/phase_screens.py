@@ -122,6 +122,10 @@ class PhaseScreenConfig:
     hybrid_weight: float = 0.5  # fraction of convex in hybrid ∈ [0, 1]
     # map turbulence_level → initial |x| scale
     x_scale: float = 1.0
+    # multi-scale dynamical ρ(s) field (convex_defect MultiScaleDefectField)
+    multi_scale: bool = False
+    n_scales: int = 12
+    scale_coupling: float = 0.05
 
     def __post_init__(self) -> None:
         if self.model not in ("kolmogorov", "convex_defect", "hybrid"):
@@ -130,6 +134,10 @@ class PhaseScreenConfig:
             raise ValueError("hybrid_weight must lie in [0, 1]")
         if self.convex_f <= 0 or self.convex_s <= 0:
             raise ValueError("convex_f and convex_s must be positive")
+        if self.n_scales < 2:
+            raise ValueError("n_scales must be >= 2")
+        if not (0.0 <= self.scale_coupling < 1.0):
+            raise ValueError("scale_coupling must lie in [0, 1)")
 
 
 @dataclass
@@ -156,6 +164,7 @@ class PhaseScreenEngine:
     _state: ConvexScreenState | None = field(default=None, init=False, repr=False)
     _cd: Any = field(default=None, init=False, repr=False)
     _kappa: float | None = field(default=None, init=False, repr=False)
+    _ms_field: Any = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.config.model in ("convex_defect", "hybrid"):
@@ -167,13 +176,33 @@ class PhaseScreenEngine:
             self._init_convex_state()
 
     def _init_convex_state(self) -> None:
-        assert self._cd is not None
+        assert self._cd is not None and self._kappa is not None
         x0 = float(self.config.x_scale * self.level)
         noise = self.config.grid_noise_frac * max(self.level, 1e-6)
         grid = np.full((self.height, self.width), x0, dtype=float)
         if noise > 0.0:
             grid = grid + noise * self.rng.normal(size=grid.shape)
         self._state = ConvexScreenState(grid=grid, x_global=x0, t=0.0, step_index=0)
+
+        if self.config.multi_scale:
+            MultiScaleDefectField = getattr(self._cd, "MultiScaleDefectField", None)
+            MultiScaleParams = getattr(self._cd, "MultiScaleParams", None)
+            if MultiScaleDefectField is None or MultiScaleParams is None:
+                # fall back to instantaneous multi-scale integrate via grid_to_phase_screen
+                self._ms_field = None
+            else:
+                mp = MultiScaleParams(
+                    n_scales=self.config.n_scales,
+                    scale_coupling=self.config.scale_coupling,
+                    apply_scale_in_discrete=False,
+                )
+                self._ms_field = MultiScaleDefectField.from_misalignment(
+                    x0,
+                    f=self.config.convex_f,
+                    kappa=self._kappa,
+                    multi_params=mp,
+                    grid=grid,
+                )
 
     def _step_convex_grid(self, dt: float = 1.0) -> NDArray[np.floating]:
         """Evolve global misalignment proxy + local grid one channel step."""
@@ -198,7 +227,27 @@ class PhaseScreenEngine:
     def _convex_rho_screen(self, grid: NDArray[np.floating]) -> NDArray[np.floating]:
         assert self._cd is not None and self._kappa is not None
         cfg = self.config
-        # Prefer package helper when available
+
+        # Dynamical multi-scale field
+        if self._ms_field is not None:
+            x_g = float(self._state.x_global) if self._state is not None else 0.0
+            self._ms_field.step_discrete(x_g, dt=1.0, grid=grid)
+            return np.asarray(self._ms_field.phase_screen(gain=cfg.convex_gain), dtype=float)
+
+        # Instantaneous multi-scale integrate (no dynamics)
+        if cfg.multi_scale and hasattr(self._cd, "grid_to_phase_screen"):
+            rho = self._cd.grid_to_phase_screen(
+                grid,
+                cfg.convex_f,
+                self._kappa,
+                cfg.convex_s,
+                gain=cfg.convex_gain,
+                multi_scale=True,
+                n_scales=cfg.n_scales,
+            )
+            return np.asarray(rho, dtype=float)
+
+        # Single-scale instantaneous
         if hasattr(self._cd, "grid_to_phase_screen"):
             rho = self._cd.grid_to_phase_screen(
                 grid,
@@ -270,6 +319,10 @@ class PhaseScreenEngine:
                     "hybrid_weight": cfg.hybrid_weight if cfg.model == "hybrid" else None,
                     "x_global": None if self._state is None else float(self._state.x_global),
                     "grid_steps": None if self._state is None else int(self._state.step_index),
+                    "multi_scale": cfg.multi_scale,
+                    "n_scales": cfg.n_scales if cfg.multi_scale else None,
+                    "scale_coupling": cfg.scale_coupling if cfg.multi_scale else None,
+                    "dynamical_multi_scale": self._ms_field is not None,
                 }
             )
         return out

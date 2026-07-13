@@ -103,6 +103,8 @@ Probe: `oam_flux_backend()` / `is_live_oam_flux()`.
 ```python
 ast.propagate(turbulence_level=0.3, screen_model="convex_defect", convex_f=1.5, convex_s=0.5)
 ast.propagate(turbulence_level=0.3, screen_model="hybrid", hybrid_weight=0.55)
+# dynamical multi-scale ρ(s) texture (requires convex_defect ≥ 0.2)
+ast.propagate(turbulence_level=0.3, screen_model="convex_defect", multi_scale=True, n_scales=12)
 ```
 
 ### 5. Recovery (`recovery/`)
