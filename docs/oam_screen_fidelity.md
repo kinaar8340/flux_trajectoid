@@ -152,4 +152,28 @@ Absolute numbers depend on BMGL gate, shell trench, and field support; the **rel
 - In the channel, that memory appears as **structured φ**, not white phase noise.
 - Multi-scale mode uses **evolved ρ(s)** for holonomy in the defect simulator; in flux_trajectoid screens, multi-scale φ is the spatial integral of that dynamical texture.
 
+## Multi-scale parameter sweep (`n_scales` × `scale_coupling`)
+
+To map how fractal binning and scale-axis mixing shift the **F vs OAMf** tradeoff:
+
+```bash
+PYTHONPATH=src:../convex_defect/src python examples/sweep_multiscale_fidelity.py
+# faster smoke:
+PYTHONPATH=src:../convex_defect/src python examples/sweep_multiscale_fidelity.py --quick
+```
+
+Outputs under `outputs/multiscale_param_sweep/`:
+
+| Artifact | Content |
+|----------|---------|
+| `heatmap_L*.png` | F, OAMf, OAMf−F over the (n_scales, coupling) grid |
+| `pareto_F_vs_OAMf.png` | Scatter tradeoff (color = n_scales, size = coupling) |
+| `slices_L*.png` | 1D cuts vs each knob |
+| `SUMMARY.md` / `sweep_results.json` | Best-F / best-OAMf / balanced optima + full table |
+
+**Knobs**
+
+- **n_scales** — number of log bins over \(s \in [s_{\min}, s_{\max}]\). More bins resolve fractal texture; after RMS-normalization this often **lowers F** while OAMf may stay high if `|c_ℓ|` shape holds.
+- **scale_coupling** — fraction mixed with neighbor bins each step. Zero = independent scales; large values homogenize the spectrum toward a single effective texture.
+
 See also: `docs/metrics.md`, `convex_defect` theory notes, `examples/compare_phase_screens.py`.

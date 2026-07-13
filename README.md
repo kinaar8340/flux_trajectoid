@@ -218,6 +218,8 @@ rows = ast.sweep_turbulence(levels=[0.0, 0.3], screen_model="hybrid", hybrid_wei
 
 ```bash
 PYTHONPATH=src:../convex_defect/src python examples/compare_phase_screens.py
+PYTHONPATH=src:../convex_defect/src python examples/analyze_oam_screen_fidelity.py
+PYTHONPATH=src:../convex_defect/src python examples/sweep_multiscale_fidelity.py
 ```
 
 ---

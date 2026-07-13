@@ -202,6 +202,8 @@ class PhaseScreenEngine:
                     kappa=self._kappa,
                     multi_params=mp,
                     grid=grid,
+                    rng=self.rng,
+                    inject_texture=True,
                 )
 
     def _step_convex_grid(self, dt: float = 1.0) -> NDArray[np.floating]:
@@ -231,7 +233,7 @@ class PhaseScreenEngine:
         # Dynamical multi-scale field
         if self._ms_field is not None:
             x_g = float(self._state.x_global) if self._state is not None else 0.0
-            self._ms_field.step_discrete(x_g, dt=1.0, grid=grid)
+            self._ms_field.step_discrete(x_g, dt=1.0, grid=grid, rng=self.rng)
             return np.asarray(self._ms_field.phase_screen(gain=cfg.convex_gain), dtype=float)
 
         # Instantaneous multi-scale integrate (no dynamics)
