@@ -45,8 +45,26 @@ for r in rows:
     print(r["turbulence_level"], r["overlap_fidelity"], r["oam_fidelity"], r.get("photonic_byte_ber"))
 ```
 
+Structured (convex-defect) screens — requires optional `convex_defect` package:
+
+```python
+rows = ast.sweep_turbulence(
+    levels=[0.0, 0.25, 0.5],
+    n_steps=12,
+    screen_model="convex_defect",
+    convex_f=1.5,
+    convex_s=0.5,
+    recover_photonic=False,
+)
+# or hybrid Kolmogorov + defect texture
+rows = ast.sweep_turbulence(levels=[0.3], screen_model="hybrid", hybrid_weight=0.55)
+```
+
+Compare models: `python examples/compare_phase_screens.py`
+
 Each row includes the full scorecard keys plus optional:
 
+- `screen_model`
 - `photonic_byte_ber` / `photonic_bit_ber`
 - `crc_ok`, `chordal_error`
 
@@ -66,3 +84,4 @@ Each row includes the full scorecard keys plus optional:
 2. **Global phase** is aligned before phase RMSE.  
 3. **BMGL gating** intentionally reduces high-k content; power retention will drop even at zero turbulence.  
 4. For hardware campaigns, track **OAMf + BER** alongside F — not F alone.  
+5. **Phase screen models** are RMS-normalized to `turbulence_level` so Kolmogorov / convex_defect / hybrid remain comparable at the same L. Convex screens evolve a local misalignment grid across steps (pointer realignment + spatial noise), then map \(x_{ij}\to\rho\) via `convex_defect.grid_to_phase_screen`.

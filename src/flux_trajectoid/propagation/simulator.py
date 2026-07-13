@@ -1,7 +1,8 @@
 """Turbulent channel + Hopf lattice propagation for Photon Seed Asteroids.
 
-Combines Kolmogorov-like phase screens / jitter with oam_flux lattice
-relaxation. Optional BMGL-style gating stub for turbulence mitigation.
+Combines phase screens (Kolmogorov / convex_defect / hybrid) and jitter with
+oam_flux lattice relaxation. Optional BMGL-style gating stub for turbulence
+mitigation.
 
 Emits a full :class:`~flux_trajectoid.propagation.metrics.FidelityMetrics`
 scorecard on each run.
@@ -10,14 +11,24 @@ scorecard on each run.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 
 from .metrics import FidelityMetrics, compute_fidelity_metrics
+from .phase_screens import (
+    PhaseScreenEngine,
+    ScreenModel,
+    convex_defect_available,
+    kolmogorov_phase_screen,
+    make_phase_screen_engine,
+)
 
 if TYPE_CHECKING:
     from ..photon_seed_asteroid import PhotonSeedAsteroid
+
+# Re-export for callers that imported private helper
+_kolmogorov_phase_screen = kolmogorov_phase_screen
 
 
 @dataclass
@@ -43,27 +54,6 @@ class PropagationResult:
         return self.metrics.as_dict()
 
 
-def _kolmogorov_phase_screen(
-    size: int,
-    level: float,
-    rng: np.random.Generator,
-    alpha: float = 5.0 / 3.0,
-) -> np.ndarray:
-    """Simplified Kolmogorov-like phase screen in Fourier domain."""
-    fx = np.fft.fftfreq(size)
-    fy = np.fft.fftfreq(size)
-    kx, ky = np.meshgrid(fx, fy, indexing="ij")
-    k2 = kx**2 + ky**2
-    k2[0, 0] = 1.0
-    psd = k2 ** (-(alpha + 2) / 2.0)
-    psd[0, 0] = 0.0
-    noise = rng.normal(size=(size, size)) + 1j * rng.normal(size=(size, size))
-    screen = np.fft.ifft2(noise * np.sqrt(psd)).real
-    screen = screen - screen.mean()
-    rms = screen.std() + 1e-12
-    return (level * screen / rms).astype(float)
-
-
 def _bmgl_gate(field: np.ndarray, turbulence_level: float) -> np.ndarray:
     """Lightweight BMGL-style Fourier gate (VQC turbulence mitigation stub)."""
     F = np.fft.fft2(field)
@@ -87,12 +77,35 @@ def propagate_asteroid(
     seed: int | None = None,
     apply_bmgl: bool = True,
     track_fidelity: bool = True,
+    screen_model: ScreenModel | Literal["kolmogorov", "convex_defect", "hybrid"] = "kolmogorov",
+    kolmogorov_alpha: float = 5.0 / 3.0,
+    convex_f: float = 1.0,
+    convex_s: float = 1.0,
+    convex_kappa: float | None = None,
+    convex_gain: float = 1.0,
+    grid_correlation: float = 0.85,
+    grid_noise_frac: float = 0.25,
+    pointer_gamma: float = 0.35,
+    hybrid_weight: float = 0.5,
+    x_scale: float = 1.0,
 ) -> PropagationResult:
     """
     Propagate a built PhotonSeedAsteroid through a turbulent + lattice medium.
 
     Computes a multi-metric fidelity scorecard against the pre-channel
     protected field (or first shard field).
+
+    Phase screens
+    -------------
+    ``screen_model``:
+
+    - ``"kolmogorov"`` (default) — Fourier Kolmogorov-like texture.
+    - ``"convex_defect"`` — structured ρ screens from local misalignment
+      (requires optional ``convex_defect`` package).
+    - ``"hybrid"`` — mix of Kolmogorov + convex_defect (``hybrid_weight``).
+
+    Convex knobs (``convex_f``, ``convex_s``, ``convex_kappa``, …) control
+    frequency, fractal scale, and gauge of the defect density field.
     """
     if asteroid.flux_state is None:
         raise RuntimeError("Asteroid must be built before propagate() — call build() first")
@@ -110,6 +123,7 @@ def propagate_asteroid(
     field = field0.copy()
     ref = field0.copy()
     I0 = float(np.sum(np.abs(field) ** 2)) + 1e-12
+    h, w = int(field.shape[0]), int(field.shape[1])
 
     mean_twist_trace: list[float] = []
     intensity_trace: list[float] = []
@@ -121,11 +135,29 @@ def propagate_asteroid(
 
     use_live_lattice = flux.lattice is not None and hasattr(flux.lattice, "relax_step")
 
+    engine: PhaseScreenEngine = make_phase_screen_engine(
+        h,
+        w,
+        float(turbulence_level),
+        rng,
+        screen_model=screen_model,  # type: ignore[arg-type]
+        kolmogorov_alpha=kolmogorov_alpha,
+        convex_f=convex_f,
+        convex_s=convex_s,
+        convex_kappa=convex_kappa,
+        convex_gain=convex_gain,
+        grid_correlation=grid_correlation,
+        grid_noise_frac=grid_noise_frac,
+        pointer_gamma=pointer_gamma,
+        hybrid_weight=hybrid_weight,
+        x_scale=x_scale,
+    )
+
     for step in range(n_steps):
-        screen = _kolmogorov_phase_screen(field.shape[0], turbulence_level, rng)
+        screen = engine.next_screen()
         jitter = rng.normal(0.0, jitter_std * turbulence_level, size=2)
-        yy, xx = np.mgrid[0 : field.shape[0], 0 : field.shape[1]]
-        tip_tilt = jitter[0] * (xx / field.shape[1]) + jitter[1] * (yy / field.shape[0])
+        yy, xx = np.mgrid[0:h, 0:w]
+        tip_tilt = jitter[0] * (xx / max(w, 1)) + jitter[1] * (yy / max(h, 1))
         field = field * np.exp(1j * (screen + tip_tilt))
 
         if apply_bmgl:
@@ -155,11 +187,12 @@ def propagate_asteroid(
         )
         mean_twist_trace.extend(step_means)
         intensity_trace.append(float(np.sum(np.abs(field) ** 2)))
-        phase_rms.append(float(screen.std()))
+        phase_rms.append(float(np.std(screen)))
         if track_fidelity:
             fidelity_trace.append(field_overlap_fidelity(ref, field))
 
     theta_final = flux.lattice_theta
+    screen_meta = engine.metadata()
     metrics = compute_fidelity_metrics(
         ref,
         field,
@@ -171,9 +204,12 @@ def propagate_asteroid(
             "mean_phase_screen_rms": float(np.mean(phase_rms)) if phase_rms else 0.0,
             "apply_bmgl": apply_bmgl,
             "jitter_std": jitter_std,
+            "screen_model": screen_model,
+            **{k: v for k, v in screen_meta.items() if k != "screen_model"},
         },
     )
 
+    grid_final = engine.grid_final
     asteroid._propagation = PropagationResult(
         turbulence_level=turbulence_level,
         n_steps=n_steps,
@@ -195,6 +231,14 @@ def propagate_asteroid(
             "lattice_backend": "live" if use_live_lattice else "stub",
             "flux_backend": getattr(flux, "backend", "unknown"),
             "metrics_summary": metrics.summary_line(),
+            "screen_model": screen_model,
+            "convex_defect_available": convex_defect_available(),
+            **screen_meta,
+            "has_misalignment_grid": grid_final is not None,
         },
+    )
+    # stash last grid for demos (not part of frozen API, but handy)
+    asteroid._propagation.metadata["grid_final_shape"] = (
+        None if grid_final is None else list(grid_final.shape)
     )
     return asteroid._propagation

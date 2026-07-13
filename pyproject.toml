@@ -20,6 +20,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 oam = []  # live oam_flux via submodule external/oam_flux (see README)
+# structured convex-defect phase screens (sibling repo or pip package)
+convex = []  # install convex-defect separately: pip install -e ../convex_defect
 
 [project.urls]
 Homepage = "https://github.com/kinaar8340/flux_trajectoid"
@@ -30,4 +32,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "external/oam_flux/src"]
+pythonpath = ["src", "external/oam_flux/src", "../convex_defect/src"]

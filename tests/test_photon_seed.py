@@ -306,3 +306,99 @@ def test_slm_export(tmp_path):
     assert result.phase_rad.shape == (256, 256)
     assert result.phase_levels.dtype == np.uint8
     assert "phase_rad.npy" in result.files
+
+
+# ---------------------------------------------------------------------------
+# Phase screens (Kolmogorov / convex_defect / hybrid)
+# ---------------------------------------------------------------------------
+
+
+def test_kolmogorov_screen_model_default():
+    ast = PhotonSeedAsteroid(b"kol", seed=1).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=1,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    prop = ast.propagate(turbulence_level=0.25, n_steps=5, seed=1)
+    assert prop.metadata.get("screen_model") == "kolmogorov"
+    assert len(prop.phase_screen_rms) == 5
+
+
+def test_convex_defect_screen_model():
+    from flux_trajectoid.propagation.phase_screens import convex_defect_available
+
+    if not convex_defect_available():
+        pytest.skip("convex_defect not on PYTHONPATH")
+
+    ast = PhotonSeedAsteroid(b"cvx", seed=2).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=1,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    prop = ast.propagate(
+        turbulence_level=0.3,
+        n_steps=6,
+        seed=2,
+        screen_model="convex_defect",
+        convex_f=1.5,
+        convex_s=0.5,
+    )
+    assert prop.metadata["screen_model"] == "convex_defect"
+    assert prop.metadata.get("convex_f") == 1.5
+    assert prop.metadata.get("has_misalignment_grid") is True
+    assert 0.0 <= prop.fidelity_proxy <= 1.0
+    assert len(prop.phase_screen_rms) == 6
+
+
+def test_hybrid_screen_and_sweep():
+    from flux_trajectoid.propagation.phase_screens import convex_defect_available
+
+    if not convex_defect_available():
+        pytest.skip("convex_defect not on PYTHONPATH")
+
+    ast = PhotonSeedAsteroid(b"hyb", seed=3).build(
+        n_shards=2,
+        lattice_nx=8,
+        n_coupling_steps=1,
+        force_stub_flux=True,
+        n_points=64,
+        scale_grid=3,
+        scale_max_iter=2,
+    )
+    prop = ast.propagate(
+        turbulence_level=0.2,
+        n_steps=4,
+        seed=3,
+        screen_model="hybrid",
+        hybrid_weight=0.6,
+    )
+    assert prop.metadata["screen_model"] == "hybrid"
+
+    rows = ast.sweep_turbulence(
+        levels=[0.0, 0.25],
+        n_steps=3,
+        recover_photonic=False,
+        screen_model="convex_defect",
+        convex_f=1.0,
+    )
+    assert len(rows) == 2
+    assert rows[0]["screen_model"] == "convex_defect"
+    assert rows[0]["overlap_fidelity"] >= rows[1]["overlap_fidelity"] - 0.1
+
+
+def test_phase_screen_engine_rms():
+    from flux_trajectoid.propagation.phase_screens import make_phase_screen_engine
+
+    rng = np.random.default_rng(0)
+    eng = make_phase_screen_engine(32, 32, 0.4, rng, screen_model="kolmogorov")
+    s = eng.next_screen()
+    assert s.shape == (32, 32)
+    assert abs(float(s.std()) - 0.4) < 0.05

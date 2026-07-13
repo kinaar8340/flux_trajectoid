@@ -198,6 +198,26 @@ for r in rows:
     print(r["turbulence_level"], r["overlap_fidelity"], r["oam_fidelity"])
 ```
 
+### Phase screen models
+
+Default channel uses Kolmogorov-like screens. Optional **[convex_defect](https://github.com/kinaar8340/convex_defect)** screens inject frequency- and \(\kappa\)-dependent topological texture (local misalignment grid → \(\rho\) phase screen):
+
+```python
+# sibling checkout: pip install -e ../convex_defect
+prop = ast.propagate(
+    turbulence_level=0.3,
+    screen_model="convex_defect",  # or "hybrid" | "kolmogorov"
+    convex_f=1.5,
+    convex_s=0.5,
+    hybrid_weight=0.55,  # hybrid only
+)
+rows = ast.sweep_turbulence(levels=[0.0, 0.3], screen_model="hybrid", hybrid_weight=0.5)
+```
+
+```bash
+PYTHONPATH=src:../convex_defect/src python examples/compare_phase_screens.py
+```
+
 ---
 
 ## Install

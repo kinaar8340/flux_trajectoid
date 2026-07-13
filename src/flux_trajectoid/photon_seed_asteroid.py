@@ -110,9 +110,15 @@ class PhotonSeedAsteroid:
         apply_bmgl: bool = True,
         recover_photonic: bool = True,
         force_stub_flux: bool = True,
-        **build_kwargs,
+        screen_model: str = "kolmogorov",
+        **kwargs,
     ) -> list[dict[str, Any]]:
-        """Propagate copies of this seed across turbulence levels; collect metrics."""
+        """Propagate copies of this seed across turbulence levels; collect metrics.
+
+        ``screen_model`` and any extra kwargs that are not build-only are forwarded
+        to :meth:`propagate` (e.g. ``convex_f``, ``hybrid_weight``). Known build
+        keys (``n_shards``, ``lattice_nx``, …) stay on the factory.
+        """
         levels = levels if levels is not None else [0.0, 0.1, 0.2, 0.3, 0.5]
         payload = self.payload
         seed = self.seed
@@ -122,6 +128,22 @@ class PhotonSeedAsteroid:
         lattice_nx = (
             int(self.flux_state.metadata.get("lattice_nx", 12)) if self.flux_state else 12
         )
+
+        build_keys = {
+            "n_shards",
+            "lattice_nx",
+            "n_coupling_steps",
+            "force_stub_flux",
+            "n_points",
+            "scale_grid",
+            "scale_max_iter",
+            "n_lat",
+            "n_lon",
+            "build_3d",
+        }
+        build_kwargs = {k: v for k, v in kwargs.items() if k in build_keys}
+        propagate_kwargs = {k: v for k, v in kwargs.items() if k not in build_keys}
+        propagate_kwargs["screen_model"] = screen_model
 
         def _factory() -> PhotonSeedAsteroid:
             kw = {
@@ -143,6 +165,7 @@ class PhotonSeedAsteroid:
             seed=channel_seed if channel_seed is not None else seed,
             apply_bmgl=apply_bmgl,
             recover_photonic=recover_photonic,
+            **propagate_kwargs,
         )
 
     def summary(self) -> dict[str, Any]:

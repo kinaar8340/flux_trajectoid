@@ -220,11 +220,15 @@ def sweep_turbulence(
     seed: int | None = None,
     apply_bmgl: bool = True,
     recover_photonic: bool = True,
+    **propagate_kwargs: Any,
 ) -> list[dict[str, Any]]:
     """
     Rebuild → propagate at each turbulence level → collect metrics (+ optional BER).
 
     ``factory`` should return a **built** PhotonSeedAsteroid (or unbuilt; we call build).
+
+    Extra ``propagate_kwargs`` are forwarded to ``ast.propagate`` (e.g.
+    ``screen_model="convex_defect"``, ``convex_f=1.5``, ``hybrid_weight=0.6``).
     """
     from ..utils.quaternion_utils import bit_error_rate, byte_error_rate
 
@@ -242,11 +246,13 @@ def sweep_turbulence(
             n_steps=n_steps,
             seed=seed,
             apply_bmgl=apply_bmgl,
+            **propagate_kwargs,
         )
         metrics = prop.metrics
         row: dict[str, Any] = {
             "turbulence_level": float(level),
             "n_steps": n_steps,
+            "screen_model": prop.metadata.get("screen_model", "kolmogorov"),
             "overlap_fidelity": metrics.overlap_fidelity if metrics else prop.fidelity_proxy,
             "intensity_correlation": metrics.intensity_correlation if metrics else None,
             "power_retention": metrics.power_retention if metrics else None,

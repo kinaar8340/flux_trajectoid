@@ -91,11 +91,19 @@ Probe: `oam_flux_backend()` / `is_live_oam_flux()`.
 
 ### 4. Transmission (`propagation/`)
 
-- Kolmogorov-like phase screens + tip/tilt jitter  
-- Soft BMGL-style Fourier gate  
+- Phase screens via `phase_screens.py`:
+  - **`kolmogorov`** (default) — Fourier Kolmogorov-like texture  
+  - **`convex_defect`** — structured ρ screens from local misalignment (optional sibling package)  
+  - **`hybrid`** — weighted mix of the two  
+- Tip/tilt jitter + soft BMGL-style Fourier gate  
 - Lattice PDE (`TwistLattice.relax_step` when live)  
 - **FidelityMetrics** on every run (`metrics.py`)  
-- `sweep_turbulence()` for multi-level scorecards + optional photonic BER  
+- `sweep_turbulence(..., screen_model=...)` for multi-level scorecards + optional photonic BER  
+
+```python
+ast.propagate(turbulence_level=0.3, screen_model="convex_defect", convex_f=1.5, convex_s=0.5)
+ast.propagate(turbulence_level=0.3, screen_model="hybrid", hybrid_weight=0.55)
+```
 
 ### 5. Recovery (`recovery/`)
 

@@ -21,9 +21,20 @@ inner:
 propagation:
   turbulence_level: 0.3
   n_steps: 32
+  # screen_model: kolmogorov | convex_defect | hybrid
+  screen_model: kolmogorov
   kolmogorov_alpha: 1.6667
   jitter_std: 0.02
   lattice_memory: 0.15
+  # convex_defect knobs (used when screen_model is convex_defect or hybrid)
+  convex_f: 1.0
+  convex_s: 1.0
+  # convex_kappa: null  # default → package κ* ≈ 0.8513
+  hybrid_weight: 0.5
+  grid_correlation: 0.85
+  grid_noise_frac: 0.25
+  pointer_gamma: 0.35
+
 
 recovery:
   fourier_match_tol: 0.15
