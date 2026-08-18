@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![HF Space](https://img.shields.io/badge/🤗%20Space-flux__trajectoid-yellow.svg)](https://huggingface.co/spaces/kinaar111/flux_trajectoid)
-[![Demo on X](https://img.shields.io/badge/X-11s%20demo-1DA1F2.svg)](https://x.com/kinaar111/status/2075134240703029650)
+[![Demo on X](https://img.shields.io/badge/X-11s%20demo-1DA1F2.svg)](https://x.com/kinaar8340/status/2075134240703029650)
 
 Inspired by **macadamia nuts** (hard shell, dense kernel) and **[trajectoids](https://en.wikipedia.org/wiki/Trajectoid)** (3D bodies whose rolling path encodes a prescribed curve — Sobolev et al., *Nature* 2023), this project models a layered biomimetic photonic packet that propagates as a protected “seed” through simulated optical channels — and exports SLM-ready holograms.
 
@@ -13,7 +13,7 @@ Inspired by **macadamia nuts** (hard shell, dense kernel) and **[trajectoids](ht
 |---|---|
 | **GitHub** | https://github.com/kinaar8340/flux_trajectoid |
 | **Interactive demo** | https://huggingface.co/spaces/kinaar111/flux_trajectoid |
-| **Demo video** | https://x.com/kinaar111/status/2075134240703029650 |
+| **Demo video** | https://x.com/kinaar8340/status/2075134240703029650 |
 
 ---
 
@@ -34,7 +34,7 @@ https://github.com/kinaar8340/flux_trajectoid/raw/main/xyz_demo.mp4
 <p align="center">
   <a href="xyz_demo.mp4"><img src="https://img.shields.io/badge/▶%20xyz__demo.mp4-in%20repo-2ea44f?style=for-the-badge" alt="Play xyz_demo.mp4"/></a>
   &nbsp;
-  <a href="https://x.com/kinaar111/status/2075134240703029650"><img src="https://img.shields.io/badge/X-original%20post-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="X post"/></a>
+  <a href="https://x.com/kinaar8340/status/2075134240703029650"><img src="https://img.shields.io/badge/X-original%20post-1DA1F2?style=for-the-badge&logo=x&logoColor=white" alt="X post"/></a>
   &nbsp;
   <a href="https://huggingface.co/spaces/kinaar111/flux_trajectoid"><img src="https://img.shields.io/badge/🤗-Live%20Space-yellow?style=for-the-badge" alt="HF Space"/></a>
 </p>
