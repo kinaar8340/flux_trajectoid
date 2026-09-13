@@ -1,6 +1,6 @@
 [submodule "external/oam_flux"]
 	path = external/oam_flux
-	url = https://github.com/kinaar8340/oam_flux.git
+	url = https://github.com/qga-lab/oam_flux.git
 [submodule "external/vqc_proto"]
 	path = external/vqc_proto
 	url = https://github.com/kinaar8340/vqc_proto.git

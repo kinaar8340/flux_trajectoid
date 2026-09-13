@@ -413,7 +413,7 @@ flux_trajectoid/
 | Repo | Role |
 |------|------|
 | [vqc_proto](https://github.com/kinaar8340/vqc_proto) | Quaternion + Orbital Braille / OAM imprint |
-| [oam_flux](https://github.com/kinaar8340/oam_flux) | Helical packets, Hopf lattice, flux flywheels |
+| [oam_flux](https://github.com/qga-lab/oam_flux) | Helical packets, Hopf lattice, flux flywheels |
 | [vqc_sims_public](https://github.com/kinaar8340/vqc_sims_public) | Photonics simulation lineage |
 
 ---
